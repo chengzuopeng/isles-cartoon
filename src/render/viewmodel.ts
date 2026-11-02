@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { ModelId } from './asset-urls'
+import { clipGeometry, isClipBox } from './clip-geometry'
 import type { ModelLibrary } from './model-library'
 import { INK_COLOR, toonMaterial, toonify } from './toon'
 
@@ -16,6 +17,7 @@ export interface ViewmodelState {
   magazine: number
   reload: number
   ultimate: boolean
+  supporting: boolean
   alive: boolean
 }
 
@@ -55,13 +57,26 @@ void main() {
 }
 `
 
-const REST = new THREE.Vector3(0.15, -0.105, -0.42)
-const GUN_SCALE = 0.55
-const ARM_SCALE = 0.78
+const REST = new THREE.Vector3(0.17, -0.1, -0.41)
+const HOLD = new THREE.Euler(0.05, 2.15, 0.06, 'ZXY')
+const GUN_SCALE = 0.62
+const RAISE = { drop: 0.22, tilt: 0.7, rate: 7 }
+const TRIGGER_PULL = 0.28
+const LEFT_GRIP = { pivot: new THREE.Vector3(0.22, 0.065, 0), swing: -0.7, show: 0.35, rate: 14 }
 const COIL_LIT = new THREE.Color('#5ff0ff')
 const COIL_DIM = new THREE.Color('#1c3c48')
+const COIL_GLOW = { lit: 0.85, dim: 0.12, charge: 0.6, core: 0.2 }
 const PETAL_OPEN = 1.05
 const MUZZLE_FALLBACK = new THREE.Vector3(0.36, 0.08, 0)
+const UP = new THREE.Vector3(0, 1, 0)
+const PULL = new THREE.Quaternion()
+
+interface ArmRig {
+  root: THREE.Object3D
+  index: THREE.Object3D | null
+  indexRest: THREE.Quaternion
+  left: THREE.Object3D | null
+}
 
 interface WeaponRig {
   id: string
@@ -149,13 +164,13 @@ function buildWeapon(models: ModelLibrary, id: string, hull: THREE.ShaderMateria
     if (!mesh.isMesh) return
     const material = mesh.material as THREE.Material
     if (material.name === 'mat_glow') glowMeshes.push(mesh)
-    if (material.name.startsWith('mat_glow')) (material as THREE.MeshToonMaterial).emissiveIntensity = 2.4
+    if (material.name.startsWith('mat_glow')) (material as THREE.MeshToonMaterial).emissiveIntensity = material.name === 'mat_glow_core' ? COIL_GLOW.core : COIL_GLOW.lit
   })
   if (id === 'blaster' && glowMeshes.length > 0) {
     const glow = glowMeshes[0]
     const pieces = splitByAxis(glow.geometry, 3)
     pieces.forEach((piece) => {
-      const material = toonMaterial({ color: '#bdf6ff', emissive: COIL_LIT, emissiveIntensity: 2.4 })
+      const material = toonMaterial({ color: '#bdf6ff', emissive: COIL_LIT, emissiveIntensity: COIL_GLOW.lit })
       const mesh = new THREE.Mesh(piece, material)
       mesh.position.copy(glow.position)
       mesh.quaternion.copy(glow.quaternion)
@@ -181,77 +196,32 @@ function buildWeapon(models: ModelLibrary, id: string, hull: THREE.ShaderMateria
   return { id, root, muzzle, petals, coils }
 }
 
-function capsule(radius: number, length: number, material: THREE.Material): THREE.Mesh {
-  const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius, length, 3, 8), material)
-  return mesh
-}
-
-function buildArm(): THREE.Group {
-  const arm = new THREE.Group()
-  const orange = toonMaterial({ color: '#e8742a' })
-  const cuff = toonMaterial({ color: '#5a3a26' })
-  const glove = toonMaterial({ color: '#2b2523' })
-  const plate = toonMaterial({ color: '#8d9298' })
-  const skin = toonMaterial({ color: '#f2b98f' })
-  const patch = toonMaterial({ color: '#2a2524' })
-  const star = toonMaterial({ color: '#fbf3e2' })
-
-  const forearm = new THREE.Group()
-  forearm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0.58, -0.42, 0.7).normalize())
-  arm.add(forearm)
-  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.092, 0.62, 12, 1, true), orange)
-  sleeve.rotation.x = Math.PI / 2
-  sleeve.position.z = 0.42
-  forearm.add(sleeve)
-  const fold = new THREE.Mesh(new THREE.TorusGeometry(0.069, 0.012, 6, 14), orange)
-  fold.position.z = 0.12
-  forearm.add(fold)
-  const badge = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.012, 18), patch)
-  badge.rotation.z = Math.PI / 2
-  badge.position.set(0.078, 0.02, 0.3)
-  forearm.add(badge)
-  const badgeStar = new THREE.Mesh(starGeometry(0.028, 0.012, 0.006), star)
-  badgeStar.rotation.y = Math.PI / 2
-  badgeStar.position.set(0.085, 0.02, 0.3)
-  forearm.add(badgeStar)
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.06, 0.07, 12), cuff)
-  band.rotation.x = Math.PI / 2
-  band.position.z = 0.075
-  forearm.add(band)
-  const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.047, 0.05, 10), skin)
-  wrist.rotation.x = Math.PI / 2
-  wrist.position.z = 0.03
-  forearm.add(wrist)
-
-  const hand = new THREE.Group()
-  hand.position.set(0.012, -0.03, 0.004)
-  arm.add(hand)
-  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.088, 0.086), glove)
-  palm.position.set(0.02, -0.004, 0.0)
-  hand.add(palm)
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.056), plate)
-  back.position.set(0.057, 0.004, 0.0)
-  hand.add(back)
-  for (let i = 0; i < 4; i++) {
-    const y = 0.026 - i * 0.022
-    const finger = capsule(0.0115, 0.042, glove)
-    finger.rotation.set(0, -0.5, Math.PI / 2)
-    finger.position.set(-0.016, y, -0.04)
-    hand.add(finger)
-    const tip = capsule(0.0085, 0.004, skin)
-    tip.rotation.set(0, -0.9, Math.PI / 2)
-    tip.position.set(-0.04, y, -0.026)
-    hand.add(tip)
+function buildArms(models: ModelLibrary, hull: THREE.ShaderMaterial): ArmRig | null {
+  if (!models.has('fp-arms')) return null
+  const { root } = models.instance('fp-arms')
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh
+    if (mesh.isMesh && isClipBox(mesh.userData.clip)) mesh.geometry = clipGeometry(mesh.geometry, mesh.userData.clip)
+  })
+  toonify(root)
+  addHulls(root, hull)
+  const index = root.getObjectByName('index_r') ?? null
+  const arm = root.getObjectByName('arm_l') ?? null
+  let left: THREE.Object3D | null = null
+  if (arm) {
+    left = new THREE.Group()
+    left.position.copy(LEFT_GRIP.pivot)
+    root.add(left)
+    arm.position.sub(LEFT_GRIP.pivot)
+    left.add(arm)
+    left.visible = false
   }
-  const thumb = capsule(0.013, 0.05, glove)
-  thumb.rotation.set(Math.PI / 2, 0, 0.35)
-  thumb.position.set(-0.03, 0.04, -0.02)
-  hand.add(thumb)
-  const thumbTip = capsule(0.0085, 0.006, skin)
-  thumbTip.rotation.set(Math.PI / 2, 0, 0.35)
-  thumbTip.position.set(-0.036, 0.042, -0.06)
-  hand.add(thumbTip)
-  return arm
+  return {
+    root,
+    index,
+    indexRest: index ? index.quaternion.clone() : new THREE.Quaternion(),
+    left,
+  }
 }
 
 function starGeometry(outer: number, inner: number, depth: number): THREE.BufferGeometry {
@@ -295,13 +265,9 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
   rig.position.copy(REST)
   scene.add(rig)
   const holder = new THREE.Group()
-  holder.rotation.set(0.04, Math.PI / 2 + 0.07, 0)
+  holder.rotation.copy(HOLD)
   holder.scale.setScalar(GUN_SCALE)
   rig.add(holder)
-  const arm = buildArm()
-  arm.scale.setScalar(ARM_SCALE)
-  rig.add(arm)
-  addHulls(arm, hull)
 
   const flashMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#d6fbff').multiplyScalar(3), transparent: true, depthWrite: false, side: THREE.DoubleSide })
   const flash = new THREE.Mesh(starGeometry(0.16, 0.05, 0.001), flashMaterial)
@@ -310,6 +276,11 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
 
   const weapons = new Map<string, WeaponRig | null>()
   let current: WeaponRig | null = null
+  let arms: ArmRig | null = null
+  let raise = 1
+  let wasAlive = false
+  let trigger = 0
+  let support = 0
   let swayX = 0
   let swayY = 0
   let bobTime = 0
@@ -353,6 +324,15 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
     update(state, worldCamera, sunDirection) {
       const { dt } = state
       equip(state.weapon)
+      if (!arms) {
+        arms = buildArms(models, hull)
+        if (arms) holder.add(arms.root)
+      }
+      if (state.alive && !wasAlive) raise = 1
+      wasAlive = state.alive
+      raise = damp(raise, 0, RAISE.rate, dt)
+      trigger = damp(trigger, 0, 18, dt)
+      support = damp(support, state.supporting ? 1 : 0, LEFT_GRIP.rate, dt)
       rig.visible = visible && state.alive
       inverse.copy(worldCamera.matrixWorld).invert()
       sunView.copy(sunDirection).transformDirection(inverse)
@@ -398,10 +378,18 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
       const bobY = -Math.abs(Math.cos(bobTime)) * 0.009 * bobAmount + Math.sin(bobTime * 0.35) * 0.002
       rig.position.set(
         REST.x + swayX + bobX - thrust * 0.06 - dashTilt * 0.015,
-        REST.y + swayY + bobY - lower * 0.16 + jumpOffset - thrust * 0.015,
+        REST.y + swayY + bobY - lower * 0.16 + jumpOffset - thrust * 0.015 - raise * RAISE.drop,
         REST.z + recoil * 0.045 - thrust * 0.08,
       )
-      rig.rotation.set(recoil * 0.22 + swing * 0.35 + swayY * 2, swayX * 2.5 + swing * 0.55, -dashTilt * 0.25 - swing * 0.4)
+      rig.rotation.set(recoil * 0.22 + swing * 0.35 + swayY * 2 - raise * RAISE.tilt, swayX * 2.5 + swing * 0.55, -dashTilt * 0.25 - swing * 0.4)
+
+      if (arms) {
+        if (arms.index) arms.index.quaternion.copy(arms.indexRest).multiply(PULL.setFromAxisAngle(UP, trigger * TRIGGER_PULL))
+        if (arms.left) {
+          arms.left.visible = support > LEFT_GRIP.show
+          arms.left.rotation.x = (1 - support) * LEFT_GRIP.swing
+        }
+      }
 
       if (current) {
         current.petals.forEach((petal) => {
@@ -412,13 +400,14 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
           const lit = index < state.ammo
           const charging = !lit && index === state.ammo ? state.reload : 0
           material.emissive.copy(lit ? COIL_LIT : COIL_DIM).lerp(COIL_LIT, charging * 0.5)
-          material.emissiveIntensity = lit ? 2.4 : 0.35 + charging * 1.2
+          material.emissiveIntensity = lit ? COIL_GLOW.lit : COIL_GLOW.dim + charging * COIL_GLOW.charge
         })
       }
     },
     shot() {
       recoil = Math.min(1.4, recoil + 1)
       flashTime = 0.06
+      trigger = 1
     },
     melee() {
       meleeTime = 0

@@ -49,6 +49,13 @@
 | `skill-shockwave.png` | `art/ui/skills/shockwave.png` | 冲击波技能图标，出新技能图标时定画风 |
 | `chapter-1-title.png` | `art/scenes/chapter-1-title.png` | 第 1 章标题卡插图，场景气氛的参考 |
 
+## models/：3D 模型
+
+| 目录 | 内容 |
+|---|---|
+| `fp-arm-right/`、`fp-arm-left/` | 第一人称右臂、左臂的多视图设定图（Codex 画，2026-11-02），给混元 3D 当输入。手里握着一根素灰色的棒子，用来摆出握枪、托枪的姿势；右臂那张的「俯视图」画成了另一个侧视，没用 |
+| `fp-arms/` | `assemble.py` 把混元做好的两只手臂对到能量枪的握把和枪管上，输出 `fp-arms.glb`（游戏里的 `fp-arms` 模型）。混元的原始下载不进仓库：右臂 8,757 面、左臂 12,873 面，都是 Studio 里 High 档重拓扑的结果 |
+
 ## 以后的目录
 
 沿用主仓库的分法，游戏实际加载的版本放 `public/assets/`，原图留在这里：

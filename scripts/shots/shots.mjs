@@ -77,6 +77,7 @@ async function main() {
     for (const spot of chosen) {
       if (spot.level !== current) {
         await startLevel(page, spot.level)
+        await sleep(1200)
         current = spot.level
       }
       await page.evaluate((target) => {

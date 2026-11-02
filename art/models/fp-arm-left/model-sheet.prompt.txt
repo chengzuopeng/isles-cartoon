@@ -1,0 +1,24 @@
+# 凯的第一人称左臂：多视图设定图（给混元 3D 的输入）
+
+附图：art/models/fp-arm-right/model-sheet.png（同一套的右臂，画风和服装照它）、art/concept/viewmodel-kai.png
+
+## 第一次生成
+
+Use case: stylized-concept
+Asset type: a precise orthographic multi-view model sheet for a 3D game asset that will be rebuilt in 3D from these views: the first-person LEFT ARM of the hero Kai, supporting a plain horizontal bar from below.
+Input images: Image 1 is the model sheet of Kai's RIGHT arm in the same set; match its exact rendering, chunky proportions, colors, glove, metal plate, wrist strap with orange buckle, knit cuff, folded orange sleeve and flat orange end cap, but draw a LEFT arm in a different pose. Image 2 is a first-person concept of Kai's arms; the LEFT glove and sleeve look the same as the right ones. Draw ONLY the arm and the plain bar, never a gun or the character.
+
+Subject: one LEFT arm from the hand up to just above the elbow, ending in a clean flat circular cut at the upper arm closed with a flat orange cap. The left hand holds a plain matte light grey (#b8bcc0) horizontal bar from BELOW, like supporting the barrel of a heavy gun: the bar is a rounded rectangular beam about 1.6 times as long as the palm, about as thick as two fingers are wide, running straight forward-backward, with flat ends. The palm faces up and cradles the bottom of the bar; the four fingers curl up around the bar's RIGHT side with their bare fingertips resting on the bar's top right edge; the thumb lies along the bar's LEFT side pointing forward. The wrist is straight; the forearm angles down and backward from the hand at about 35 degrees below horizontal, in the same vertical plane as the bar, so the elbow end is lower and behind the hand. No badge on this arm.
+Costume: same as image 1: chunky dark charcoal-brown (#2f2a28) fingerless glove covering the palm, the back of the hand and the first finger segments, last finger segments bare skin (#f4bf98); a big rounded light grey metal plate on the back of the hand, which here faces down and slightly to the left; dark brown (#4a3426) wrist strap with a small orange buckle; a short stretch of bare forearm skin; a thick ribbed dark brown knit cuff; then the bright orange (#ef7f22) jacket sleeve with soft folds up to the cut.
+
+Views: four orthographic views of ONE identical arm at exactly the same physical scale, a coherent turnaround for a 3D modeler, no perspective, no tilt, no 3/4 angle, all four views side by side in ONE row, left to right:
+(1) RIGHT SIDE view: camera on the arm's right side; the bar and hand at the image RIGHT, the forearm going down and to the image LEFT; we see the curled fingertips on the bar's right side.
+(2) LEFT SIDE view: camera on the arm's left side; the bar and hand at the image LEFT, the forearm going down and to the image RIGHT; we see the thumb along the bar and the back of the hand with its metal plate facing down-left.
+(3) FRONT view: camera in front looking back along the bar; we see the bar's flat grey end, the hand cradling it from below, and the arm going down and away behind it.
+(4) BACK view: camera behind the elbow end looking forward; we see the flat round orange cap of the sleeve and the hand and bar above and beyond it.
+Leave wide pure magenta gaps between the four views so none of them touch or overlap; align their lowest points on one invisible horizontal line.
+Style/medium: identical to image 1: bright saturated stylized 3D cartoon render, smooth rounded chunky forms, soft toon shading in two or three tones, thin dark contour lines, soft ambient occlusion only on the object, even studio light from the upper left.
+Composition: one 16:9 landscape canvas, the four views in one row, each as large as the layout allows.
+Scene/backdrop: perfectly flat, uniform chroma magenta #FF00FF on every background pixel, including the gaps between fingers and between the views. No ground, shadow, pedestal or gradient.
+Constraints: no text, letters, numbers, labels, arrows, grid, border, watermark, gun, other hand or character.
+Original generated image: /Users/zuopeng.cheng/.codex/generated_images/01a19b6d-cba6-72b1-bc9a-018a1a4b3352/call_vV0WBDjd7N5MoP8ZAafB8l5v.png

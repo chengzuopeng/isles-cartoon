@@ -98,6 +98,7 @@ export interface ProjectileViews {
 }
 
 const BASE_RADIUS = 0.13
+export const PLAYER_BOLT_GROW = { start: 0.3, distance: 5 }
 const ENEMY_STYLE: BulletStyle = { color: '#ff4f8b', stretch: 1, scale: 1, opacity: 1, grow: 0 }
 const ENEMY_STYLES: Partial<Record<WeaponId, BulletStyle>> = {
   chiefCannon: { color: '#ff8a3d', stretch: 1.55, scale: 1.15, opacity: 1, grow: 0 },
@@ -360,11 +361,12 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
       spheres += 1
       const style = bullet.team === 'enemy' ? (ENEMY_STYLES[bullet.weapon] ?? ENEMY_STYLE) : (STYLES[bullet.weapon] ?? DEFAULT_STYLE)
       const progress = bullet.range > 0 ? clamp(bullet.traveled / bullet.range, 0, 1) : 0
-      const size = (bullet.radius / BASE_RADIUS) * style.scale * (1 + style.grow * progress)
+      const near = bullet.team === 'player' ? PLAYER_BOLT_GROW.start + (1 - PLAYER_BOLT_GROW.start) * clamp(bullet.traveled / PLAYER_BOLT_GROW.distance, 0, 1) : 1
+      const size = (bullet.radius / BASE_RADIUS) * style.scale * (1 + style.grow * progress) * near
       mesh.material = material(style.color, style.grow > 0 ? Math.max(0.15, style.opacity * (1 - progress)) : style.opacity)
       mesh.scale.set(size * style.stretch, size, size)
       mesh.visible = true
-      mesh.position.copy(bulletPoint(bullet, alpha, bullet.radius * style.scale * style.stretch, place))
+      mesh.position.copy(bulletPoint(bullet, alpha, bullet.radius * style.scale * style.stretch * near, place))
       mesh.rotation.y = -Math.atan2(bullet.dirY, bullet.dirX)
     }
     for (let i = spheres; i < bullets.length; i++) bullets[i].visible = false

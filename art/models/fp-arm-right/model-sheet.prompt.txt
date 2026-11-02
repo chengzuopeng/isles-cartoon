@@ -1,0 +1,28 @@
+# 凯的第一人称右臂：多视图设定图（给混元 3D 的输入）
+
+附图：art/concept/viewmodel-kai.png（手套、护板、袖口、袖子、星章）、art/reference/kai-model-sheet.png（画风、配色、比例）
+
+## 第一次生成
+
+
+Use case: stylized-concept
+Asset type: a precise orthographic multi-view model sheet for a 3D game asset that will be rebuilt in 3D from these views: the first-person RIGHT ARM of the hero Kai, gripping a plain handle.
+Input images: Image 1 is a first-person concept of Kai's right arm and fingerless glove holding her energy blaster; reproduce its glove, metal plate, wrist strap, knit cuff, sleeve and star badge design. Image 2 is Kai's character model sheet; match its chunky cartoon proportions, colors and 3D toon rendering. Draw ONLY the arm and the plain handle, never the gun or the character.
+
+Subject: one RIGHT arm, held straight, from the hand up to just above the elbow, ending in a clean flat circular cut at the upper arm that is closed with a flat orange cap, like a game asset. The right hand firmly grips a plain matte light grey (#b8bcc0) rounded-rectangle handle bar, like a pistol grip with no gun attached: the handle is about 1.3 times as tall as the palm is long, its front-to-back depth about equal to the palm width, its side-to-side thickness about two thirds of the palm width, tilted back about 15 degrees from vertical, with nothing attached above or below it and its top and bottom ends flat. Grip pose: the middle, ring and little fingers wrap tightly around the front of the handle, their bare fingertips ending on the handle's left side; the index finger is bent and points forward from the top front of the handle, curled as if resting on a trigger in front of it; the thumb lies along the upper left side of the handle pointing forward; the web between thumb and index finger sits on the top back of the handle. The wrist is straight and the forearm continues straight backward from the hand, horizontal.
+Costume: chunky dark charcoal-brown (#2f2a28) fingerless glove covering the palm, the back of the hand and the first finger segments, the last finger segments bare skin (#f4bf98); a big rounded light grey metal plate on the back of the hand; a dark brown (#4a3426) glove wrist strap with a small orange buckle; a short stretch of bare forearm skin; a thick ribbed dark brown knit cuff; then the bright orange (#ef7f22) jacket sleeve, slightly puffy with a few soft folds, covering the rest of the arm up to the cut; one round black badge with a white five-point star on the outer (right) side of the sleeve near the elbow.
+
+Views: five orthographic views of ONE identical arm at exactly the same physical scale, a coherent turnaround for a 3D modeler, no perspective, no tilt, no 3/4 angle.
+Top row, left to right:
+(1) RIGHT SIDE view: camera on the arm's right side; the hand and handle at the image RIGHT end, the arm extending horizontally to the image LEFT; we see the back of the hand with the metal plate, the knuckles, and the star badge on the sleeve.
+(2) LEFT SIDE view: camera on the arm's left side; the hand and handle at the image LEFT end, the arm extending horizontally to the image RIGHT; we see the thumb along the handle and the bare fingertips wrapped onto the handle's left side; no badge on this side.
+Bottom row, left to right:
+(3) TOP view: camera directly above looking down; the hand and the flat top of the handle at the image RIGHT end, the arm extending horizontally to the image LEFT; we see the top of the hand, the thumb and the curled index finger.
+(4) FRONT view: camera in front of the hand looking back along the arm; we see the knuckles and fingers wrapped around the front of the handle, the index finger pointing at the camera, and the sleeve outline behind the hand; the arm itself is hidden behind the hand.
+(5) BACK view: camera behind the cut end of the upper arm looking forward; we see the flat round orange cap of the sleeve, with the hand hidden behind it.
+The side and top views have equal lengths from fingertip to the cut. Leave wide pure magenta gaps between all five views so none of them touch or overlap.
+Style/medium: bright saturated stylized 3D cartoon render, smooth rounded chunky forms, soft toon shading in two or three tones, thin dark contour lines, soft ambient occlusion only on the object, even studio light from the upper left so no part is in deep shadow. Clean readable shapes, not flat icons and not line art.
+Composition: one 16:9 landscape canvas, the five views arranged as described, each as large as the layout allows.
+Scene/backdrop: perfectly flat, uniform chroma magenta #FF00FF on every background pixel, including the gaps between fingers and between the views. No ground, shadow, pedestal or gradient.
+Constraints: no text, letters, numbers, labels, arrows, grid, border, watermark, gun, other hand or character.
+Original generated image: /Users/zuopeng.cheng/.codex/generated_images/01a19b64-56dc-7573-b795-c971fea8f48b/call_FvuhRufryDr7ZUkhcFUeEq3y.png

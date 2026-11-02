@@ -164,7 +164,7 @@ declare global {
 
 const SAVE_KEY = 'isles-cartoon.save.v1'
 const ELITE_KINDS: readonly MinionKind[] = ['grunt', 'gunner', 'shield', 'thrower']
-const VIEWMODEL_MODELS: readonly ModelId[] = ['blaster']
+const VIEWMODEL_MODELS: readonly ModelId[] = ['blaster', 'fp-arms']
 const DEG = Math.PI / 180
 const BOB_HEIGHT = 0.035
 const BOB_RATE = 2.2
@@ -1038,7 +1038,8 @@ function frame(now: number): void {
         magazine: player.magazine,
         reload: player.reload,
         ultimate: player.ultShots > 0 || player.ultimate >= 1,
-        alive: player.alive && stage.view === 'fps' && screen === 'play',
+        supporting: player.ultShots > 0,
+        alive: player.alive && stage.view === 'fps' && screen === 'play' && !dialogue.isOpen(),
       },
       stage.camera,
       sunDirection,

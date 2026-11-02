@@ -20,3 +20,14 @@
 - 第一人称手臂和枪是精度最高的模型，面数和贴图分辨率给到其他模型的两倍左右
 - 敌人要按平视检查正面（主仓库的模型是先按斜上方 55° 检查轮廓的）
 - 字体这类第三方素材，用之前先问用户，登记进 `art/CREDITS.md`
+
+## 2026-11-02 更新：3D 模型可以用混元 3D
+
+用户定了：建模可以用腾讯混元 3D 的网页版 3D Studio（用户的 Chrome 里已经登录，在那里操作），做法见主仓库的 skill `hunyuan-3d-web`。第一个用它做的是第一人称手臂：
+
+1. Codex 画多视图设定图：手握一根素灰色的棒子（`art/models/fp-arm-right/`、`fp-arm-left/` 的 `model-sheet.png`）。棒子是为了让手摆出握枪、托枪的姿势，游戏里它藏在枪身里面
+2. 混元：多视图生成几何（50 万面）→ 重拓扑（High、三角面）→ 展 UV → 多视图贴图，下载带贴图的 GLB
+3. `art/models/fp-arms/assemble.py`（Blender 后台脚本）按贴图颜色找到灰棒子，把右手对到能量枪的握把上、左手对到枪管下面；只留颜色贴图（缩到 2048），材质改成不带金属感的哑光，右手棒子的范围存进节点 extras，导出 `fp-arms.glb`。重跑：`blender --background --factory-startup --python art/models/fp-arms/assemble.py -- --right <混元右臂.glb> --left <混元左臂.glb>`，预览图写到系统临时目录的 `fp-arms-preview/`
+4. `scripts/build-assets.sh` 打包成运行时资源（贴图 1024，KTX2）
+
+混元的模型是一整块网格，没有关节和零件，所以只适合不需要拆零件动的东西；枪的线圈、瓣片这种要单独动的零件，还是用 Blender 脚本做。混元下载的原始 GLB（每个 25 MB 左右，大头是 4K 贴图）不进仓库，`assemble.py` 的输出才是源文件。

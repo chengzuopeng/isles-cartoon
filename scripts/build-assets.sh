@@ -27,7 +27,7 @@ key bosses/forest-tank/wanted.png portraits/forest-tank-wanted.png 480 720 0.01 
 key bosses/harvester/wanted.png portraits/harvester-wanted.png 480 720 0.01 bottom
 key ui/skills/concussion.png ui/skills/concussion.png 128 128 0.04
 
-MODELS=()
+MODELS=(fp-arms/fp-arms)
 if [[ ${#MODELS[@]} -gt 0 ]]; then
   glbs=()
   for entry in "${MODELS[@]}"; do
