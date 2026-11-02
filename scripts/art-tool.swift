@@ -65,7 +65,7 @@ func keyMagenta(_ bitmap: inout Bitmap) {
         bitmap.pixels[i] = UInt8(r * alpha)
         bitmap.pixels[i + 1] = UInt8(g * alpha)
         bitmap.pixels[i + 2] = UInt8(b * alpha)
-        bitmap.pixels[i + 3] = UInt8(255 * alpha)
+        bitmap.pixels[i + 3] = UInt8(Double(bitmap.pixels[i + 3]) * alpha)
     }
 }
 

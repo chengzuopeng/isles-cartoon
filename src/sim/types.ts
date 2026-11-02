@@ -283,6 +283,7 @@ export interface Blast {
   gapWidth: number
   attack: Attack | null
   weapon: WeaponId | null
+  stun: number
 }
 
 export interface Ring {

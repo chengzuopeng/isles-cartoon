@@ -12,6 +12,7 @@ import { blastLandmarks } from './landmark-state'
 import { aggro, witnessDeath } from './perception'
 import { rollEnemyDrop, rollItem, spawnPickup } from './pickups'
 import { barrierBurstKnockback, pushEnemies } from './skills'
+import { stunEnemy } from './status'
 import type { Vec2 } from './math'
 import { bodyHeight } from './terrain'
 import { chargeUltimate, ultShareOf } from './ultimate'
@@ -40,6 +41,7 @@ export interface BlastSpec {
   gapWidth?: number
   attack?: Attack | null
   weapon?: WeaponId | null
+  stun?: number
 }
 
 export function damagePlayer(
@@ -280,6 +282,7 @@ export function spawnBlast(world: World, spec: BlastSpec): Blast {
     gapWidth: spec.gapWidth ?? 0,
     attack: spec.attack ?? null,
     weapon: spec.weapon ?? null,
+    stun: spec.stun ?? 0,
   }
   world.blasts.push(blast)
   return blast
@@ -343,6 +346,7 @@ function detonate(world: World, blast: Blast): void {
       const distance = Math.hypot(dx, dy)
       const length = distance > 1e-6 ? distance : 1
       damageEnemy(world, enemy, blast.enemyDamage, dx / length, dy / length, knockback)
+      if (blast.stun > 0 && enemy.hp > 0) stunEnemy(world, enemy, blast.stun)
       if (blast.source === 'player') chargeUltimate(world, blast.enemyDamage * ultShareOf(world, blast.weapon))
     }
   }

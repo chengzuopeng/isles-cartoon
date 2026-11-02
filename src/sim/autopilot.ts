@@ -23,7 +23,7 @@ import { mineRadius, mineRule } from './mines'
 import { tileIndex } from './navigation'
 import { threatNearby } from './player'
 import { createRng } from './rng'
-import { rankOf } from './skills'
+import { concussionTarget, rankOf } from './skills'
 import { playerSpeedFactor } from './status'
 import { idleCommand } from './step'
 import { bodyHeight, centerOf, playerChest, playerEye } from './terrain'
@@ -279,7 +279,7 @@ export function createAutopilot(options: AutopilotOptions = {}): Autopilot {
         if (command.ultimate && world.mines.length > 0 && mineInLine(world, target.pos.x, target.pos.y)) command.ultimate = false
       }
       const evade = react(world)
-      command.skill = pickSkill(world, evade)
+      command.skill = pickSkill(world)
       const captain = guardBoss(world)
       const tank = tankBoss(world)
       if (!target || target.id !== siege.id) {
@@ -356,7 +356,7 @@ export function createAutopilot(options: AutopilotOptions = {}): Autopilot {
               command.dash = true
             }
           }
-        } else if (evade && urgentDanger(world) && !hasRoll(world)) {
+        } else if (evade && urgentDanger(world)) {
           const dir = normalize(command.moveX, command.moveY)
           if (dir && pathSafe(world, dir, world.tuning.player.dashDistance, safeNow)) command.dash = true
         }
@@ -615,18 +615,25 @@ function pickSlot(world: World, at: Vec2): WeaponSlot | null {
   return wanted === player.slot ? null : wanted
 }
 
-function hasRoll(world: World): boolean {
-  return world.player.skills.some((skill) => skill.id === 'roll' && skill.cooldown <= 0)
-}
-
-function pickSkill(world: World, evade: Vec2 | null): SkillSlot | null {
+function pickSkill(world: World): SkillSlot | null {
   const { player } = world
   for (const skill of player.skills) {
     if (skill.cooldown > 0) continue
     switch (skill.id) {
-      case 'roll':
-        if (evade && urgentDanger(world)) return skill.slot
+      case 'concussion': {
+        const rank = rankOf(SKILLS.concussion.ranks, skill.rank)
+        const landing = concussionTarget(world, rank.range)
+        let caught = 0
+        let charging = false
+        for (const enemy of world.enemies) {
+          if (enemy.hp <= 0 || enemy.kind === 'boss' || !enemy.aggro) continue
+          if (distance(enemy.pos, landing) > rank.radius + enemy.radius) continue
+          caught += 1
+          if (enemy.state === 'windup' || enemy.state === 'charge') charging = true
+        }
+        if (caught >= 2 || charging) return skill.slot
         break
+      }
       case 'barrier': {
         let crowd = 0
         for (const enemy of world.enemies) {

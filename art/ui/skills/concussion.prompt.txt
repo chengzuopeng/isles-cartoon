@@ -1,0 +1,9 @@
+Use case: stylized-concept
+Asset type: one square game UI skill icon; artwork layer for exact flat #FF00FF chroma-key compositing.
+Input image: the supplied shockwave skill badge is a STYLE REFERENCE ONLY for rounded-square geometry, dark blue-gray #26304A face, copper metallic frame, chunky proportions, bold outline weight, low-poly toon finish, and upper-left lighting. Create new central artwork, not a shockwave.
+Scene/backdrop: perfectly flat, solid magenta #FF00FF everywhere outside the rounded-square badge, no gradient, ground, cast shadow, exterior glow, vignette, or outer border.
+Style/medium: bright saturated stylized 3D cartoon render, low-poly rounded forms, toon shading, bold dark outlines of consistent thickness, soft ambient occlusion confined to the badge, clean materials with little fine texture, wholly original design without resemblance to existing game icons. Light from upper-left.
+Composition/framing: exactly one complete centered rounded-square badge about 80% of the 1:1 canvas, clear margin on all sides, no cropping; match the reference badge's size and perspective. All central artwork stays inside the badge.
+Constraints: no text, letters, numbers, watermark, extra objects, or magenta on the badge.
+Subject: dark blue-gray #26304A rounded-square badge with thick copper metallic frame. Centered on its face is a small round brass-and-steel concussion grenade with a stubby pull ring, flying in a short arc from the lower left toward the upper right, trailing two quick white motion lines; at the upper right it bursts into a bright pale-yellow starburst flash with three small cartoon dizzy stars circling around the burst. Keep shapes simple and large so the grenade, the burst and the dizzy stars read clearly at small UI size, entirely inside the square frame.
+Original generated image: /Users/zuopeng.cheng/.codex/generated_images/01a19b44-159a-74a2-b7f6-79bd52392900/call_bLj9Z3eYdh1Kl1ZSsDOlmN52.png

@@ -387,7 +387,7 @@ export function createSfx(): Sfx {
         chime([1046, 1319, 1568], 0.06, 0.07)
         break
       case 'skillCast':
-        if (event.skill === 'roll') hiss({ filter: 'bandpass', from: 1200, to: 400, duration: 0.2, gain: 0.14, q: 0.7 })
+        if (event.skill === 'concussion') hiss({ filter: 'bandpass', from: 1500, to: 500, duration: 0.18, gain: 0.12, q: 0.9 })
         else if (event.skill === 'barrier') chime([523, 784, 1046], 0.04, 0.07, 'sine')
         break
       case 'shockwave':

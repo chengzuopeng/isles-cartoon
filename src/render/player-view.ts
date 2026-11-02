@@ -568,7 +568,7 @@ export function createPlayerView(
           if (event.absorbed > 0) shieldFlash = 1
           break
         case 'skillCast':
-          if (event.skill === 'roll') effects.puff(event.x, 0.2, event.y, '#e7d7b8', 0.3, 1.1, 0.3)
+          if (event.skill === 'concussion') effects.puff(event.x, 1.2, event.y, '#cfe9ff', 0.2, 0.6, 0.2)
           break
         case 'dodged':
           effects.puff(event.x, 0.7, event.y, '#ffffff', 0.2, 0.9, 0.2)

@@ -1,12 +1,14 @@
-export type SkillId = 'roll' | 'barrier' | 'shockwave'
+export type SkillId = 'concussion' | 'barrier' | 'shockwave'
 
 export type SkillSlot = 'q' | 'e'
 
-export type RollRank = {
+export type ConcussionRank = {
   cooldown: number
-  distance: number
-  duration: number
-  empower: number
+  range: number
+  radius: number
+  stun: number
+  damage: number
+  flight: number
 }
 
 export type BarrierRank = {
@@ -34,12 +36,16 @@ export type SkillDef<Rank> = {
 }
 
 export type SkillBook = {
-  roll: SkillDef<RollRank>
+  concussion: SkillDef<ConcussionRank>
   barrier: SkillDef<BarrierRank>
   shockwave: SkillDef<ShockwaveRank>
 }
 
-export const SKILL_ORDER: readonly SkillId[] = ['roll', 'barrier', 'shockwave']
+export const SKILL_ORDER: readonly SkillId[] = ['concussion', 'barrier', 'shockwave']
+
+export const RETIRED_SKILLS: Readonly<Record<string, SkillId>> = { roll: 'concussion' }
+
+export const CONCUSSION_MIN = 2
 
 export const SKILL_SLOTS: readonly SkillSlot[] = ['q', 'e']
 
@@ -49,15 +55,15 @@ export const SKILL_POINT_EVERY = 3
 export const SKILL_MAX_RANK = 3
 
 export const SKILLS: SkillBook = {
-  roll: {
-    name: '翻滚',
-    kind: '位移',
+  concussion: {
+    name: '震荡雷',
+    kind: '投掷',
     unlockChapter: 1,
-    lines: ['朝移动方向翻滚 3 格，翻滚中 0.25 秒无敌', '冷却从 4 秒缩短到 3 秒', '翻滚后下一次攻击伤害 +50%'],
+    lines: ['朝准星方向抛一颗雷，落地炸开，3 米内的敌人眩晕 1.2 秒', '冷却从 10 秒缩短到 8 秒', '范围扩大到 4 米，眩晕延长到 1.8 秒'],
     ranks: [
-      { cooldown: 4, distance: 3, duration: 0.25, empower: 0 },
-      { cooldown: 3, distance: 3, duration: 0.25, empower: 0 },
-      { cooldown: 3, distance: 3, duration: 0.25, empower: 0.5 },
+      { cooldown: 10, range: 14, radius: 3, stun: 1.2, damage: 60, flight: 0.55 },
+      { cooldown: 8, range: 14, radius: 3, stun: 1.2, damage: 60, flight: 0.55 },
+      { cooldown: 8, range: 14, radius: 4, stun: 1.8, damage: 60, flight: 0.55 },
     ],
   },
   barrier: {

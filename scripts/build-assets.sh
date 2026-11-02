@@ -21,6 +21,11 @@ region concept/sfx-lettering.png ui/sfx/word-5.png 0.3334 0.5 0.635 1 384 256 0.
 region ui/items/food.png ui/items/food-bread.png 0 0 0.5 1 256 256 0.04
 region ui/items/food.png ui/items/food-apple.png 0.5 0 1 1 256 256 0.04
 key bosses/scarecrow/wanted.png portraits/scarecrow-wanted.png 480 720 0.01 bottom
+key bosses/demo-chief/wanted.png portraits/demo-chief-wanted.png 480 720 0.01 bottom
+key bosses/shield-captain/wanted.png portraits/shield-captain-wanted.png 480 720 0.01 bottom
+key bosses/forest-tank/wanted.png portraits/forest-tank-wanted.png 480 720 0.01 bottom
+key bosses/harvester/wanted.png portraits/harvester-wanted.png 480 720 0.01 bottom
+key ui/skills/concussion.png ui/skills/concussion.png 128 128 0.04
 
 MODELS=()
 if [[ ${#MODELS[@]} -gt 0 ]]; then

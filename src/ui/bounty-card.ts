@@ -15,6 +15,30 @@ export const POSTERS: Readonly<Record<string, BountyPoster>> = {
     crime: '替强盗看守抢来的麦子，见人就叉，连乌鸦都不放过',
     reward: '120 星币',
   },
+  'demo-chief': {
+    name: '爆破头目',
+    portrait: 'demo-chief-wanted',
+    crime: '往牧场的运粮车里塞满炸弹，见篱笆就炸',
+    reward: '180 星币',
+  },
+  'shield-captain': {
+    name: '铁盾队长',
+    portrait: 'shield-captain-wanted',
+    crime: '拆了农庄两扇谷仓门当盾牌，霸占粮仓不还',
+    reward: '220 星币',
+  },
+  'forest-tank': {
+    name: '林地炮车',
+    portrait: 'forest-tank-wanted',
+    crime: '披着树枝在雾林里打冷炮，沿路埋满地雷',
+    reward: '260 星币',
+  },
+  harvester: {
+    name: '巨型收割机',
+    portrait: 'harvester-wanted',
+    crime: '一口吞掉整片麦田；驾驶员螺栓上尉另案通缉',
+    reward: '500 星币',
+  },
 }
 
 export interface BountyCard {

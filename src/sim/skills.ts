@@ -1,6 +1,8 @@
-import { SKILLS, type BarrierRank, type RollRank, type ShockwaveRank } from '../data/skills'
-import { damageEnemy } from './combat'
+import { eyeHeightOf } from '../data/heights'
+import { CONCUSSION_MIN, SKILLS, type BarrierRank, type ConcussionRank, type ShockwaveRank } from '../data/skills'
+import { damageEnemy, spawnBlast } from './combat'
 import { interruptEnemy } from './enemies'
+import { blocksMovement, floorAt, tileAt } from './grid'
 import { refreshStats } from './stats'
 import { playerDisabled, stunEnemy } from './status'
 import type { PlayerCommand, SkillRuntime } from './types'
@@ -36,8 +38,8 @@ function cast(world: World, skill: SkillRuntime, command: PlayerCommand): void {
   const { player } = world
   skill.cooldown = skillCooldownOf(world, skill)
   switch (skill.id) {
-    case 'roll':
-      roll(world, rankOf<RollRank>(SKILLS.roll.ranks, skill.rank), command)
+    case 'concussion':
+      throwConcussion(world, rankOf<ConcussionRank>(SKILLS.concussion.ranks, skill.rank), command)
       break
     case 'barrier':
       raiseBarrier(world, rankOf<BarrierRank>(SKILLS.barrier.ranks, skill.rank))
@@ -49,17 +51,38 @@ function cast(world: World, skill: SkillRuntime, command: PlayerCommand): void {
   world.events.push({ type: 'skillCast', skill: skill.id, x: player.pos.x, y: player.pos.y })
 }
 
-function roll(world: World, rank: RollRank, command: PlayerCommand): void {
+export function concussionTarget(world: World, range: number, yaw = world.player.facing, pitch = world.player.pitch): { x: number; y: number } {
+  const { player, grid } = world
+  const eye = eyeHeightOf('player')
+  const aimed = pitch < -0.02 ? eye / Math.tan(-pitch) : range
+  const reach = Math.max(CONCUSSION_MIN, Math.min(range, aimed))
+  const dirX = Math.cos(yaw)
+  const dirY = Math.sin(yaw)
+  let landed = reach
+  for (let travel = 0.5; travel <= reach; travel += 0.25) {
+    if (!blocksMovement(tileAt(grid, Math.floor(player.pos.x + dirX * travel), Math.floor(player.pos.y + dirY * travel)))) continue
+    landed = Math.max(0.5, travel - 0.6)
+    break
+  }
+  return { x: player.pos.x + dirX * landed, y: player.pos.y + dirY * landed }
+}
+
+function throwConcussion(world: World, rank: ConcussionRank, command: PlayerCommand): void {
   const { player } = world
-  const length = Math.hypot(command.moveX, command.moveY)
-  const dirX = length > 0.01 ? command.moveX / length : Math.cos(player.facing)
-  const dirY = length > 0.01 ? command.moveY / length : Math.sin(player.facing)
-  player.rollTime = rank.duration
-  player.rollDirX = dirX
-  player.rollDirY = dirY
-  player.rollSpeed = rank.distance / Math.max(0.05, rank.duration)
-  player.invulnerable = Math.max(player.invulnerable, rank.duration)
-  if (rank.empower > 0) player.empowered = rank.empower
+  const yaw = Math.atan2(command.aimY - player.pos.y, command.aimX - player.pos.x)
+  const target = concussionTarget(world, rank.range, yaw, command.pitch)
+  spawnBlast(world, {
+    x: target.x,
+    y: target.y,
+    z: floorAt(world.grid, target.x, target.y),
+    radius: rank.radius,
+    delay: rank.flight,
+    playerDamage: 0,
+    enemyDamage: rank.damage * world.playerStats.damage,
+    source: 'player',
+    ownerId: 0,
+    stun: rank.stun,
+  })
 }
 
 function raiseBarrier(world: World, rank: BarrierRank): void {

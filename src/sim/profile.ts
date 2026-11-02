@@ -21,8 +21,7 @@ import {
   SKILL_SLOTS,
   SLOT_UNLOCK_LEVEL,
   type SkillId,
-  type SkillSlot,
-} from '../data/skills'
+  type SkillSlot, RETIRED_SKILLS } from '../data/skills'
 import type { RunRating } from './rating'
 import { createLoadout, emptyRanks, type AttributeRanks, type EquippedSkill, type Loadout } from './stats'
 import type { World } from './world'
@@ -347,15 +346,18 @@ export function sanitizeProfile(raw: unknown): Profile {
   }
   profile.chapter = clampInt(raw.chapter, 1, 5, 1)
   if (isRecord(raw.skills)) {
+    const saved: Record<string, unknown> = { ...raw.skills }
+    for (const [old, next] of Object.entries(RETIRED_SKILLS)) if (saved[next] === undefined && saved[old] !== undefined) saved[next] = saved[old]
     for (const id of SKILL_ORDER) {
-      const value = clampInt(raw.skills[id], 0, SKILL_MAX_RANK, 0)
+      const value = clampInt(saved[id], 0, SKILL_MAX_RANK, 0)
       if (value > 0) profile.skills[id] = value
     }
   }
   if (skillPointsSpent(profile) > skillPointsTotal(profile.level)) profile.skills = {}
   if (isRecord(raw.equipped)) {
     for (const slot of SKILL_SLOTS) {
-      const id = raw.equipped[slot]
+      const saved = raw.equipped[slot]
+      const id = typeof saved === 'string' ? (RETIRED_SKILLS[saved] ?? saved) : saved
       if (typeof id !== 'string' || !isSkillId(id)) continue
       if (skillRank(profile, id) > 0 && slotUnlocked(profile, slot) && !SKILL_SLOTS.some((item) => profile.equipped[item] === id)) {
         profile.equipped[slot] = id

@@ -105,7 +105,7 @@ describe('attribute points', () => {
     const profile = createProfile()
     profile.points = 1
     expect(allocationBlock(profile, 'cooldown')).toBe('skill')
-    profile.skills.roll = 1
+    profile.skills.concussion = 1
     expect(allocationBlock(profile, 'cooldown')).toBeNull()
   })
 
@@ -132,10 +132,10 @@ describe('skills', () => {
   it('learns, upgrades and equips skills into unlocked slots', () => {
     const profile = createProfile()
     profile.level = 7
-    expect(learnSkill(profile, 'roll')).toBe(true)
-    expect(profile.equipped.q).toBe('roll')
+    expect(learnSkill(profile, 'concussion')).toBe(true)
+    expect(profile.equipped.q).toBe('concussion')
     expect(learnSkill(profile, 'shockwave')).toBe(true)
-    expect(profile.equipped).toEqual({ q: 'roll', e: null })
+    expect(profile.equipped).toEqual({ q: 'concussion', e: null })
     expect(learnSkill(profile, 'barrier')).toBe(false)
     expect(equipSkill(profile, 'shockwave', 'e')).toBe(false)
     expect(equipSkill(profile, 'shockwave', 'q')).toBe(true)
@@ -145,19 +145,19 @@ describe('skills', () => {
   it('opens the E slot at level 8 and fills it with a learned skill', () => {
     const profile = createProfile()
     profile.level = 7
-    learnSkill(profile, 'roll')
+    learnSkill(profile, 'concussion')
     learnSkill(profile, 'shockwave')
     equipSkill(profile, 'shockwave', 'q')
     expect(slotUnlocked(profile, 'e')).toBe(false)
     grantXp(profile, xpToNext(profile.level))
     expect(profile.level).toBe(8)
     expect(slotUnlocked(profile, 'e')).toBe(true)
-    expect(profile.equipped).toEqual({ q: 'shockwave', e: 'roll' })
+    expect(profile.equipped).toEqual({ q: 'shockwave', e: 'concussion' })
     grantXp(profile, xpToNext(profile.level))
-    expect(learnSkill(profile, 'roll')).toBe(true)
+    expect(learnSkill(profile, 'concussion')).toBe(true)
     expect(loadoutOf(profile).skills).toEqual([
       { slot: 'q', id: 'shockwave', rank: 1 },
-      { slot: 'e', id: 'roll', rank: 2 },
+      { slot: 'e', id: 'concussion', rank: 2 },
     ])
   })
 
@@ -172,7 +172,7 @@ describe('skills', () => {
   it('resets skills for free', () => {
     const profile = createProfile()
     profile.level = 6
-    learnSkill(profile, 'roll')
+    learnSkill(profile, 'concussion')
     learnSkill(profile, 'barrier')
     resetSkills(profile)
     expect(skillPointsLeft(profile)).toBe(2)
@@ -180,11 +180,11 @@ describe('skills', () => {
   })
 
   it('drops skills a save cannot afford and ignores unknown ones', () => {
-    const profile = sanitizeProfile({ level: 3, skills: { roll: 3, fly: 2 }, equipped: { q: 'roll', e: 'fly' } })
+    const profile = sanitizeProfile({ level: 3, skills: { concussion: 3, fly: 2 }, equipped: { q: 'concussion', e: 'fly' } })
     expect(profile.skills).toEqual({})
     expect(profile.equipped).toEqual({ q: null, e: null })
-    const fine = sanitizeProfile({ level: 6, skills: { roll: 1 }, equipped: { q: 'roll', e: 'roll' } })
-    expect(fine.equipped).toEqual({ q: 'roll', e: null })
+    const fine = sanitizeProfile({ level: 6, skills: { concussion: 1 }, equipped: { q: 'concussion', e: 'concussion' } })
+    expect(fine.equipped).toEqual({ q: 'concussion', e: null })
   })
 })
 
@@ -394,5 +394,13 @@ describe('run rewards', () => {
     world.status = 'dead'
     world.rewards.kills = 200
     expect(computeReward(world, rateRun(world), undefined).total).toBe(0)
+  })
+})
+
+describe('saves from before the dash took over the roll', () => {
+  it('turns a learned and equipped roll into the concussion grenade', () => {
+    const profile = sanitizeProfile({ level: 6, skills: { roll: 2 }, equipped: { q: 'roll', e: null } })
+    expect(profile.skills).toEqual({ concussion: 2 })
+    expect(profile.equipped.q).toBe('concussion')
   })
 })

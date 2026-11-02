@@ -44,48 +44,47 @@ function spawn(world: World, kind: 'grunt' | 'gunner' | 'bomber', x: number, y: 
   return enemy
 }
 
-describe('roll', () => {
-  it('dashes three tiles along the movement direction', () => {
-    const { world } = setup('roll')
-    const start = world.player.pos.x
-    stepWorld(world, { ...idle(), moveX: 1, skill: 'q' }, DT)
-    run(world, idle(), 0.4)
-    expect(world.player.pos.x - start).toBeCloseTo(SKILLS.roll.ranks[0].distance, 0)
+describe('concussion grenade', () => {
+  it('lands where the crosshair points on the ground and stuns the chargers around it', () => {
+    const { world } = setup('concussion')
+    const near = spawn(world, 'grunt', 10.5, 3.5)
+    const far = spawn(world, 'grunt', 17.5, 3.5)
+    const rank = SKILLS.concussion.ranks[0]
+    const pitch = -Math.atan2(1.5, 5)
+    stepWorld(world, { ...idle(), pitch, skill: 'q' }, DT)
+    expect(world.blasts).toHaveLength(1)
+    expect(world.blasts[0].x).toBeCloseTo(world.player.pos.x + 5, 0)
+    run(world, idle(), rank.flight + 0.05)
+    expect(near.status.stunned).toBeGreaterThan(0)
+    expect(far.status.stunned).toBe(0)
   })
 
-  it('cannot be hurt while rolling', () => {
-    const { world } = setup('roll')
-    stepWorld(world, { ...idle(), moveX: 1, skill: 'q' }, DT)
-    damagePlayer(world, 300, 1, 0, 5)
-    expect(world.player.hp).toBe(world.player.maxHp)
-    expect(world.events.some((event) => event.type === 'dodged')).toBe(true)
+  it('flies to its full range when the hero looks up and stops short of a wall', () => {
+    const { world } = setup('concussion')
+    stepWorld(world, { ...idle(), pitch: 0.2, skill: 'q' }, DT)
+    expect(world.blasts[0].x).toBeCloseTo(world.player.pos.x + SKILLS.concussion.ranks[0].range, 0)
+    const walled = setup('concussion').world
+    stepWorld(walled, { ...idle(-100, 3.5), pitch: 0.2, skill: 'q' }, DT)
+    expect(walled.blasts[0].x).toBeGreaterThan(1)
   })
 
-  it('goes on cooldown, and rank two shortens it', () => {
-    const first = setup('roll').world
+  it('goes on cooldown, and rank two shortens it while rank three widens and lengthens the stun', () => {
+    const first = setup('concussion').world
     stepWorld(first, { ...idle(), skill: 'q' }, DT)
-    expect(first.player.skills[0].cooldown).toBeCloseTo(SKILLS.roll.ranks[0].cooldown, 1)
-    const start = first.player.pos.x
-    stepWorld(first, { ...idle(), moveX: -1, skill: 'q' }, DT)
-    run(first, idle(), 0.3)
-    expect(first.player.pos.x).toBeGreaterThan(start - 1)
-    const second = setup('roll', 2).world
+    expect(first.player.skills[0].cooldown).toBeCloseTo(SKILLS.concussion.ranks[0].cooldown, 1)
+    const second = setup('concussion', 2).world
     stepWorld(second, { ...idle(), skill: 'q' }, DT)
-    expect(second.player.skills[0].cooldown).toBeCloseTo(SKILLS.roll.ranks[1].cooldown, 1)
-  })
-
-  it('makes the next attack stronger at rank three', () => {
-    const { world, tuning } = setup('roll', 3)
-    stepWorld(world, { ...idle(), skill: 'q' }, DT)
-    run(world, idle(), 0.3)
-    stepWorld(world, { ...idle(), fire: true }, DT)
-    expect(world.bullets[0].damage).toBeCloseTo(tuning.weapons.blaster.damage * 1.5, 5)
+    expect(second.player.skills[0].cooldown).toBeCloseTo(SKILLS.concussion.ranks[1].cooldown, 1)
+    const third = setup('concussion', 3).world
+    stepWorld(third, { ...idle(), skill: 'q' }, DT)
+    expect(third.blasts[0].radius).toBe(SKILLS.concussion.ranks[2].radius)
+    expect(third.blasts[0].stun).toBe(SKILLS.concussion.ranks[2].stun)
   })
 
   it('cools down faster with the cooldown attribute', () => {
-    const { world } = setup('roll', 1, { cooldown: 4 })
+    const { world } = setup('concussion', 1, { cooldown: 4 })
     stepWorld(world, { ...idle(), skill: 'q' }, DT)
-    expect(world.player.skills[0].cooldown).toBeCloseTo(SKILLS.roll.ranks[0].cooldown * 0.8, 1)
+    expect(world.player.skills[0].cooldown).toBeCloseTo(SKILLS.concussion.ranks[0].cooldown * 0.8, 1)
   })
 })
 
@@ -151,7 +150,7 @@ describe('shockwave', () => {
 
 describe('ultimate', () => {
   it('charges fully from the primary weapon and at half rate from special weapons', () => {
-    const { world, tuning } = setup('roll')
+    const { world, tuning } = setup('concussion')
     tuning.grunt.speed = 0
     const grunt = spawn(world, 'grunt', 9.5, 3.5)
     grunt.hp = grunt.maxHp = 99_999
@@ -171,7 +170,7 @@ describe('ultimate', () => {
   })
 
   it('charges at half rate from special weapon explosions', () => {
-    const { world, tuning } = setup('roll')
+    const { world, tuning } = setup('concussion')
     tuning.grunt.speed = 0
     const grunt = spawn(world, 'grunt', 6.5, 3.5)
     grunt.hp = grunt.maxHp = 99_999
@@ -184,7 +183,7 @@ describe('ultimate', () => {
   })
 
   it('unleashes a volley of piercing bolts when full', () => {
-    const { world, tuning } = setup('roll')
+    const { world, tuning } = setup('concussion')
     world.player.ultimate = 1
     stepWorld(world, { ...idle(), ultimate: true }, DT)
     expect(world.player.ultimate).toBe(0)
@@ -194,7 +193,7 @@ describe('ultimate', () => {
   })
 
   it('does nothing until it is charged', () => {
-    const { world } = setup('roll')
+    const { world } = setup('concussion')
     world.player.ultimate = 0.5
     stepWorld(world, { ...idle(), ultimate: true }, DT)
     expect(world.player.ultShots).toBe(0)
@@ -203,9 +202,9 @@ describe('ultimate', () => {
 })
 
 describe('blasts against shields', () => {
-  it('cannot reach a rolling hero', () => {
-    const { world } = setup('roll')
-    stepWorld(world, { ...idle(), moveX: 1, skill: 'q' }, DT)
+  it('cannot reach a dashing hero', () => {
+    const { world } = setup('concussion')
+    stepWorld(world, { ...idle(), moveX: 1, dash: true }, DT)
     spawnBlast(world, { x: world.player.pos.x, y: world.player.pos.y, radius: 2, delay: 0, playerDamage: 400, enemyDamage: 0, source: 'boss', ownerId: 0 })
     stepWorld(world, idle(), DT)
     expect(world.player.hp).toBe(world.player.maxHp)

@@ -9,7 +9,7 @@ import { stepWorld } from './step'
 import { createWorld } from './world'
 
 describe('the systems trial with a skill equipped', () => {
-  const skills: SkillId[] = ['roll', 'barrier', 'shockwave']
+  const skills: SkillId[] = ['concussion', 'barrier', 'shockwave']
   let reports: (RunReport & { skill: string })[] = []
 
   beforeAll(() => {

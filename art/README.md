@@ -14,7 +14,7 @@
 
 ## 游戏里用的图
 
-2026-10-31 用 Codex（`gpt-6.1-sol`，xhigh）生成，提示词在同名 `.prompt.txt`；`scripts/build-assets.sh` 把它们处理成 `public/assets/` 下的运行时资源。
+用 Codex（`gpt-6.1-sol`，xhigh）生成（2026-10-31 起），提示词在同名 `.prompt.txt`；`scripts/build-assets.sh` 把它们处理成 `public/assets/` 下的运行时资源。
 
 | 原图 | 运行时资源 | 处理 |
 |---|---|---|
@@ -22,6 +22,8 @@
 | `concept/sfx-lettering.png` | `ui/sfx/word-1.png`~`word-6.png` | 6 个拟声字逐个抠图；「叮！」的格子被「哐啷啷」的碎片挤进来一点，单独按区域裁 |
 | `ui/items/food.png` | `ui/items/food-bread.png`、`food-apple.png` | 近战砸散掉的麦饼和苹果 |
 | `bosses/scarecrow/wanted.png` | `portraits/scarecrow-wanted.png` | 悬赏令上的铁皮稻草人头像，附了主仓库的三视图 |
+| `bosses/demo-chief/`、`shield-captain/`、`forest-tank/`、`harvester/` 下的 `wanted.png` | `portraits/<id>-wanted.png` | 另外 4 个 Boss 的悬赏令头像（2026-11-02），各附主仓库的三视图。第一次出图有 3 张没画成品红底，又让 Codex 在原图上把背景改成纯品红 |
+| `ui/skills/concussion.png` | `ui/skills/concussion.png` | 震荡雷技能图标（2026-11-02），附冲击波图标定画风。Codex 直接给了透明底，抠图时保留原有的透明 |
 
 ## reference/：从主仓库拷来的设定图
 
@@ -40,6 +42,11 @@
 | `thrower-model-sheet.png` | `art/models/thrower/model-sheet.png` | 投弹兵 |
 | `turret-model-sheet.png` | `art/models/turret/model-sheet.png` | 炮塔 |
 | `scarecrow-model-sheet.png` | `art/models/scarecrow/model-sheet.png` | 铁皮稻草人 |
+| `demo-chief-model-sheet.png` | `art/models/demo-chief/model-sheet.png` | 爆破头目（2026-11-02 拷来，下同） |
+| `shield-captain-model-sheet.png` | `art/models/shield-captain/model-sheet.png` | 铁盾队长 |
+| `forest-tank-model-sheet.png` | `art/models/forest-tank/model-sheet.png` | 林地炮车 |
+| `harvester-model-sheet.png` | `art/models/harvester/model-sheet.png` | 巨型收割机 |
+| `skill-shockwave.png` | `art/ui/skills/shockwave.png` | 冲击波技能图标，出新技能图标时定画风 |
 | `chapter-1-title.png` | `art/scenes/chapter-1-title.png` | 第 1 章标题卡插图，场景气氛的参考 |
 
 ## 以后的目录
