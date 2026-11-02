@@ -1,0 +1,15 @@
+A sheet of six hand-lettered Chinese comic sound-effect words for an original game, arranged in a 3-column by 2-row grid with generous empty space between them, on a perfectly flat solid magenta background: exact color #FF00FF everywhere, with no gradient, shadow, texture or floor on the background.
+
+Each word is chunky, bouncy, slightly tilted hand-drawn comic lettering with a thick dark brown-black ink outline, a small inner highlight and a hard offset drop shadow in dark ink (the shadow belongs to the lettering, not to the background), plus a small jagged burst or speed-line accent tightly attached to the letters. Every word stays fully separated from the others.
+
+Words and fill colors, in reading order (left to right, top row first):
+1. 啪！ in cyan to white (#5ff0ff to white): an energy bullet hit
+2. 哐！ in warm orange (#f08a24): a melee gun-butt smash
+3. 轰！ in yellow to orange-red: an explosion
+4. 当！ in steel blue to light gray (#6aa8ff to #dfe6ee): a bullet blocked by a shield
+5. 叮！ in gold (#ffd34d): a critical hit on a robot's eye lamp
+6. 哐啷啷 in rusty red (#d0453c): a robot falling apart
+
+The Chinese characters must be written exactly and correctly: 啪, 哐, 轰, 当, 叮 and 哐啷啷, each of the first five followed by a full-width exclamation mark 「！」. No magenta inside the letters. No other text, labels or watermark. Original lettering; do not imitate any existing game's logo or font.
+
+Original image: /Users/zuopeng.cheng/.codex/generated_images/01a19009-57e5-7d13-85d3-0a0c90d6c05b/call_wlb1GBg8D1rzLRWaNSFvqia5.png

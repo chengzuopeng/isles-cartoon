@@ -1,0 +1,573 @@
+import * as THREE from 'three'
+import { LANDMARKS, type LandmarkMotion } from '../data/landmarks'
+import type { Theme } from '../data/levels/types'
+import { Tile, cellFloor, tileAt, type Grid } from '../sim/grid'
+import type { BuiltLevel } from '../sim/level'
+import type { GameEvent } from '../sim/types'
+import type { World } from '../sim/world'
+import type { ModelId } from './asset-urls'
+import { lineTexture, type LineTextureKind } from './line-textures'
+import type { ModelLibrary } from './model-library'
+import { bakeNode, type NodePart } from './node-parts'
+import {
+  PROP_MODELS,
+  bridgeAt,
+  cellHash,
+  facingYaw,
+  footprintCenter,
+  gateFacing,
+  landmarkModel,
+  landmarkYaw,
+  linksOf,
+  motionAngle,
+  motionAxis,
+  propModel,
+  propScale,
+  propYaw,
+  variantModel,
+  type PropKind,
+} from './scene-models'
+import { PALETTES } from './themes'
+import { toToon, toonMaterial, toonify } from './toon'
+
+export interface FpsLevelView {
+  readonly group: THREE.Group
+  update(world: World, dt: number): void
+  handle(event: GameEvent): void
+  dispose(): void
+}
+
+export const VISUAL_HEIGHTS = {
+  wall: 3,
+  fence: 0.9,
+  gate: 3,
+  boulder: 2.5,
+  waterDrop: 0.45,
+  cliff: 9,
+} as const
+
+const BOULDER_WIDTH = 1.3
+
+const PROP_FIT: Readonly<Partial<Record<PropKind, number>>> = {
+  rock: 1.2 / 0.75,
+  bush: 1.0 / 0.75,
+  tree: 3.4,
+  cart: 1.45,
+}
+
+const WALL_TEXTURES: Readonly<Record<Theme, LineTextureKind>> = {
+  farm: 'wood',
+  village: 'wood',
+  arena: 'wood',
+  meadow: 'stone',
+  forest: 'rock',
+  outpost: 'metal',
+  factory: 'metal',
+}
+
+const TILE_PROPS: Readonly<Partial<Record<Tile, PropKind>>> = {
+  [Tile.Rock]: 'rock',
+  [Tile.Boulder]: 'rock',
+  [Tile.Bush]: 'bush',
+  [Tile.Tree]: 'tree',
+  [Tile.Cart]: 'cart',
+}
+
+const SIDE_COLOR = new THREE.Color('#a07c56')
+const BANK_COLOR = new THREE.Color('#8c6f52')
+const CLIFF_COLOR = new THREE.Color('#9a7a5c')
+const ISLAND_COLOR = new THREE.Color('#86664a')
+
+interface Batch {
+  parts: readonly NodePart[]
+  matrices: THREE.Matrix4[]
+  shadow: boolean
+}
+
+interface GateView {
+  index: number
+  root: THREE.Object3D
+  base: number
+  lift: number
+}
+
+interface CrateView {
+  index: number
+  root: THREE.Object3D
+}
+
+interface Motion {
+  node: THREE.Object3D
+  rest: THREE.Quaternion
+  axis: THREE.Vector3
+  motion: LandmarkMotion
+}
+
+export function isBorder(grid: Grid, column: number, row: number): boolean {
+  return column === 0 || row === 0 || column === grid.columns - 1 || row === grid.rows - 1
+}
+
+export function surfaceHeight(grid: Grid, column: number, row: number): number {
+  if (column < 0 || row < 0 || column >= grid.columns || row >= grid.rows) return -VISUAL_HEIGHTS.cliff
+  const floor = cellFloor(grid, column, row)
+  return tileAt(grid, column, row) === Tile.Water ? floor - VISUAL_HEIGHTS.waterDrop : floor
+}
+
+function themeOf(level: BuiltLevel, row: number): Theme {
+  return level.areas[level.areaOfRow[row]]?.theme ?? 'farm'
+}
+
+class GeometryBuilder {
+  readonly positions: number[] = []
+  readonly normals: number[] = []
+  readonly colors: number[] = []
+  readonly uvs: number[] = []
+
+  quad(a: THREE.Vector3Like, b: THREE.Vector3Like, c: THREE.Vector3Like, d: THREE.Vector3Like, normal: THREE.Vector3Like, color: THREE.Color, uv: readonly number[] = [0, 0, 1, 0, 1, 1, 0, 1]): void {
+    const corners = [a, b, c, a, c, d]
+    const order = [0, 1, 2, 0, 2, 3]
+    corners.forEach((corner, index) => {
+      this.positions.push(corner.x, corner.y, corner.z)
+      this.normals.push(normal.x, normal.y, normal.z)
+      this.colors.push(color.r, color.g, color.b)
+      this.uvs.push(uv[order[index] * 2], uv[order[index] * 2 + 1])
+    })
+  }
+
+  build(): THREE.BufferGeometry {
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(this.positions, 3))
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(this.normals, 3))
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(this.colors, 3))
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(this.uvs, 2))
+    geometry.computeBoundingSphere()
+    return geometry
+  }
+}
+
+const SIDES: readonly { dc: number; dr: number; normal: THREE.Vector3 }[] = [
+  { dc: 0, dr: -1, normal: new THREE.Vector3(0, 0, -1) },
+  { dc: 1, dr: 0, normal: new THREE.Vector3(1, 0, 0) },
+  { dc: 0, dr: 1, normal: new THREE.Vector3(0, 0, 1) },
+  { dc: -1, dr: 0, normal: new THREE.Vector3(-1, 0, 0) },
+]
+
+function edgeCorners(column: number, row: number, side: (typeof SIDES)[number]): [number, number, number, number] {
+  if (side.dr === -1) return [column + 1, row, column, row]
+  if (side.dc === 1) return [column + 1, row + 1, column + 1, row]
+  if (side.dr === 1) return [column, row + 1, column + 1, row + 1]
+  return [column, row, column, row + 1]
+}
+
+export function buildGround(level: BuiltLevel): { ground: THREE.BufferGeometry; water: THREE.BufferGeometry } {
+  const { grid } = level
+  const ground = new GeometryBuilder()
+  const water = new GeometryBuilder()
+  const color = new THREE.Color()
+  const up = new THREE.Vector3(0, 1, 0)
+  for (let row = 0; row < grid.rows; row++) {
+    const palette = PALETTES[themeOf(level, row)]
+    for (let column = 0; column < grid.columns; column++) {
+      const tile = tileAt(grid, column, row)
+      const height = surfaceHeight(grid, column, row)
+      const wet = tile === Tile.Water
+      if (wet) color.set(palette.water)
+      else if (tile === Tile.Path || tile === Tile.Exit) color.set(palette.path)
+      else color.set(cellHash(column, row, 3) < 0.5 ? palette.floorA : palette.floorB)
+      if (!wet) color.offsetHSL(0, 0, (cellHash(column, row, 9) - 0.5) * 0.03)
+      const target = wet ? water : ground
+      target.quad(
+        { x: column, y: height, z: row },
+        { x: column, y: height, z: row + 1 },
+        { x: column + 1, y: height, z: row + 1 },
+        { x: column + 1, y: height, z: row },
+        up,
+        color,
+        [column, row, column, row + 1, column + 1, row + 1, column + 1, row],
+      )
+      for (const side of SIDES) {
+        const other = surfaceHeight(grid, column + side.dc, row + side.dr)
+        if (other >= height - 0.001) continue
+        const [x1, z1, x2, z2] = edgeCorners(column, row, side)
+        const outside = column + side.dc < 0 || row + side.dr < 0 || column + side.dc >= grid.columns || row + side.dr >= grid.rows
+        const sideColor = outside ? CLIFF_COLOR : tileAt(grid, column + side.dc, row + side.dr) === Tile.Water ? BANK_COLOR : SIDE_COLOR
+        const along = side.dc === 0 ? x1 : z1
+        const along2 = side.dc === 0 ? x2 : z2
+        ground.quad(
+          { x: x1, y: height, z: z1 },
+          { x: x1, y: other, z: z1 },
+          { x: x2, y: other, z: z2 },
+          { x: x2, y: height, z: z2 },
+          side.normal,
+          sideColor,
+          [along, height, along, other, along2, other, along2, height],
+        )
+      }
+    }
+  }
+  return { ground: ground.build(), water: water.build() }
+}
+
+export function buildWalls(level: BuiltLevel): Map<Theme, THREE.BufferGeometry> {
+  const { grid } = level
+  const builders = new Map<Theme, GeometryBuilder>()
+  const white = new THREE.Color('#ffffff')
+  const solid = (column: number, row: number) => column >= 0 && row >= 0 && column < grid.columns && row < grid.rows && tileAt(grid, column, row) === Tile.Wall && !isBorder(grid, column, row)
+  for (let row = 0; row < grid.rows; row++) {
+    for (let column = 0; column < grid.columns; column++) {
+      if (!solid(column, row)) continue
+      const theme = themeOf(level, row)
+      let builder = builders.get(theme)
+      if (!builder) {
+        builder = new GeometryBuilder()
+        builders.set(theme, builder)
+      }
+      const base = cellFloor(grid, column, row)
+      const top = base + VISUAL_HEIGHTS.wall
+      builder.quad({ x: column, y: top, z: row }, { x: column, y: top, z: row + 1 }, { x: column + 1, y: top, z: row + 1 }, { x: column + 1, y: top, z: row }, { x: 0, y: 1, z: 0 }, white, [column, row, column, row + 1, column + 1, row + 1, column + 1, row])
+      for (const side of SIDES) {
+        const nc = column + side.dc
+        const nr = row + side.dr
+        if (solid(nc, nr) && Math.abs(cellFloor(grid, nc, nr) - base) < 0.01) continue
+        const floor = Math.min(base, surfaceHeight(grid, nc, nr))
+        const [x1, z1, x2, z2] = edgeCorners(column, row, side)
+        const along = side.dc === 0 ? x1 : z1
+        const along2 = side.dc === 0 ? x2 : z2
+        builder.quad({ x: x1, y: top, z: z1 }, { x: x1, y: floor, z: z1 }, { x: x2, y: floor, z: z2 }, { x: x2, y: top, z: z2 }, side.normal, white, [along, top, along, floor, along2, floor, along2, top])
+      }
+    }
+  }
+  const result = new Map<Theme, THREE.BufferGeometry>()
+  for (const [theme, builder] of builders) result.set(theme, builder.build())
+  return result
+}
+
+function islandUnderside(grid: Grid): THREE.BufferGeometry {
+  const rings: { inset: number; y: number; jitter: number }[] = [
+    { inset: 0, y: -VISUAL_HEIGHTS.cliff, jitter: 0 },
+    { inset: 4, y: -22, jitter: 1.5 },
+    { inset: 11, y: -40, jitter: 3 },
+  ]
+  const points = (inset: number, jitter: number, seed: number) => {
+    const list: THREE.Vector2[] = []
+    const w = grid.columns
+    const h = grid.rows
+    const step = 4
+    for (let x = 0; x < w; x += step) list.push(new THREE.Vector2(x, 0))
+    for (let z = 0; z < h; z += step) list.push(new THREE.Vector2(w, z))
+    for (let x = w; x > 0; x -= step) list.push(new THREE.Vector2(x, h))
+    for (let z = h; z > 0; z -= step) list.push(new THREE.Vector2(0, z))
+    const cx = w / 2
+    const cz = h / 2
+    return list.map((point, index) => {
+      const dx = point.x - cx
+      const dz = point.y - cz
+      const scaleX = Math.max(0, (w / 2 - inset) / (w / 2))
+      const scaleZ = Math.max(0, (h / 2 - inset * 1.4) / (h / 2))
+      const noise = jitter * Math.sin(index * 2.3 + seed) * Math.cos(index * 1.1)
+      return new THREE.Vector2(cx + dx * scaleX + noise, cz + dz * scaleZ + noise)
+    })
+  }
+  const loops = rings.map((ring, index) => ({ y: ring.y, points: points(ring.inset, ring.jitter, index * 3) }))
+  const positions: number[] = []
+  for (let r = 0; r < loops.length - 1; r++) {
+    const a = loops[r]
+    const b = loops[r + 1]
+    const count = a.points.length
+    for (let i = 0; i < count; i++) {
+      const j = (i + 1) % count
+      positions.push(a.points[i].x, a.y, a.points[i].y, b.points[i].x, b.y, b.points[i].y, b.points[j].x, b.y, b.points[j].y)
+      positions.push(a.points[i].x, a.y, a.points[i].y, b.points[j].x, b.y, b.points[j].y, a.points[j].x, a.y, a.points[j].y)
+    }
+  }
+  const last = loops[loops.length - 1]
+  const tip = new THREE.Vector3(grid.columns / 2, -78, grid.rows / 2)
+  for (let i = 0; i < last.points.length; i++) {
+    const j = (i + 1) % last.points.length
+    positions.push(last.points[i].x, last.y, last.points[i].y, tip.x, tip.y, tip.z, last.points[j].x, last.y, last.points[j].y)
+  }
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+export function tuftGeometry(): THREE.BufferGeometry {
+  const positions: number[] = []
+  const colors: number[] = []
+  const base = new THREE.Color('#4f7f3a')
+  const tip = new THREE.Color('#b9d97a')
+  const blades = [
+    { angle: 0, lean: 0.22, height: 1, width: 0.26 },
+    { angle: 2.1, lean: 0.3, height: 0.8, width: 0.24 },
+    { angle: 4.2, lean: 0.26, height: 0.9, width: 0.24 },
+  ]
+  for (const blade of blades) {
+    const dx = Math.cos(blade.angle)
+    const dz = Math.sin(blade.angle)
+    const sx = -dz * blade.width
+    const sz = dx * blade.width
+    positions.push(-sx, 0, -sz, sx, 0, sz, dx * blade.lean, blade.height, dz * blade.lean)
+    colors.push(base.r, base.g, base.b, base.r, base.g, base.b, tip.r, tip.g, tip.b)
+  }
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+const TUFT_THEMES: ReadonlySet<Theme> = new Set(['farm', 'meadow', 'arena', 'forest'])
+
+export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): FpsLevelView {
+  const { grid } = level
+  const group = new THREE.Group()
+  group.name = 'level'
+  const disposables: { dispose(): void }[] = []
+  const has = (id: string) => models.has(id)
+
+  const { ground, water } = buildGround(level)
+  const groundMaterial = toonMaterial({ vertexColors: true, map: lineTexture('dirt') })
+  const groundMesh = new THREE.Mesh(ground, groundMaterial)
+  groundMesh.receiveShadow = true
+  groundMesh.name = 'ground'
+  group.add(groundMesh)
+  const waterMaterial = toonMaterial({ vertexColors: true, emissive: '#0b3a5a', emissiveIntensity: 0.4 })
+  const waterMesh = new THREE.Mesh(water, waterMaterial)
+  waterMesh.receiveShadow = true
+  group.add(waterMesh)
+  disposables.push(ground, water, groundMaterial, waterMaterial)
+
+  const island = islandUnderside(grid)
+  const islandMaterial = toonMaterial({ color: ISLAND_COLOR, map: lineTexture('rock') })
+  const islandMesh = new THREE.Mesh(island, islandMaterial)
+  group.add(islandMesh)
+  disposables.push(island, islandMaterial)
+
+  for (const [theme, geometry] of buildWalls(level)) {
+    const material = toonMaterial({ color: PALETTES[theme].wall, map: lineTexture(WALL_TEXTURES[theme]) })
+    const mesh = new THREE.Mesh(geometry, material)
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    group.add(mesh)
+    disposables.push(geometry, material)
+  }
+
+  const batches = new Map<string, Batch>()
+  const quaternion = new THREE.Quaternion()
+  const scale = new THREE.Vector3()
+  const position = new THREE.Vector3()
+  const yAxis = new THREE.Vector3(0, 1, 0)
+  const partsOf = (id: string, node: string | null): readonly NodePart[] | null => {
+    if (!has(id)) return null
+    if (!node) return models.parts(id as ModelId)
+    return bakeNode(models.shared(id as ModelId).root, node)
+  }
+  const place = (key: string, parts: readonly NodePart[] | null, x: number, y: number, z: number, yaw: number, sx: number, sy: number, sz: number, shadow: boolean) => {
+    if (!parts) return
+    let batch = batches.get(key)
+    if (!batch) {
+      batch = { parts, matrices: [], shadow }
+      batches.set(key, batch)
+    }
+    position.set(x, y, z)
+    quaternion.setFromAxisAngle(yAxis, yaw)
+    scale.set(sx, sy, sz)
+    batch.matrices.push(new THREE.Matrix4().compose(position, quaternion, scale))
+  }
+
+  const fenceJoins = (tile: Tile) => tile === Tile.Fence || tile === Tile.Wall || tile === Tile.Gate || tile === Tile.GateClosed
+  const fenceParts = { post: partsOf('ch1-fence', 'post'), rail: partsOf('ch1-fence', 'rail') }
+  const fenceScale = VISUAL_HEIGHTS.fence / 0.55
+  const railYaw: Record<string, number> = { north: 0, east: -Math.PI / 2, south: Math.PI, west: Math.PI / 2 }
+  const borderJoins = (column: number, row: number) => (tile: Tile) => fenceJoins(tile) && (tile !== Tile.Wall || isBorder(grid, column, row))
+
+  const gates: GateView[] = []
+  const crates: CrateView[] = []
+  const gateParts = has('ch1-gate')
+  const crateModel = has('crate')
+
+  for (let row = 0; row < grid.rows; row++) {
+    const theme = themeOf(level, row)
+    for (let column = 0; column < grid.columns; column++) {
+      const tile = tileAt(grid, column, row)
+      const floor = cellFloor(grid, column, row)
+      const x = column + 0.5
+      const z = row + 0.5
+      const border = isBorder(grid, column, row)
+      if (tile === Tile.Fence || (tile === Tile.Wall && border)) {
+        place('fence-post', fenceParts.post, x, floor, z, 0, 1.15, fenceScale, 1.15, true)
+        const links = linksOf(grid, column, row, border ? borderJoins(column, row) : fenceJoins)
+        for (const [direction, linked] of Object.entries(links)) {
+          if (!linked) continue
+          place('fence-rail', fenceParts.rail, x, floor, z, railYaw[direction], 1, fenceScale, 1, true)
+        }
+        continue
+      }
+      if (tile === Tile.Gate || tile === Tile.GateClosed) {
+        if (!gateParts) continue
+        const instance = models.instance('ch1-gate' as ModelId)
+        toonify(instance.root)
+        instance.root.position.set(x, floor, z)
+        instance.root.rotation.y = facingYaw(gateFacing(grid, column, row))
+        instance.root.scale.set(1, VISUAL_HEIGHTS.gate / 1.25, 1)
+        instance.root.traverse((object) => {
+          object.castShadow = true
+          object.receiveShadow = true
+        })
+        group.add(instance.root)
+        gates.push({ index: row * grid.columns + column, root: instance.root, base: floor, lift: tile === Tile.Gate ? 1 : 0 })
+        continue
+      }
+      if (tile === Tile.Crate) {
+        if (!crateModel) continue
+        const instance = models.instance('crate' as ModelId)
+        toonify(instance.root)
+        instance.root.position.set(x, floor, z)
+        instance.root.rotation.y = Math.floor(cellHash(column, row, 4) * 4) * (Math.PI / 2)
+        instance.root.scale.setScalar(1.15)
+        instance.root.traverse((object) => {
+          object.castShadow = true
+          object.receiveShadow = true
+        })
+        group.add(instance.root)
+        crates.push({ index: row * grid.columns + column, root: instance.root })
+        continue
+      }
+      const bridge = tile === Tile.Path || tile === Tile.Floor ? bridgeAt(grid, column, row) : null
+      if (bridge) {
+        place('bridge-deck', partsOf('ch1-bridge', 'deck'), x, floor, z, facingYaw(bridge.facing), 1.02, 1, 1.02, false)
+        for (const rail of bridge.rails) place('bridge-rail', partsOf('ch1-bridge', 'rail'), x, floor, z, facingYaw(rail), 1, 1.3, 1, true)
+      }
+      const kind = TILE_PROPS[tile]
+      if (!kind) continue
+      const rule = PROP_MODELS[kind]
+      const base = propModel(kind, theme)
+      const id = variantModel(has, base, rule.variants, column, row)
+      if (!id) continue
+      if (tile === Tile.Boulder) {
+        const wide = BOULDER_WIDTH * (0.95 + cellHash(column, row, 5) * 0.1)
+        place(id, models.parts(id as ModelId), x, floor, z, propYaw(kind, column, row), wide, VISUAL_HEIGHTS.boulder / 0.75, wide, true)
+        continue
+      }
+      const fit = PROP_FIT[kind] ?? 1
+      const s = propScale(kind, column, row) * fit
+      place(id, models.parts(id as ModelId), x, floor, z, propYaw(kind, column, row), s, s, s, kind !== 'bush')
+    }
+  }
+
+  for (const [key, batch] of batches) {
+    for (const part of batch.parts) {
+      const mesh = new THREE.InstancedMesh(part.geometry, toToon(part.material), batch.matrices.length)
+      batch.matrices.forEach((m, index) => mesh.setMatrixAt(index, m))
+      mesh.instanceMatrix.needsUpdate = true
+      mesh.computeBoundingSphere()
+      mesh.castShadow = batch.shadow
+      mesh.receiveShadow = true
+      mesh.name = key
+      group.add(mesh)
+    }
+  }
+
+  const tuftSpots: THREE.Matrix4[] = []
+  for (let row = 0; row < grid.rows; row++) {
+    if (!TUFT_THEMES.has(themeOf(level, row))) continue
+    for (let column = 0; column < grid.columns; column++) {
+      if (tileAt(grid, column, row) !== Tile.Floor || isBorder(grid, column, row)) continue
+      const floor = cellFloor(grid, column, row)
+      const count = cellHash(column, row, 11) < 0.35 ? 3 : 1
+      for (let k = 0; k < count; k++) {
+        const tx = column + 0.15 + cellHash(column, row, 20 + k) * 0.7
+        const tz = row + 0.15 + cellHash(column, row, 40 + k) * 0.7
+        const size = 0.26 + cellHash(column, row, 60 + k) * 0.18
+        position.set(tx, floor, tz)
+        quaternion.setFromAxisAngle(yAxis, cellHash(column, row, 80 + k) * Math.PI * 2)
+        scale.set(size, size * (0.9 + cellHash(column, row, 90 + k) * 0.5), size)
+        tuftSpots.push(new THREE.Matrix4().compose(position, quaternion, scale))
+      }
+    }
+  }
+  if (tuftSpots.length > 0) {
+    const tuftGeo = tuftGeometry()
+    const tuftMaterial = toonMaterial({ vertexColors: true, side: THREE.DoubleSide })
+    const tufts = new THREE.InstancedMesh(tuftGeo, tuftMaterial, tuftSpots.length)
+    tuftSpots.forEach((m, index) => tufts.setMatrixAt(index, m))
+    tufts.instanceMatrix.needsUpdate = true
+    tufts.computeBoundingSphere()
+    tufts.receiveShadow = true
+    tufts.name = 'tufts'
+    tufts.userData.noInk = true
+    group.add(tufts)
+    disposables.push(tuftGeo, tuftMaterial)
+  }
+
+  const exitMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#9ff6ff').multiplyScalar(1.1), transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide })
+  const exitGeometry = new THREE.CylinderGeometry(0.32, 0.42, 4.5, 20, 1, true)
+  disposables.push(exitMaterial, exitGeometry)
+  const exits: THREE.Mesh[] = []
+  for (const index of level.exits) {
+    const column = index % grid.columns
+    const row = Math.floor(index / grid.columns)
+    const beam = new THREE.Mesh(exitGeometry, exitMaterial)
+    beam.position.set(column + 0.5, cellFloor(grid, column, row) + 2.25, row + 0.5)
+    beam.userData.noInk = true
+    group.add(beam)
+    exits.push(beam)
+  }
+
+  const motions: Motion[] = []
+  for (const placement of level.landmarks) {
+    const id = landmarkModel(has, placement.id, placement.variant)
+    if (!id) continue
+    const instance = models.instance(id as ModelId)
+    toonify(instance.root)
+    const center = footprintCenter(placement.column, placement.row, placement.width, placement.depth)
+    const floor = cellFloor(grid, Math.min(grid.columns - 1, Math.floor(center.x)), Math.min(grid.rows - 1, Math.floor(center.z)))
+    instance.root.position.set(center.x, floor, center.z)
+    instance.root.rotation.y = landmarkYaw(placement.id, placement.facing, placement.column, placement.row)
+    instance.root.traverse((object) => {
+      object.castShadow = true
+      object.receiveShadow = true
+    })
+    group.add(instance.root)
+    for (const motion of LANDMARKS[placement.id].motion ?? []) {
+      const node = instance.nodes.get(motion.node)
+      if (!node) continue
+      const [ax, ay, az] = motionAxis(motion.axis)
+      motions.push({ node, rest: node.quaternion.clone(), axis: new THREE.Vector3(ax, ay, az), motion })
+    }
+  }
+
+  let time = 0
+  const turn = new THREE.Quaternion()
+  return {
+    group,
+    update(world, dt) {
+      time += dt
+      for (const entry of motions) {
+        turn.setFromAxisAngle(entry.axis, motionAngle(entry.motion, time))
+        entry.node.quaternion.copy(entry.rest).multiply(turn)
+      }
+      for (const gate of gates) {
+        const open = world.grid.tiles[gate.index] === Tile.Gate
+        gate.lift += ((open ? 1 : 0) - gate.lift) * Math.min(1, dt * 3)
+        gate.root.position.y = gate.base - gate.lift * (VISUAL_HEIGHTS.gate + 0.2)
+        gate.root.visible = gate.lift < 0.98
+      }
+      for (const crate of crates) crate.root.visible = world.grid.tiles[crate.index] === Tile.Crate
+      for (const beam of exits) {
+        beam.rotation.y = time * 0.8
+        beam.visible = world.status === 'playing'
+      }
+    },
+    handle() {},
+    dispose() {
+      group.removeFromParent()
+      for (const item of disposables) item.dispose()
+      group.traverse((object) => {
+        const mesh = object as THREE.InstancedMesh
+        if (mesh.isInstancedMesh) mesh.dispose()
+      })
+    },
+  }
+}

@@ -1,0 +1,58 @@
+import { eyeHeightOf } from '../data/heights'
+import { SPECIAL_WEAPONS, type WeaponId } from '../data/weapons'
+import { firePattern, weaponOf } from './arsenal'
+import { playerDisabled } from './status'
+import type { PlayerCommand } from './types'
+import type { World } from './world'
+
+export const ULTIMATE_WEAPON = 'starVolley'
+
+export function ultShareOf(world: World, weapon: WeaponId | null): number {
+  if (weapon === null) return 0
+  if (weapon === world.player.primary) return 1
+  return SPECIAL_WEAPONS.some((id) => id === weapon) ? world.tuning.player.specialUltShare : 0
+}
+
+export function chargeUltimate(world: World, damage: number): void {
+  const { player, tuning } = world
+  if (player.ultimate >= 1 || player.ultShots > 0 || damage <= 0) return
+  player.ultimate = Math.min(1, player.ultimate + damage / Math.max(1, tuning.player.ultimateCharge))
+  if (player.ultimate >= 1) world.events.push({ type: 'ultimateReady' })
+}
+
+export function updateUltimate(world: World, command: PlayerCommand, dt: number): void {
+  const { player } = world
+  if (!player.alive || world.status !== 'playing') return
+  const weapon = weaponOf(world, ULTIMATE_WEAPON)
+  if (command.ultimate && player.ultimate >= 1 && player.ultShots === 0 && !playerDisabled(player)) {
+    player.ultimate = 0
+    player.ultShots = Math.max(1, Math.round(weapon.burstCount))
+    player.ultTimer = 0
+    player.burstLeft = 0
+    world.stats.ultimates += 1
+    world.events.push({ type: 'ultimateFired', x: player.pos.x, y: player.pos.y })
+  }
+  if (player.ultShots <= 0) return
+  player.ultTimer -= dt
+  while (player.ultShots > 0 && player.ultTimer <= 0) {
+    const offset = player.radius + 0.1
+    const eye = player.z + eyeHeightOf('player')
+    firePattern(world, 'player', player.pos.x, player.pos.y, offset, player.facing, ULTIMATE_WEAPON, {
+      damageScale: world.playerStats.damage,
+      z: eye,
+      pitch: player.pitch,
+    })
+    const flat = Math.cos(player.pitch) * offset
+    world.events.push({
+      type: 'shot',
+      x: player.pos.x + Math.cos(player.facing) * flat,
+      y: player.pos.y + Math.sin(player.facing) * flat,
+      z: eye + Math.sin(player.pitch) * offset,
+      angle: player.facing,
+      pitch: player.pitch,
+      weapon: ULTIMATE_WEAPON,
+    })
+    player.ultShots -= 1
+    player.ultTimer += weapon.burstInterval
+  }
+}

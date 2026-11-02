@@ -1,0 +1,116 @@
+.bark-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  max-width: min(620px, calc(100vw - 32px));
+  padding: 8px 18px 8px 8px;
+  transform: translateX(-50%);
+  border: 2px solid rgba(255, 211, 77, 0.55);
+  border-radius: 14px;
+  background: rgba(14, 18, 28, 0.86);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.bark-bar.visible {
+  display: flex;
+  opacity: 1;
+  animation: bark-in 0.25s ease-out;
+}
+
+.bark-bar.visible.leaving {
+  opacity: 0;
+}
+
+.bark-face {
+  flex-shrink: 0;
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  object-position: 50% 6%;
+  border-radius: 50%;
+  border: 2px solid #ffb238;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.bark-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.bark-name {
+  align-self: flex-start;
+  padding: 1px 10px;
+  border-radius: 6px;
+  background: #ffb238;
+  color: #2a1a00;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-shadow: none;
+}
+
+.bark-text {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.bark-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bark-bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 220px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: #fffaf0;
+  color: #2a1a00;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-shadow: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  translate: -50% calc(-100% - 10px);
+  transition: opacity 0.35s ease;
+  will-change: transform;
+}
+
+.bark-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  border: 8px solid transparent;
+  border-bottom: 0;
+  border-top-color: #fffaf0;
+  transform: translateX(-50%);
+}
+
+.bark-bubble.leaving {
+  opacity: 0;
+}
+
+@keyframes bark-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

@@ -1,0 +1,19 @@
+Boss encounter style frame for an original first-person arcade shooter, 16:9 landscape, rendered as a living comic panel. A low first-person camera (player eye height about 1.5 m) looks UP at a giant boss in a circular harvest-field arena ringed by a wooden palisade, with a stubble field, scattered hay bales and rocks used as cover.
+
+The boss is the Tin Scarecrow from reference 1, scaled up to about 4.5 m tall: rusty-brown tin body, a wide yellow straw hat, glowing amber eyes, straw bursting from its joints and seams, a big pitchfork. It raises the pitchfork overhead for a ground slam; a red translucent warning ring spreads across the ground around it toward the camera. Its chest emblem glows amber-gold inside a pulsing ring: a clearly readable weak point.
+
+Foreground, lower right: the player's right forearm and energy pistol (references 2 and 3: orange cropped jacket sleeve with a round black patch bearing a white star, black fingerless glove, chunky dark-gray pistol with three glowing cyan coil rings and an orange grip end-cap), firing a cyan bolt at the weak point.
+
+Behind the boss: a dramatic late-afternoon painted comic sky with towering ink-outlined clouds lit warm gold, floating islands far away. Dust and straw fly through the air. A strong sense of scale from the low angle.
+
+Rendering style (most important): an original comic-book look, like a living comic panel. Bold black-brown ink outlines with varying weight: thick on outer silhouettes, thinner on interior creases, thinning with distance. Hand-drawn ink hatching and grain lines on the tin plates, wood and straw. Flat cel shading in 2-3 hard tone steps. Cool blue-violet shadows, never pure black, filled with fine halftone dot screens. Warm key light from the upper left. Punchy saturated colors. Glowing amber eyes, the glowing weak point and cyan energy with soft bloom. Faint paper grain and a slight vignette. Chunky, rounded, slightly exaggerated proportions.
+
+No HUD, no text, no letters, no watermark. Original designs; do not imitate any existing game, studio or character.
+
+Reference roles and fidelity: Image 1 is the boss design reference, Image 2 is the player clothing and glove reference, and Image 3 is the pistol design reference. These are reference images, not edit targets. Preserve the boss's riveted rectangular rusty-copper torso, cylindrical tin head, two round amber eyes, very broad golden-yellow straw hat, dark articulated metal limbs, straw shoulder tufts and straw leg cuffs, oversized rounded metal boots, and four-tined metal pitchfork. Preserve the anchor-like chest emblem from Image 1, now illuminated amber-gold inside a clear circular weak-point glow, without lettering. Keep the whole boss and the raised pitchfork readable in a towering upward-looking perspective, with the boots much nearer the camera than the head. The red ground warning ring must be visibly grounded as a broad foreshortened ellipse spreading toward the viewer, not a floating HUD element. Keep the chest target unobscured and the player's right hand anatomically plausible. Ignore the magenta backgrounds of all reference sheets; no magenta background in the final scene. Render a single finished widescreen scene, not a model sheet, with no panels or labels.
+
+Reference image paths (in input order):
+1. art/reference/scarecrow-model-sheet.png
+2. art/reference/kai-model-sheet.png
+3. art/reference/blaster-model-sheet.png
+Original generated image path: /Users/zuopeng.cheng/.codex/generated_images/01a19006-a9f5-79f2-a3c9-9f9244024891/call_A5zEjBcuZIsEtSvNj8UVqNA5.png
