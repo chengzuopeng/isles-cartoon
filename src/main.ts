@@ -162,6 +162,8 @@ const VIEWMODEL_MODELS: readonly ModelId[] = ['blaster']
 const DEG = Math.PI / 180
 const BOB_HEIGHT = 0.035
 const BOB_RATE = 2.2
+const STEP_EASE = 14
+const STEP_SNAP = 1.2
 
 const app = document.querySelector<HTMLDivElement>('#app')
 if (!app) throw new Error('#app not found')
@@ -198,6 +200,7 @@ let eyeDip = 0
 let eyeDipVelocity = 0
 let bobPhase = 0
 let bobAmount = 0
+let eyeBase: number | null = null
 let fovKick = 0
 let lastStatus = world.status
 const lookDelta = { x: 0, y: 0 }
@@ -477,6 +480,7 @@ function resetScene(): void {
   yaw = world.player.facing
   pitch = 0
   bobAmount = 0
+  eyeBase = null
   stage.look(yaw, pitch)
 }
 
@@ -935,6 +939,8 @@ function placeEye(alpha: number, dt: number): void {
   const x = lerp(player.prev.x, player.pos.x, alpha)
   const y = lerp(player.prev.y, player.pos.y, alpha)
   const z = lerp(player.prevZ, player.z, alpha)
+  if (eyeBase === null || !player.grounded || Math.abs(z - eyeBase) > STEP_SNAP) eyeBase = z
+  else eyeBase += (z - eyeBase) * Math.min(1, dt * STEP_EASE)
   eyeDipVelocity += (-eyeDip * 160 - eyeDipVelocity * 18) * dt
   eyeDip += eyeDipVelocity * dt * 0.1
   const speed = Math.hypot(player.pos.x - player.prev.x, player.pos.y - player.prev.y) / loop.stepSeconds
@@ -943,7 +949,7 @@ function placeEye(alpha: number, dt: number): void {
   if (bobbing) bobPhase += dt * speed * BOB_RATE
   const bob = Math.abs(Math.sin(bobPhase)) * BOB_HEIGHT * bobAmount
   const height = player.alive ? look.eyeHeight : 0.45
-  stage.setEye(x, y, z + height + eyeDip + bob)
+  stage.setEye(x, y, eyeBase + height + eyeDip + bob)
   fovKick = Math.max(0, fovKick - dt * 3.2)
   stage.setFovBoost(fovKick * 5)
   stage.setRoll(player.alive ? 0 : 0.35)

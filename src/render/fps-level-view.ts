@@ -8,6 +8,7 @@ import type { World } from '../sim/world'
 import type { ModelId } from './asset-urls'
 import { lineTexture, type LineTextureKind } from './line-textures'
 import type { ModelLibrary } from './model-library'
+import { buildTerrain, createTerrainMaterials, surfaceHeight } from './fps-terrain'
 import { bakeNode, type NodePart } from './node-parts'
 import {
   PROP_MODELS,
@@ -32,6 +33,7 @@ import { toToon, toonMaterial, toonify } from './toon'
 
 export interface FpsLevelView {
   readonly group: THREE.Group
+  heightAt(x: number, z: number): number
   update(world: World, dt: number): void
   handle(event: GameEvent): void
   dispose(): void
@@ -39,11 +41,10 @@ export interface FpsLevelView {
 
 export const VISUAL_HEIGHTS = {
   wall: 3,
+  wallSink: 0.4,
   fence: 0.9,
   gate: 3,
   boulder: 2.5,
-  waterDrop: 0.45,
-  cliff: 9,
 } as const
 
 const BOULDER_WIDTH = 1.3
@@ -73,11 +74,6 @@ const TILE_PROPS: Readonly<Partial<Record<Tile, PropKind>>> = {
   [Tile.Cart]: 'cart',
 }
 
-const SIDE_COLOR = new THREE.Color('#a07c56')
-const BANK_COLOR = new THREE.Color('#8c6f52')
-const CLIFF_COLOR = new THREE.Color('#9a7a5c')
-const ISLAND_COLOR = new THREE.Color('#86664a')
-
 interface Batch {
   parts: readonly NodePart[]
   matrices: THREE.Matrix4[]
@@ -105,12 +101,6 @@ interface Motion {
 
 export function isBorder(grid: Grid, column: number, row: number): boolean {
   return column === 0 || row === 0 || column === grid.columns - 1 || row === grid.rows - 1
-}
-
-export function surfaceHeight(grid: Grid, column: number, row: number): number {
-  if (column < 0 || row < 0 || column >= grid.columns || row >= grid.rows) return -VISUAL_HEIGHTS.cliff
-  const floor = cellFloor(grid, column, row)
-  return tileAt(grid, column, row) === Tile.Water ? floor - VISUAL_HEIGHTS.waterDrop : floor
 }
 
 function themeOf(level: BuiltLevel, row: number): Theme {
@@ -159,55 +149,6 @@ function edgeCorners(column: number, row: number, side: (typeof SIDES)[number]):
   return [column, row, column, row + 1]
 }
 
-export function buildGround(level: BuiltLevel): { ground: THREE.BufferGeometry; water: THREE.BufferGeometry } {
-  const { grid } = level
-  const ground = new GeometryBuilder()
-  const water = new GeometryBuilder()
-  const color = new THREE.Color()
-  const up = new THREE.Vector3(0, 1, 0)
-  for (let row = 0; row < grid.rows; row++) {
-    const palette = PALETTES[themeOf(level, row)]
-    for (let column = 0; column < grid.columns; column++) {
-      const tile = tileAt(grid, column, row)
-      const height = surfaceHeight(grid, column, row)
-      const wet = tile === Tile.Water
-      if (wet) color.set(palette.water)
-      else if (tile === Tile.Path || tile === Tile.Exit) color.set(palette.path)
-      else color.set(cellHash(column, row, 3) < 0.5 ? palette.floorA : palette.floorB)
-      if (!wet) color.offsetHSL(0, 0, (cellHash(column, row, 9) - 0.5) * 0.03)
-      const target = wet ? water : ground
-      target.quad(
-        { x: column, y: height, z: row },
-        { x: column, y: height, z: row + 1 },
-        { x: column + 1, y: height, z: row + 1 },
-        { x: column + 1, y: height, z: row },
-        up,
-        color,
-        [column, row, column, row + 1, column + 1, row + 1, column + 1, row],
-      )
-      for (const side of SIDES) {
-        const other = surfaceHeight(grid, column + side.dc, row + side.dr)
-        if (other >= height - 0.001) continue
-        const [x1, z1, x2, z2] = edgeCorners(column, row, side)
-        const outside = column + side.dc < 0 || row + side.dr < 0 || column + side.dc >= grid.columns || row + side.dr >= grid.rows
-        const sideColor = outside ? CLIFF_COLOR : tileAt(grid, column + side.dc, row + side.dr) === Tile.Water ? BANK_COLOR : SIDE_COLOR
-        const along = side.dc === 0 ? x1 : z1
-        const along2 = side.dc === 0 ? x2 : z2
-        ground.quad(
-          { x: x1, y: height, z: z1 },
-          { x: x1, y: other, z: z1 },
-          { x: x2, y: other, z: z2 },
-          { x: x2, y: height, z: z2 },
-          side.normal,
-          sideColor,
-          [along, height, along, other, along2, other, along2, height],
-        )
-      }
-    }
-  }
-  return { ground: ground.build(), water: water.build() }
-}
-
 export function buildWalls(level: BuiltLevel): Map<Theme, THREE.BufferGeometry> {
   const { grid } = level
   const builders = new Map<Theme, GeometryBuilder>()
@@ -229,7 +170,7 @@ export function buildWalls(level: BuiltLevel): Map<Theme, THREE.BufferGeometry> 
         const nc = column + side.dc
         const nr = row + side.dr
         if (solid(nc, nr) && Math.abs(cellFloor(grid, nc, nr) - base) < 0.01) continue
-        const floor = Math.min(base, surfaceHeight(grid, nc, nr))
+        const floor = Math.min(base, surfaceHeight(grid, nc, nr)) - VISUAL_HEIGHTS.wallSink
         const [x1, z1, x2, z2] = edgeCorners(column, row, side)
         const along = side.dc === 0 ? x1 : z1
         const along2 = side.dc === 0 ? x2 : z2
@@ -240,56 +181,6 @@ export function buildWalls(level: BuiltLevel): Map<Theme, THREE.BufferGeometry> 
   const result = new Map<Theme, THREE.BufferGeometry>()
   for (const [theme, builder] of builders) result.set(theme, builder.build())
   return result
-}
-
-function islandUnderside(grid: Grid): THREE.BufferGeometry {
-  const rings: { inset: number; y: number; jitter: number }[] = [
-    { inset: 0, y: -VISUAL_HEIGHTS.cliff, jitter: 0 },
-    { inset: 4, y: -22, jitter: 1.5 },
-    { inset: 11, y: -40, jitter: 3 },
-  ]
-  const points = (inset: number, jitter: number, seed: number) => {
-    const list: THREE.Vector2[] = []
-    const w = grid.columns
-    const h = grid.rows
-    const step = 4
-    for (let x = 0; x < w; x += step) list.push(new THREE.Vector2(x, 0))
-    for (let z = 0; z < h; z += step) list.push(new THREE.Vector2(w, z))
-    for (let x = w; x > 0; x -= step) list.push(new THREE.Vector2(x, h))
-    for (let z = h; z > 0; z -= step) list.push(new THREE.Vector2(0, z))
-    const cx = w / 2
-    const cz = h / 2
-    return list.map((point, index) => {
-      const dx = point.x - cx
-      const dz = point.y - cz
-      const scaleX = Math.max(0, (w / 2 - inset) / (w / 2))
-      const scaleZ = Math.max(0, (h / 2 - inset * 1.4) / (h / 2))
-      const noise = jitter * Math.sin(index * 2.3 + seed) * Math.cos(index * 1.1)
-      return new THREE.Vector2(cx + dx * scaleX + noise, cz + dz * scaleZ + noise)
-    })
-  }
-  const loops = rings.map((ring, index) => ({ y: ring.y, points: points(ring.inset, ring.jitter, index * 3) }))
-  const positions: number[] = []
-  for (let r = 0; r < loops.length - 1; r++) {
-    const a = loops[r]
-    const b = loops[r + 1]
-    const count = a.points.length
-    for (let i = 0; i < count; i++) {
-      const j = (i + 1) % count
-      positions.push(a.points[i].x, a.y, a.points[i].y, b.points[i].x, b.y, b.points[i].y, b.points[j].x, b.y, b.points[j].y)
-      positions.push(a.points[i].x, a.y, a.points[i].y, b.points[j].x, b.y, b.points[j].y, a.points[j].x, a.y, a.points[j].y)
-    }
-  }
-  const last = loops[loops.length - 1]
-  const tip = new THREE.Vector3(grid.columns / 2, -78, grid.rows / 2)
-  for (let i = 0; i < last.points.length; i++) {
-    const j = (i + 1) % last.points.length
-    positions.push(last.points[i].x, last.y, last.points[i].y, tip.x, tip.y, tip.z, last.points[j].x, last.y, last.points[j].y)
-  }
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-  geometry.computeVertexNormals()
-  return geometry
 }
 
 export function tuftGeometry(): THREE.BufferGeometry {
@@ -326,23 +217,21 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   const disposables: { dispose(): void }[] = []
   const has = (id: string) => models.has(id)
 
-  const { ground, water } = buildGround(level)
-  const groundMaterial = toonMaterial({ vertexColors: true, map: lineTexture('dirt') })
-  const groundMesh = new THREE.Mesh(ground, groundMaterial)
+  const terrain = buildTerrain(level)
+  const terrainMaterials = createTerrainMaterials(level)
+  const groundMesh = new THREE.Mesh(terrain.geometry, terrainMaterials.ground)
   groundMesh.receiveShadow = true
   groundMesh.name = 'ground'
   group.add(groundMesh)
-  const waterMaterial = toonMaterial({ vertexColors: true, emissive: '#0b3a5a', emissiveIntensity: 0.4 })
-  const waterMesh = new THREE.Mesh(water, waterMaterial)
+  const waterMesh = new THREE.Mesh(terrain.water, terrainMaterials.water)
   waterMesh.receiveShadow = true
+  waterMesh.name = 'water'
   group.add(waterMesh)
-  disposables.push(ground, water, groundMaterial, waterMaterial)
-
-  const island = islandUnderside(grid)
-  const islandMaterial = toonMaterial({ color: ISLAND_COLOR, map: lineTexture('rock') })
-  const islandMesh = new THREE.Mesh(island, islandMaterial)
-  group.add(islandMesh)
-  disposables.push(island, islandMaterial)
+  const undersideMesh = new THREE.Mesh(terrain.underside, terrainMaterials.underside)
+  undersideMesh.name = 'underside'
+  group.add(undersideMesh)
+  disposables.push(terrain.geometry, terrain.water, terrain.underside, terrainMaterials)
+  const groundAt = (x: number, z: number, floor: number) => Math.min(floor, terrain.heightAt(x, z))
 
   for (const [theme, geometry] of buildWalls(level)) {
     const material = toonMaterial({ color: PALETTES[theme].wall, map: lineTexture(WALL_TEXTURES[theme]) })
@@ -447,12 +336,12 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       if (!id) continue
       if (tile === Tile.Boulder) {
         const wide = BOULDER_WIDTH * (0.95 + cellHash(column, row, 5) * 0.1)
-        place(id, models.parts(id as ModelId), x, floor, z, propYaw(kind, column, row), wide, VISUAL_HEIGHTS.boulder / 0.75, wide, true)
+        place(id, models.parts(id as ModelId), x, groundAt(x, z, floor) - 0.1, z, propYaw(kind, column, row), wide, VISUAL_HEIGHTS.boulder / 0.75, wide, true)
         continue
       }
       const fit = PROP_FIT[kind] ?? 1
       const s = propScale(kind, column, row) * fit
-      place(id, models.parts(id as ModelId), x, floor, z, propYaw(kind, column, row), s, s, s, kind !== 'bush')
+      place(id, models.parts(id as ModelId), x, groundAt(x, z, floor) - (kind === 'cart' ? 0 : 0.06), z, propYaw(kind, column, row), s, s, s, kind !== 'bush')
     }
   }
 
@@ -474,13 +363,12 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     if (!TUFT_THEMES.has(themeOf(level, row))) continue
     for (let column = 0; column < grid.columns; column++) {
       if (tileAt(grid, column, row) !== Tile.Floor || isBorder(grid, column, row)) continue
-      const floor = cellFloor(grid, column, row)
       const count = cellHash(column, row, 11) < 0.35 ? 3 : 1
       for (let k = 0; k < count; k++) {
         const tx = column + 0.15 + cellHash(column, row, 20 + k) * 0.7
         const tz = row + 0.15 + cellHash(column, row, 40 + k) * 0.7
         const size = 0.26 + cellHash(column, row, 60 + k) * 0.18
-        position.set(tx, floor, tz)
+        position.set(tx, terrain.heightAt(tx, tz) - 0.02, tz)
         quaternion.setFromAxisAngle(yAxis, cellHash(column, row, 80 + k) * Math.PI * 2)
         scale.set(size, size * (0.9 + cellHash(column, row, 90 + k) * 0.5), size)
         tuftSpots.push(new THREE.Matrix4().compose(position, quaternion, scale))
@@ -542,8 +430,10 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   const turn = new THREE.Quaternion()
   return {
     group,
+    heightAt: terrain.heightAt,
     update(world, dt) {
       time += dt
+      terrainMaterials.update(dt)
       for (const entry of motions) {
         turn.setFromAxisAngle(entry.axis, motionAngle(entry.motion, time))
         entry.node.quaternion.copy(entry.rest).multiply(turn)
