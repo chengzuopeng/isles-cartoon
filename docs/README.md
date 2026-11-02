@@ -32,6 +32,7 @@
   - [性能](tech/performance.md)
   - [自动驾驶和机器人测试](tech/autopilot.md)
 - [路线图](plan/roadmap.md)
+  - [检查点 A：试玩 1-1](plan/checkpoint-a.md)
 - 决策
   - [ADR-0001 独立仓库做第一人称卡通版试验](decisions/0001-separate-repo.md)（部分被 ADR-0005 替代）
   - [ADR-0002 逻辑用 2.5D：格子加高度](decisions/0002-2.5d-sim.md)
