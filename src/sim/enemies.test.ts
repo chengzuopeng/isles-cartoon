@@ -105,6 +105,22 @@ describe('gunner', () => {
     expect(world.player.hp).toBe(tuning.player.maxHp - tuning.weapons.rifle.damage)
   })
 
+  it('fixes its pitch together with its heading when the red line locks, so a late jump dodges the shot', () => {
+    const { world, tuning } = setup(['############', '#P.....r...#', '############'])
+    const gunner = world.enemies[0]
+    let locked: number | null = null
+    for (let i = 0; i < 400 && count(world, 'enemyShot') === 0; i++) {
+      stepWorld(world, idle(), DT)
+      if (gunner.state === 'aim' && gunner.stateTime > tuning.weapons.rifle.windup * tuning.gunner.track && locked === null) {
+        locked = gunner.aimPitch
+        world.player.z += 1.2
+      }
+    }
+    const shot = world.events.find((event) => event.type === 'enemyShot')
+    expect(locked).not.toBeNull()
+    expect(shot && 'pitch' in shot ? shot.pitch : NaN).toBeCloseTo(locked ?? 0)
+  })
+
   it('backs away when the player gets too close', () => {
     const { world } = setup(['##############', '#....P.r.....#', '##############'])
     world.enemies[0].cooldown = 10

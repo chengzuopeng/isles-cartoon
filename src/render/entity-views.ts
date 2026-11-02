@@ -5,6 +5,7 @@ import type { WeaponId } from '../data/weapons'
 import { tripleLanes } from '../sim/boss'
 import { fogHides } from '../sim/fog'
 import { Tile, blocksMovement, cellFloor, cellTop, floorAt, tileAt, type Grid } from '../sim/grid'
+import { trackShare } from '../sim/enemies/tactics'
 import { clamp, lerp } from '../sim/math'
 import { sightOf } from '../sim/perception'
 import { disabled } from '../sim/status'
@@ -140,7 +141,6 @@ const fitBox = new THREE.Box3()
 const EXPOSED_COLOR = new THREE.Color('#ffd34d')
 const BEAM_COLOR = new THREE.Color('#ff2a1a')
 const BEAM_UP = new THREE.Vector3(0, 1, 0)
-const BEAM_LOCK = 0.55
 const beamDirection = new THREE.Vector3()
 const CURTAIN_HEIGHT = 1
 
@@ -1067,12 +1067,12 @@ export function createEntityViews(
     const { player } = world
     const fromZ = enemy.z + muzzleHeightOf(enemy.kind)
     const distance = Math.hypot(player.pos.x - enemy.pos.x, player.pos.y - enemy.pos.y)
-    const pitch = Math.atan2(player.z + CHEST_HEIGHT - fromZ, Math.max(distance, 0.1))
+    const pitch = enemy.aimPitch ?? Math.atan2(player.z + CHEST_HEIGHT - fromZ, Math.max(distance, 0.1))
     const length = Math.min(tuning.weapons.rifle.range, distance + 1.5) / Math.max(Math.cos(pitch), 0.2)
     beamDirection.set(Math.cos(enemy.aimAngle) * Math.cos(pitch), Math.sin(pitch), Math.sin(enemy.aimAngle) * Math.cos(pitch))
     beam.position.set(enemy.pos.x, fromZ, enemy.pos.y)
     beam.quaternion.setFromUnitVectors(BEAM_UP, beamDirection)
-    const locked = amount > BEAM_LOCK
+    const locked = amount > trackShare(world)
     const width = locked ? 0.07 : 0.032 + amount * 0.02
     beam.scale.set(width, length, width)
     const material = beam.material as THREE.MeshBasicMaterial

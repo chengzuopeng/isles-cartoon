@@ -74,12 +74,12 @@ export function firePattern(
   }
 }
 
-export function fireEnemyWeapon(world: World, enemy: Enemy, id: WeaponId, angle: number, stagger = 0): void {
+export function fireEnemyWeapon(world: World, enemy: Enemy, id: WeaponId, angle: number, stagger = 0, lockedPitch: number | null = null): void {
   const offset = enemy.radius + 0.12
   const muzzle = muzzleOf(enemy)
   const chest = playerChest(world.player)
   const reach = Math.max(0.1, Math.hypot(chest.x - muzzle.x, chest.y - muzzle.y))
-  const pitch = Math.atan2(chest.z - muzzle.z, reach)
+  const pitch = lockedPitch ?? Math.atan2(chest.z - muzzle.z, reach)
   const flat = Math.cos(pitch) * offset
   firePattern(world, 'enemy', enemy.pos.x, enemy.pos.y, offset, angle, id, { stagger, attack: attackOf(enemy, id), z: muzzle.z, pitch })
   world.events.push({

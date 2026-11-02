@@ -193,6 +193,7 @@ export interface Enemy extends Body {
   cooldownScale: number
   cooldown: number
   aimAngle: number
+  aimPitch: number | null
   rushCooldown: number
   dashFrom: Vec2
   dashHit: boolean

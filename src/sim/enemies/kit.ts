@@ -74,6 +74,7 @@ export function interruptMelee(enemy: Enemy): void {
 
 export function interruptAim(world: World, enemy: Enemy, weapon: WeaponId): void {
   if (enemy.state !== 'aim') return
+  enemy.aimPitch = null
   setState(enemy, 'recover')
   enemy.cooldown = Math.max(enemy.cooldown, weaponOf(world, weapon).cooldown * world.tuning.ai.interruptCooldown)
 }

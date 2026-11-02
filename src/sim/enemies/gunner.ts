@@ -1,3 +1,4 @@
+import { CHEST_HEIGHT } from '../../data/heights'
 import { fireEnemyWeapon, weaponOf } from '../arsenal'
 import { lineClear } from '../collision'
 import { blocksBullets } from '../grid'
@@ -21,7 +22,8 @@ function act(world: World, enemy: Enemy, dt: number): Vec2 {
   if (enemy.state === 'aim') {
     if (enemy.stateTime <= rifle.windup * trackShare(world)) aim(world, enemy, dt)
     if (enemy.stateTime >= rifle.windup) {
-      fireEnemyWeapon(world, enemy, 'rifle', enemy.aimAngle)
+      fireEnemyWeapon(world, enemy, 'rifle', enemy.aimAngle, 0, enemy.aimPitch)
+      enemy.aimPitch = null
       setState(enemy, 'recover')
       enemy.cooldown = rifle.cooldown * enemy.cooldownScale
       enemy.cover = findCover(world, enemy, config.coverRadius, config.keepMin)
@@ -62,4 +64,6 @@ function aim(world: World, enemy: Enemy, dt: number): void {
   const target = predict(world, (remaining + distance / rifle.speed) * config.lead * world.difficulty.lead, dt)
   enemy.aimAngle = Math.atan2(target.y - enemy.pos.y, target.x - enemy.pos.x)
   enemy.facing = enemy.aimAngle
+  const muzzle = muzzleOf(enemy)
+  enemy.aimPitch = Math.atan2(player.z + CHEST_HEIGHT - muzzle.z, Math.max(0.1, Math.hypot(target.x - muzzle.x, target.y - muzzle.y)))
 }
