@@ -28,6 +28,7 @@
 - 技术
   - [技术架构](tech/architecture.md)
   - [墨线渲染管线](tech/rendering.md)
+  - [自动驾驶和机器人测试](tech/autopilot.md)
 - [路线图](plan/roadmap.md)
 - 决策
   - [ADR-0001 独立仓库做第一人称卡通版试验](decisions/0001-separate-repo.md)（部分被 ADR-0005 替代）
