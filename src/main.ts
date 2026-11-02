@@ -1069,6 +1069,8 @@ function frame(now: number): void {
   map.update(world, dt)
   results.update(dt)
   dialogue.update(dt)
+  sfx.setListener(world.player.pos.x, world.player.pos.y, yaw)
+  if (screen === 'play' && !paused && !dialogue.isOpen()) sfx.update(world, dt)
   sfx.setVolume(tuning.audio.volume * settings.sfx)
   music.setVolume(settings.music)
   music.play(currentTrack())
