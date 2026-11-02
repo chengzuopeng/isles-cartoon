@@ -30,7 +30,7 @@ import { BULLET_HEIGHT, GEAR_COLOR, flat, part, standard, type Disposable } from
 import { BODY_HEIGHTS, CHEST_HEIGHT, eyeHeightOf, muzzleHeightOf } from '../data/heights'
 import { bossExposed } from '../sim/boss'
 import { crumbling } from '../sim/melee'
-import { cloneInked } from './toon'
+import { cloneInked, toonMaterial } from './toon'
 
 export type ViewFlags = {
   showSight: boolean
@@ -76,6 +76,7 @@ interface EnemyView {
   eliteRing: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | null
   triple: TripleLanes | null
   cone: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null
+  lamp: THREE.Group | null
 }
 
 interface Veil {
@@ -226,6 +227,15 @@ function curtainGradient(): THREE.DataTexture {
 }
 const beamGeometry = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true).translate(0, 0.5, 0)
 
+export const GRASS_LAMP = {
+  kinds: ['grunt', 'bomber'] as readonly EnemyKind[],
+  mast: 0.5,
+  radius: 0.075,
+  color: '#ff5a3c',
+  calm: 1.6,
+  angry: 9,
+} as const
+
 export const EYE_CONE = {
   length: 5.5,
   spreadDeg: 17,
@@ -336,6 +346,10 @@ export function createEntityViews(
     curtain.renderOrder = 2
     return curtain
   }
+  const lampMast = new THREE.CylinderGeometry(0.018, 0.024, GRASS_LAMP.mast, 6).translate(0, GRASS_LAMP.mast / 2, 0)
+  const lampBulb = new THREE.SphereGeometry(GRASS_LAMP.radius, 12, 8)
+  const lampMastMaterial = toonMaterial({ color: '#3a3330' })
+  const lampGlow = new THREE.MeshBasicMaterial({ color: new THREE.Color(GRASS_LAMP.color).multiplyScalar(2.2) })
   const eyeCone = coneGeometry()
   const eyeConeMaterial = new THREE.MeshBasicMaterial({ color: EYE_CONE.color, map: coneGradient(), transparent: true, opacity: EYE_CONE.idle, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
   const geometries = {
@@ -421,6 +435,7 @@ export function createEntityViews(
       eliteRing: null,
       triple: null,
       cone: null,
+      lamp: null,
     }
   }
 
@@ -585,6 +600,18 @@ export function createEntityViews(
       cone.renderOrder = 3
       view.ground.add(cone)
       view.cone = cone
+      if (GRASS_LAMP.kinds.includes(kind)) {
+        const lamp = new THREE.Group()
+        const mast = new THREE.Mesh(lampMast, lampMastMaterial)
+        const bulb = new THREE.Mesh(lampBulb, lampGlow)
+        bulb.position.y = GRASS_LAMP.mast
+        bulb.name = 'bulb'
+        lamp.add(mast, bulb)
+        lamp.position.y = (BODY_HEIGHTS[kind] ?? 1) - 0.05
+        lamp.visible = false
+        view.root.add(lamp)
+        view.lamp = lamp
+      }
       view.root.traverse((object) => {
         object.castShadow = false
       })
@@ -1110,6 +1137,13 @@ export function createEntityViews(
       if (view.cone) {
         view.cone.visible = !enemy.aggro
         view.cone.material.opacity = EYE_CONE.idle + (EYE_CONE.noticing - EYE_CONE.idle) * enemy.notice
+      }
+      if (view.lamp) {
+        const column = Math.floor(enemy.pos.x)
+        const row = Math.floor(enemy.pos.y)
+        const inGrass = tileAt(world.grid, column, row) === Tile.Bush || [-1, 1].some((d) => tileAt(world.grid, column + d, row) === Tile.Bush || tileAt(world.grid, column, row + d) === Tile.Bush)
+        view.lamp.visible = inGrass
+        if (inGrass) view.lamp.getObjectByName('bulb')?.scale.setScalar(1 + 0.35 * Math.max(0, Math.sin(clock * (enemy.aggro ? GRASS_LAMP.angry : GRASS_LAMP.calm) + enemy.id)))
       }
       if (enemy.kind !== 'boss') blobs.add(view.root.position.x, view.root.position.z, enemy.radius, 1 - Math.max(0, view.veil.amount))
     }

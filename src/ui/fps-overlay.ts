@@ -1,5 +1,6 @@
 import { element } from './dom'
 import { syncStyle, syncText } from './dom-sync'
+import { stalkVeilUrl } from './stalk-veil'
 
 export type HitKind = 'hit' | 'crit' | 'kill'
 
@@ -19,6 +20,7 @@ export interface FpsOverlay {
   threat(angle: number): void
   update(state: OverlayState, dt: number): void
   setHint(text: string | null): void
+  setHidden(amount: number): void
   clear(): void
 }
 
@@ -49,6 +51,9 @@ export function createFpsOverlay(container: HTMLElement): FpsOverlay {
   const dashFill = element('div', 'fps-dash-fill', dash)
   const hint = element('div', 'fps-hint', root)
   const vignette = element('div', 'fps-hurt-vignette', root)
+  const veil = element('div', 'fps-stalk-veil', root)
+  veil.style.backgroundImage = stalkVeilUrl()
+  const hiding = element('div', 'fps-hiding', root, '藏在草里')
   const live: Arc[] = []
   let markerTime = 0
   let killTime = 0
@@ -110,6 +115,12 @@ export function createFpsOverlay(container: HTMLElement): FpsOverlay {
     setHint(text) {
       syncText(hint, text ?? '')
       hint.classList.toggle('shown', Boolean(text))
+    },
+    setHidden(amount) {
+      const shown = Math.max(0, Math.min(1, amount))
+      syncStyle(veil, 'opacity', (shown * 0.7).toFixed(2))
+      syncStyle(veil, 'transform', `translateY(${((1 - shown) * 18).toFixed(1)}%)`)
+      hiding.classList.toggle('shown', shown > 0.6)
     },
     clear() {
       for (const arc of live) arc.root.remove()

@@ -490,3 +490,33 @@
     transform: scale(1.12);
   }
 }
+
+.fps-stalk-veil {
+  position: absolute;
+  inset: 0;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fps-hiding {
+  position: absolute;
+  left: 50%;
+  bottom: 118px;
+  padding: 2px 12px;
+  border: 2px solid #1d1714;
+  border-radius: 8px;
+  background: rgba(255, 250, 240, 0.92);
+  color: #3a6b2a;
+  font-family: var(--comic-font);
+  font-size: 18px;
+  font-weight: 900;
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 0.2s;
+}
+
+.fps-hiding.shown {
+  opacity: 1;
+}

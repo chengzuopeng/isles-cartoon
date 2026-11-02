@@ -8,6 +8,8 @@ export interface LookSettings {
   eyeHeight: number
 }
 
+export const GRASS_EYE_HEIGHT = 0.95
+
 export const LOOK_LIMITS = {
   sensitivity: [0.02, 0.4],
   fov: [75, 110],

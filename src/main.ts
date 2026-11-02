@@ -29,7 +29,7 @@ import { createDefaultTuning, type Tuning } from './data/tuning'
 import type { PlayerWeaponId } from './data/weapons'
 import { createFpsInput } from './input/fps-input'
 import { loadKeys, saveKeys } from './input/keymap'
-import { loadLookSettings, saveLookSettings } from './input/look-settings'
+import { GRASS_EYE_HEIGHT, loadLookSettings, saveLookSettings } from './input/look-settings'
 import { RESIDENT_MODEL_IDS, type ModelId } from './render/asset-urls'
 import { createEffects } from './render/effects'
 import { createEntityViews, type EntityViews, type ViewFlags } from './render/entity-views'
@@ -62,6 +62,7 @@ import {
 } from './sim/cheats'
 import { buildLevel, validateLevel, type BuiltLevel } from './sim/level'
 import { lerp } from './sim/math'
+import { playerHidden } from './sim/perception'
 import { makeItem, weaponItem } from './sim/pickups'
 import {
   allocate,
@@ -207,6 +208,7 @@ let eyeDipVelocity = 0
 let bobPhase = 0
 let bobAmount = 0
 let eyeBase: number | null = null
+let crouch = 0
 let fovKick = 0
 let lastStatus = world.status
 const lookDelta = { x: 0, y: 0 }
@@ -500,6 +502,7 @@ function resetScene(): void {
   pitch = 0
   bobAmount = 0
   eyeBase = null
+  crouch = 0
   stage.look(yaw, pitch)
 }
 
@@ -974,7 +977,9 @@ function placeEye(alpha: number, dt: number): void {
   bobAmount += ((bobbing ? Math.min(1, speed / Math.max(1, tuning.player.speed)) : 0) - bobAmount) * Math.min(1, dt * 8)
   if (bobbing) bobPhase += dt * speed * BOB_RATE
   const bob = Math.abs(Math.sin(bobPhase)) * BOB_HEIGHT * bobAmount
-  const height = player.alive ? look.eyeHeight : 0.45
+  crouch += ((player.alive && playerHidden(world) ? 1 : 0) - crouch) * Math.min(1, dt * 7)
+  overlay.setHidden(screen === 'play' ? crouch : 0)
+  const height = player.alive ? lerp(look.eyeHeight, GRASS_EYE_HEIGHT, crouch) : 0.45
   stage.setEye(x, y, eyeBase + height + eyeDip + bob)
   fovKick = Math.max(0, fovKick - dt * 3.2)
   stage.setFovBoost(fovKick * 5)

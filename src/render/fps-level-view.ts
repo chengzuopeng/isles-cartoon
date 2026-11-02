@@ -10,6 +10,7 @@ import { lineTexture, type LineTextureKind } from './line-textures'
 import type { ModelLibrary } from './model-library'
 import { buildBuilding } from './buildings'
 import { buildTerrain, createTerrainMaterials, surfaceHeight, terrainChunks } from './fps-terrain'
+import { STALK_STYLES, createStalkMaterial, stalkGeometry, stalkMatrices } from './stalks'
 import { bakeNode, type NodePart } from './node-parts'
 import {
   PROP_MODELS,
@@ -300,6 +301,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
 
   const gates: GateView[] = []
   const crates: CrateView[] = []
+  const stalkSpots = new Map<string, { theme: Theme; band: number; matrices: THREE.Matrix4[] }>()
   const gateParts = has('ch1-gate')
   const crateModel = has('crate')
 
@@ -357,6 +359,14 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       }
       const kind = TILE_PROPS[tile]
       if (!kind) continue
+      const stalks = kind === 'bush' ? STALK_STYLES[theme] : undefined
+      if (stalks) {
+        const key = `${theme}#${band(row)}`
+        const list = stalkSpots.get(key) ?? { theme, band: band(row), matrices: [] }
+        list.matrices.push(...stalkMatrices(column, row, terrain.heightAt, stalks))
+        stalkSpots.set(key, list)
+        continue
+      }
       const rule = PROP_MODELS[kind]
       const base = propModel(kind, theme)
       const id = variantModel(has, base, rule.variants, column, row)
@@ -384,6 +394,29 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       group.add(mesh)
       culled.push({ object: mesh, ...bandRange(batch.band) })
     }
+  }
+
+  const stalkMaterial = createStalkMaterial()
+  const stalkGeometries = new Map<Theme, THREE.BufferGeometry>()
+  disposables.push(stalkMaterial.material)
+  for (const spot of stalkSpots.values()) {
+    const style = STALK_STYLES[spot.theme]
+    if (!style) continue
+    let geometry = stalkGeometries.get(spot.theme)
+    if (!geometry) {
+      geometry = stalkGeometry(style)
+      stalkGeometries.set(spot.theme, geometry)
+      disposables.push(geometry)
+    }
+    const mesh = new THREE.InstancedMesh(geometry, stalkMaterial.material, spot.matrices.length)
+    spot.matrices.forEach((matrix, index) => mesh.setMatrixAt(index, matrix))
+    mesh.instanceMatrix.needsUpdate = true
+    mesh.computeBoundingSphere()
+    mesh.receiveShadow = true
+    mesh.name = 'stalks'
+    mesh.userData.noInk = true
+    group.add(mesh)
+    culled.push({ object: mesh, ...bandRange(spot.band) })
   }
 
   const tuftSpots = new Map<number, THREE.Matrix4[]>()
@@ -474,6 +507,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     update(world, dt, eye) {
       time += dt
       terrainMaterials.update(dt)
+      stalkMaterial.update(dt)
       const z = eye ? eye.z : world.player.pos.y
       for (const item of culled) item.object.visible = item.far >= z - LEVEL_CULL.drawDistance && item.near <= z + LEVEL_CULL.drawDistance
       for (const entry of motions) {
