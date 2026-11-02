@@ -342,7 +342,7 @@ describe('merging the still parts of kai and his guns', () => {
     })
     player.ultShots = 0
     run(20)
-    view.handle({ type: 'playerHit', x: player.pos.x, y: player.pos.y, damage: 3, absorbed: 0, fromX: player.pos.x, fromY: player.pos.y })
+    view.handle({ type: 'playerHit', x: player.pos.x, y: player.pos.y, damage: 3, absorbed: 0, fromX: player.pos.x, fromY: player.pos.y, knockback: 0 })
     const cell = Math.floor(player.pos.y) * world.grid.columns + Math.floor(player.pos.x)
     const tile = world.grid.tiles[cell]
     world.grid.tiles[cell] = Tile.Bush

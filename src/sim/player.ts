@@ -41,12 +41,13 @@ export function updatePlayer(world: World, command: PlayerCommand, dt: number): 
     player.rollTime = Math.max(0, player.rollTime - dt)
   } else {
     const moveLength = Math.hypot(command.moveX, command.moveY)
-    const speed = stats.speed * playerSpeedFactor(player)
+    const speed = stats.speed * playerSpeedFactor(player) * (player.stagger > 0 ? tuning.feel.staggerSpeed : 1)
     const moveScale = moveLength > 1 ? speed / moveLength : speed
     moveX += command.moveX * moveScale * dt
     moveY += command.moveY * moveScale * dt
   }
   decay(player.knock, tuning.feel.knockbackDecay, dt)
+  player.stagger = Math.max(0, player.stagger - dt)
   movePlayer(world, moveX, moveY, dt)
 
   if (command.slot) selectSlot(world, command.slot)

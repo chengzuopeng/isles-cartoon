@@ -147,6 +147,10 @@ export type FeelTuning = {
   hitstopBoss: number
   hitstopScale: number
   knockbackDecay: number
+  playerKnockScale: number
+  staggerPerKnock: number
+  staggerMax: number
+  staggerSpeed: number
   blastKnockback: number
   shakeShot: number
   shakeHit: number
@@ -329,6 +333,10 @@ export function createDefaultTuning(): Tuning {
       hitstopBoss: 0.14,
       hitstopScale: 0.05,
       knockbackDecay: 9,
+      playerKnockScale: 0.3,
+      staggerPerKnock: 0.03,
+      staggerMax: 0.45,
+      staggerSpeed: 0.55,
       blastKnockback: 8,
       shakeShot: 0.04,
       shakeHit: 0.08,

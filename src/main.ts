@@ -168,6 +168,7 @@ const DEG = Math.PI / 180
 const BOB_HEIGHT = 0.035
 const BOB_RATE = 2.2
 const STEP_EASE = 14
+const HIT_ROLL = { perKnock: 0.004, max: 0.05, stiffness: 140, damping: 16 } as const
 const STEP_SNAP = 1.2
 
 const app = document.querySelector<HTMLDivElement>('#app')
@@ -209,6 +210,8 @@ let bobPhase = 0
 let bobAmount = 0
 let eyeBase: number | null = null
 let crouch = 0
+let hitRoll = 0
+let hitRollVelocity = 0
 let fovKick = 0
 let lastStatus = world.status
 const lookDelta = { x: 0, y: 0 }
@@ -503,6 +506,8 @@ function resetScene(): void {
   bobAmount = 0
   eyeBase = null
   crouch = 0
+  hitRoll = 0
+  hitRollVelocity = 0
   stage.look(yaw, pitch)
 }
 
@@ -896,10 +901,13 @@ function dispatch(event: GameEvent): void {
     case 'shieldBlocked':
       wordAt('dang', event.x, event.y, world.player.z + 1.2, 0.9)
       break
-    case 'playerHit':
-      overlay.hurt(relativeAngle(event.fromX, event.fromY), Math.min(1, event.damage / 250))
+    case 'playerHit': {
+      const angle = relativeAngle(event.fromX, event.fromY)
+      overlay.hurt(angle, Math.min(1, event.damage / 250))
       stage.addTrauma(Math.min(0.5, 0.12 + event.damage / 600))
+      if (event.knockback > 0) hitRollVelocity += -Math.sign(Math.sin(angle)) * Math.min(HIT_ROLL.max, event.knockback * HIT_ROLL.perKnock) * HIT_ROLL.damping
       break
+    }
     case 'jumped':
       viewmodel.jumped()
       break
@@ -983,7 +991,9 @@ function placeEye(alpha: number, dt: number): void {
   stage.setEye(x, y, eyeBase + height + eyeDip + bob)
   fovKick = Math.max(0, fovKick - dt * 3.2)
   stage.setFovBoost(fovKick * 5)
-  stage.setRoll(player.alive ? 0 : 0.35)
+  hitRollVelocity += (-hitRoll * HIT_ROLL.stiffness - hitRollVelocity * HIT_ROLL.damping) * dt
+  hitRoll = Math.max(-HIT_ROLL.max, Math.min(HIT_ROLL.max, hitRoll + hitRollVelocity * dt))
+  stage.setRoll(player.alive ? hitRoll * settings.shake : 0.35)
 }
 
 function syncViews(dt: number, alpha: number): void {

@@ -142,7 +142,7 @@ function strike(world: World, index: number, lane: BladeLane, blade: BladeState,
   if (player.alive && bladeOverlaps(lane, from, to, player.pos, player.radius) && ready(world, blade, player.id)) {
     const out = outward(lane, player.pos)
     world.events.push({ type: 'bladeHit', index, id: player.id, x: player.pos.x, y: player.pos.y, damage: BLADE.damage })
-    damagePlayer(world, BLADE.damage, out.x, out.y, BLADE.knockback, hazardAttack('blade'))
+    damagePlayer(world, BLADE.damage, out.x, out.y, BLADE.knockback, hazardAttack('blade'), null, true)
   }
   for (const enemy of [...world.enemies]) {
     if (enemy.hp <= 0 || enemy.kind === 'boss') continue

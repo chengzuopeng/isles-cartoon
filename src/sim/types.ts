@@ -106,6 +106,7 @@ export interface Player extends Body {
   aim: Vec2
   skills: SkillRuntime[]
   rollTime: number
+  stagger: number
   rollDirX: number
   rollDirY: number
   rollSpeed: number
@@ -440,7 +441,7 @@ export type GameEvent =
   | { type: 'enemyCharge'; id: number; x: number; y: number; angle: number }
   | { type: 'enemyAlerted'; id: number; x: number; y: number }
   | { type: 'enemySpawned'; id: number; x: number; y: number }
-  | { type: 'playerHit'; x: number; y: number; damage: number; absorbed: number; fromX: number; fromY: number }
+  | { type: 'playerHit'; x: number; y: number; damage: number; absorbed: number; fromX: number; fromY: number; knockback: number }
   | { type: 'playerDied'; x: number; y: number; attack: Attack | null }
   | { type: 'blast'; x: number; y: number; radius: number; source: BlastSource }
   | { type: 'waveStarted'; wave: number }

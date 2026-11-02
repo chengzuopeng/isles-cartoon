@@ -47,6 +47,7 @@ export function damagePlayer(
   knockback: number,
   attack: Attack | null = null,
   source: Vec2 | null = null,
+  shove = false,
 ): void {
   const { player, tuning } = world
   if (!player.alive || world.status !== 'playing') return
@@ -57,8 +58,10 @@ export function damagePlayer(
   const scale = world.level.def.bossTuning?.damage
   if (scale !== undefined && world.boss && world.areaIndex === world.boss.area) amount *= scale
   player.sinceDamage = 0
-  player.knock.x += dirX * knockback
-  player.knock.y += dirY * knockback
+  const push = shove ? 1 : tuning.feel.playerKnockScale
+  player.knock.x += dirX * knockback * push
+  player.knock.y += dirY * knockback * push
+  player.stagger = Math.max(player.stagger, Math.min(tuning.feel.staggerMax, knockback * tuning.feel.staggerPerKnock))
   const blocked = absorbBarrier(world, amount)
   const absorbed = blocked + absorbDamage(world, amount - blocked)
   const damage = amount - absorbed
@@ -69,7 +72,7 @@ export function damagePlayer(
   }
   const fromX = source ? source.x : player.pos.x - dirX
   const fromY = source ? source.y : player.pos.y - dirY
-  world.events.push({ type: 'playerHit', x: player.pos.x, y: player.pos.y, damage, absorbed, fromX, fromY })
+  world.events.push({ type: 'playerHit', x: player.pos.x, y: player.pos.y, damage, absorbed, fromX, fromY, knockback })
   if (world.debug.invincible || damage <= 0) return
   player.hp = Math.max(0, player.hp - damage)
   if (player.hp > 0) return

@@ -9,11 +9,10 @@ import { angleBetween, damagePlayer, spawnBlast } from './combat'
 import { Tile, blocksMovement, setTile, tileAt } from './grid'
 import { breakLandmark, landmarkCenter } from './landmark-state'
 import { lobPitch, spawnLob } from './lobs'
-import { directionTo, invalidateNavigation } from './navigation'
+import { directionTo, invalidateNavigation, wideDirectionTo } from './navigation'
 import { spawnPickup } from './pickups'
 import { spawnRing } from './rings'
 import { speedFactor, updateEnemyStatus } from './status'
-import { chaseDirection } from './steering'
 import { heightsOverlap, muzzleOf, resolvePlayer, settleWalker } from './terrain'
 import type { BossState, Enemy, TankState } from './types'
 import type { World } from './world'
@@ -79,7 +78,7 @@ export function updateBoss(world: World, dt: number): void {
       const closing = def.bash !== null && nextMove(state, def) === 'bash'
       const stop = closing && def.bash ? def.bash.reach : boss.radius + player.radius + def.keepDistance
       if (gap > stop) {
-        const direction = chaseDirection(world, boss)
+        const direction = wideDirectionTo(world, boss.pos, boss.radius, player.pos)
         if (direction) {
           boss.pos.x += direction.x * def.walkSpeed * speedFactor(boss) * dt
           boss.pos.y += direction.y * def.walkSpeed * speedFactor(boss) * dt

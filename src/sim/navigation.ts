@@ -1,5 +1,5 @@
 import { corridorClear } from './collision'
-import { canStep, type Grid } from './grid'
+import { blocksMovement, canStep, tileAt, type Grid } from './grid'
 import type { Vec2 } from './math'
 import { stepOpen } from './pathing'
 import type { World } from './world'
@@ -37,7 +37,45 @@ export function directionTo(world: World, from: Vec2, radius: number, target: Ve
   return descend(world.grid, field, from)
 }
 
-export function distanceField(grid: Grid, sources: number[]): Float32Array {
+export function roomy(grid: Grid, column: number, row: number, radius: number): boolean {
+  const reach = Math.ceil(radius - 0.5)
+  const limit = (radius + 0.5) * (radius + 0.5)
+  for (let dr = -reach; dr <= reach; dr++) {
+    for (let dc = -reach; dc <= reach; dc++) {
+      if (dc * dc + dr * dr > limit) continue
+      const nc = column + dc
+      const nr = row + dr
+      if (nc < 0 || nr < 0 || nc >= grid.columns || nr >= grid.rows) return false
+      if (blocksMovement(tileAt(grid, nc, nr))) return false
+    }
+  }
+  return true
+}
+
+export function wideFieldTo(world: World, index: number, radius: number): Float32Array {
+  const { grid } = world
+  const key = index + (Math.round(radius * 10) + 1) * grid.columns * grid.rows
+  const cached = world.navFields.get(key)
+  if (cached) return cached
+  const field = distanceField(grid, [index], (column, row) => roomy(grid, column, row, radius))
+  world.navFields.set(key, field)
+  if (world.navFields.size > CACHE_LIMIT) {
+    const oldest = world.navFields.keys().next().value
+    if (oldest !== undefined) world.navFields.delete(oldest)
+  }
+  return field
+}
+
+export function wideDirectionTo(world: World, from: Vec2, radius: number, target: Vec2): Vec2 | null {
+  const dx = target.x - from.x
+  const dy = target.y - from.y
+  const length = Math.hypot(dx, dy)
+  if (length < 1e-6) return null
+  if (corridorClear(world.grid, from, target, radius)) return { x: dx / length, y: dy / length }
+  return descend(world.grid, wideFieldTo(world, tileIndex(world.grid, target), radius), from)
+}
+
+export function distanceField(grid: Grid, sources: number[], passable: (column: number, row: number) => boolean = () => true): Float32Array {
   const field = new Float32Array(grid.columns * grid.rows).fill(Infinity)
   const queue = new Int32Array(grid.columns * grid.rows)
   let tail = 0
@@ -58,7 +96,7 @@ export function distanceField(grid: Grid, sources: number[]): Float32Array {
     ] as const) {
       const nc = column + dc
       const nr = row + dr
-      if (!canStep(grid, column, row, nc, nr)) continue
+      if (!canStep(grid, column, row, nc, nr) || !passable(nc, nr)) continue
       const next = nr * grid.columns + nc
       if (field[next] <= field[index] + 1) continue
       field[next] = field[index] + 1

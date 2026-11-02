@@ -328,6 +328,7 @@ function createPlayer(spawn: Vec2, z: number, tuning: Tuning, loadout: Loadout):
     aim: { x: spawn.x, y: spawn.y - 1 },
     skills: loadout.skills.map((skill) => ({ slot: skill.slot, id: skill.id, rank: skill.rank, cooldown: 0 })),
     rollTime: 0,
+    stagger: 0,
     rollDirX: 0,
     rollDirY: 0,
     rollSpeed: 0,
