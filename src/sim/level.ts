@@ -14,6 +14,7 @@ import type { Vec2 } from './math'
 import { distanceField } from './navigation'
 import type { ChestPerch } from './types'
 import type { MinionKind } from '../data/enemies'
+import { firstPersonProblems } from './level-rules'
 
 export interface AreaInfo {
   index: number
@@ -515,6 +516,7 @@ function nearestPlacement(enemies: EnemyPlacement[], area: number, point: Vec2):
 export function validateLevel(level: BuiltLevel): string[] {
   const problems: string[] = []
   const { def, grid } = level
+  if (def.firstPerson) problems.push(...firstPersonProblems(level))
   if (level.landmarks.length > 0) {
     const base = parseRows(stackAreas(def).lines)
     problems.push(...landmarkProblems(base.grid, base.markers, level.landmarks, level.areas))

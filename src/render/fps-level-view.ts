@@ -8,6 +8,7 @@ import type { World } from '../sim/world'
 import type { ModelId } from './asset-urls'
 import { lineTexture, type LineTextureKind } from './line-textures'
 import type { ModelLibrary } from './model-library'
+import { buildBuilding } from './buildings'
 import { buildTerrain, createTerrainMaterials, surfaceHeight } from './fps-terrain'
 import { bakeNode, type NodePart } from './node-parts'
 import {
@@ -405,6 +406,13 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
 
   const motions: Motion[] = []
   for (const placement of level.landmarks) {
+    const kind = LANDMARKS[placement.id].building
+    if (kind) {
+      const building = buildBuilding(kind, placement, cellFloor(grid, placement.column, placement.row))
+      group.add(building.group)
+      disposables.push(building)
+      continue
+    }
     const id = landmarkModel(has, placement.id, placement.variant)
     if (!id) continue
     const instance = models.instance(id as ModelId)

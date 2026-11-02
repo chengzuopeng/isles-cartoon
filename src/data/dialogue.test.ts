@@ -143,7 +143,7 @@ describe('dialogue', () => {
 
   it('lets the 1-1 charger apologise, Kai answer back, Alo explain the red lines and Kai notice the star on the altar', () => {
     expect(BARKS['1-1'].map((bark) => [bark.id, bark.speaker, bark.display, bark.trigger])).toEqual([
-      ['sorry', null, 'bubble', { on: 'spotted', area: 0, at: [18, 22] }],
+      ['sorry', null, 'bubble', { on: 'spotted', area: 0, at: [12, 15] }],
       ['robbery', 'kai', 'bar', { on: 'after', bark: 'sorry', seconds: 1.2 }],
       ['aim', 'alo', 'bar', { on: 'enter', area: 1 }],
       ['altar', 'kai', 'bar', { on: 'clue', clue: 'star-altar' }],

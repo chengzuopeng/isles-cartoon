@@ -88,6 +88,7 @@ export type PerceptionTuning = {
   bushSight: number
   ambushRadius: number
   alertRadius: number
+  alertThroughWalls: number
   activationRadius: number
   fovDeg: number
   proximity: number
@@ -269,6 +270,7 @@ export function createDefaultTuning(): Tuning {
       bushSight: 2.9,
       ambushRadius: 7.2,
       alertRadius: 12.8,
+      alertThroughWalls: 5.1,
       activationRadius: 38.4,
       fovDeg: 140,
       proximity: 4,

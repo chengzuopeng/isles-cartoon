@@ -114,6 +114,7 @@ export interface LevelDef {
   radar?: boolean
   unlockAfter?: string
   wip?: string
+  firstPerson?: boolean
   areas: readonly AreaDef[]
 }
 

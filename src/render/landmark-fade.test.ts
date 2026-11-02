@@ -555,25 +555,6 @@ describe('landmark views fade', () => {
     expect(opacityOf(gate)).toBeCloseTo(LANDMARK_FADE.opacity)
   })
 
-  it('only counts the barn walls once its roof is lifted', async () => {
-    const models = await library(['ch1-barn'])
-    const level = levelFromAreas([FIELD])
-    const views = createLandmarkViews(level, models)
-    const barn = modelOf(views, 'ch1-barn')
-    const roof = views.group.getObjectByName('roof')!
-    const spot = placementOf(level, 'ch1-barn')
-    const centerX = spot.column + spot.width / 2
-    const southWall = spot.row + spot.depth - 0.2
-    run(views, fakeWorld(centerX, southWall - 1.5), SETTLE)
-    expect(roof.visible).toBe(false)
-    expect(opacityOf(barn)).toBe(1)
-    run(views, fakeWorld(centerX, southWall - 0.35), SETTLE)
-    expect(opacityOf(barn)).toBeCloseTo(LANDMARK_FADE.opacity)
-    run(views, fakeWorld(centerX, spot.row - 0.4), SETTLE)
-    expect(roof.visible).toBe(true)
-    expect(opacityOf(barn)).toBeCloseTo(LANDMARK_FADE.opacity)
-  })
-
   it('fades placeholder boxes of tall landmarks without touching the shared placeholder mesh', async () => {
     const models = await library([])
     const level = levelFromAreas([FIELD])

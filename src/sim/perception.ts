@@ -56,10 +56,13 @@ export function aggro(world: World, enemy: Enemy, hops = world.tuning.ai.alertHo
   world.events.push({ type: 'enemyAlerted', id: enemy.id, x: enemy.pos.x, y: enemy.pos.y })
   claimRunner(world, enemy)
   if (hops <= 0) return
-  const radius = world.tuning.perception.alertRadius
+  const { alertRadius, alertThroughWalls } = world.tuning.perception
   for (const other of world.enemies) {
     if (other === enemy || other.aggro || other.idleMode === 'ambush') continue
-    if (Math.hypot(other.pos.x - enemy.pos.x, other.pos.y - enemy.pos.y) <= radius) aggro(world, other, hops - 1)
+    const distance = Math.hypot(other.pos.x - enemy.pos.x, other.pos.y - enemy.pos.y)
+    if (distance > alertRadius) continue
+    if (distance > alertThroughWalls && !lineClear(world.grid, eyeOf(enemy), eyeOf(other), blocksSight)) continue
+    aggro(world, other, hops - 1)
   }
 }
 

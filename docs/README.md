@@ -14,7 +14,7 @@
 2. [愿景](design/vision.md)：设计支柱，和俯视版有什么不同
 3. [第一人称玩法](design/gameplay.md)
 4. [画风：会动的漫画](design/art-direction.md)，配合 `art/concept/` 里的目标图看
-5. [样机关卡：1-1 出发](design/prototype-1-1.md)
+5. [关卡 1-1 出发（第一人称完整版）](design/levels/1-1.md)，M1 的缩减版见[样机关卡](design/prototype-1-1.md)
 6. [技术架构](tech/architecture.md)、[墨线渲染管线](tech/rendering.md)
 
 ## 全部文档
@@ -23,7 +23,8 @@
   - [愿景](design/vision.md)
   - [第一人称玩法](design/gameplay.md)
   - [画风：会动的漫画](design/art-direction.md)
-  - [样机关卡：1-1 出发](design/prototype-1-1.md)
+  - [样机关卡：1-1 出发](design/prototype-1-1.md)（M1 缩减版）
+  - [关卡 1-1 出发（第一人称完整版）](design/levels/1-1.md)
   - [设定摘要](design/setting.md)
 - 技术
   - [技术架构](tech/architecture.md)

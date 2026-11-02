@@ -50,7 +50,10 @@ export interface LandmarkDef {
   perch?: LandmarkPerch
   hideInside?: readonly string[]
   hideMargin?: number
+  building?: BuildingKind
 }
+
+export type BuildingKind = 'barn'
 
 export const LANDMARK_IDS = [
   'ch1-town-gate',
@@ -117,11 +120,11 @@ export const LANDMARKS: Readonly<Record<LandmarkId, LandmarkDef>> = {
   'ch1-barn': {
     name: '谷仓',
     level: '1-1',
-    size: [6, 6],
-    footprint: ['######', '#....#', '#....#', '#....#', '#....#', '##.###'],
+    size: [8, 9],
+    footprint: ['########', '#......#', '#......#', '#......#', '#......#', '#......#', '#......#', '#......#', '###..###'],
     ...solid,
     height: 4.6,
-    nodes: ['body', 'roof', 'door_l', 'door_r'],
+    building: 'barn',
   },
   'ch1-star-altar': {
     name: '刻星的老石台',

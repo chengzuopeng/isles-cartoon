@@ -49,7 +49,7 @@ describe('optional goals and run tallies', () => {
   it('gives 1-1 its altar clue and hidden area too, and nothing to herd or break', () => {
     const world = createWorld(buildLevel(LEVEL_1_1), createDefaultTuning())
     expect(runTallies(world)).toEqual({
-      chests: { done: 0, total: 3 },
+      chests: { done: 0, total: 4 },
       sheep: { done: 0, total: 0 },
       clues: { done: 0, total: 1 },
       secrets: { done: 0, total: 1 },

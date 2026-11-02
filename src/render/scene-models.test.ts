@@ -336,7 +336,7 @@ describe('nodes the code drives', () => {
     expect(drivenNodes('ch1-gate')).toEqual(['socket_fx_glow'])
     expect(drivenNodes('ch1-windmill')).toEqual(['sails'])
     expect(drivenNodes('ch1-star-altar')).toEqual(['star'])
-    expect(drivenNodes('ch1-barn')).toEqual(['roof'])
+    expect(drivenNodes('ch1-barn')).toEqual([])
     expect(drivenNodes('ch1-wheat-ears-b')).toEqual([])
     expect(drivenNodes('ch1-wall-wood-b')).toEqual([])
     expect(landmarkOf('ch1-wheat-ears-c')).toBe('ch1-wheat-ears')

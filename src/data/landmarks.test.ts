@@ -51,12 +51,12 @@ describe('landmark table', () => {
     expect([...byLevel.keys()].sort()).toEqual(['1-1', '1-2', '1-3', '1-4', '1-5'])
     expect(byLevel.get('1-1')).toEqual(['ch1-town-gate', 'ch1-windmill', 'ch1-barn', 'ch1-star-altar', 'ch1-wheat-ears'])
     expect(LANDMARKS['ch1-windmill'].motion?.[0].node).toBe('sails')
-    expect(LANDMARKS['ch1-barn'].nodes).toContain('roof')
+    expect(LANDMARKS['ch1-barn'].building).toBe('barn')
   })
 
-  it('places the 1-1 landmarks the first-person demo keeps, without the cut threshing yard barn, and nothing from later levels', () => {
+  it('places every 1-1 landmark in level 1-1 and nothing from later levels', () => {
     const placed = new Set(LEVEL_1_1.areas.flatMap((area) => (area.landmarks ?? []).map((landmark) => landmark.id)))
-    const planned = LANDMARK_IDS.filter((id) => LANDMARKS[id].level === '1-1' && id !== 'ch1-barn')
+    const planned = LANDMARK_IDS.filter((id) => LANDMARKS[id].level === '1-1')
     expect([...placed].sort()).toEqual([...planned].sort())
   })
 

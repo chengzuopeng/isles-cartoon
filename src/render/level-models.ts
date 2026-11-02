@@ -64,6 +64,7 @@ export function levelModelIds(level: BuiltLevel): ModelId[] {
   }
   for (const placement of level.landmarks) {
     const def = LANDMARKS[placement.id]
+    if (def.building) continue
     family(placement.id, def.variants ?? 1)
     for (const state of def.states ?? []) add(`${placement.id}-${state}`)
   }
