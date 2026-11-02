@@ -11,6 +11,7 @@ import type { ModelLibrary } from './model-library'
 import { buildBuilding } from './buildings'
 import { buildTerrain, createTerrainMaterials, surfaceHeight, terrainChunks } from './fps-terrain'
 import { STALK_STYLES, createStalkMaterial, stalkGeometry, stalkMatrices } from './stalks'
+import { flowerBatches, flowerHeadGeometry, flowerStemGeometry, pebbleBatches, pebbleGeometry, spikeBatches, spikeGeometry, type DetailBatch, type WallEdge } from './ground-details'
 import { bakeNode, type NodePart } from './node-parts'
 import {
   PROP_MODELS,
@@ -190,6 +191,27 @@ export function buildWalls(level: BuiltLevel, fromRow = 0, toRow = level.grid.ro
   const result = new Map<Theme, THREE.BufferGeometry>()
   for (const [theme, builder] of builders) result.set(theme, builder.build())
   return result
+}
+
+export function wallEdges(level: BuiltLevel): WallEdge[] {
+  const { grid } = level
+  const solid = (column: number, row: number) => column >= 0 && row >= 0 && column < grid.columns && row < grid.rows && tileAt(grid, column, row) === Tile.Wall && !isBorder(grid, column, row)
+  const edges: WallEdge[] = []
+  for (let row = 0; row < grid.rows; row++) {
+    for (let column = 0; column < grid.columns; column++) {
+      if (!solid(column, row)) continue
+      const theme = themeOf(level, row)
+      const base = cellFloor(grid, column, row)
+      for (const side of SIDES) {
+        const nc = column + side.dc
+        const nr = row + side.dr
+        if (solid(nc, nr) && Math.abs(cellFloor(grid, nc, nr) - base) < 0.01) continue
+        const [x1, z1, x2, z2] = edgeCorners(column, row, side)
+        edges.push({ x1, z1, x2, z2, inX: -side.normal.x, inZ: -side.normal.z, top: base + VISUAL_HEIGHTS.wall, theme, color: PALETTES[theme].wall, row, seed: row * grid.columns + column })
+      }
+    }
+  }
+  return edges
 }
 
 export function tuftGeometry(): THREE.BufferGeometry {
@@ -454,6 +476,34 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       culled.push({ object: tufts, ...bandRange(index) })
     }
   }
+
+  const addDetails = (name: string, batches: Map<number, DetailBatch>, geometry: THREE.BufferGeometry, material: THREE.Material, ink: boolean, tinted = true) => {
+    if (batches.size === 0) {
+      geometry.dispose()
+      material.dispose()
+      return
+    }
+    disposables.push(geometry, material)
+    for (const [index, batch] of batches) {
+      const mesh = new THREE.InstancedMesh(geometry, material, batch.matrices.length)
+      batch.matrices.forEach((m, at) => mesh.setMatrixAt(at, m))
+      if (tinted) batch.colors.forEach((c, at) => mesh.setColorAt(at, c))
+      mesh.instanceMatrix.needsUpdate = true
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+      mesh.computeBoundingSphere()
+      mesh.receiveShadow = true
+      mesh.name = name
+      mesh.userData.noInk = !ink
+      group.add(mesh)
+      culled.push({ object: mesh, ...bandRange(index) })
+    }
+  }
+  const surface = (x: number, z: number) => terrain.heightAt(x, z)
+  const flowers = flowerBatches(grid, (row) => themeOf(level, row), surface, band, (column, row) => isBorder(grid, column, row))
+  addDetails('flower-stems', flowers, flowerStemGeometry(), toonMaterial({ vertexColors: true, side: THREE.DoubleSide }), false, false)
+  addDetails('flower-heads', flowers, flowerHeadGeometry(), toonMaterial({ side: THREE.DoubleSide }), false)
+  addDetails('pebbles', pebbleBatches(grid, surface, band), pebbleGeometry(), toonMaterial({}), false)
+  addDetails('palisade-tips', spikeBatches(wallEdges(level), band), spikeGeometry(), toonMaterial({}), true)
 
   const exitMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#9ff6ff').multiplyScalar(1.1), transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide })
   const exitGeometry = new THREE.CylinderGeometry(0.32, 0.42, 4.5, 20, 1, true)
