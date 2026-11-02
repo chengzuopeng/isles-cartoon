@@ -42,7 +42,7 @@ export interface FpsStage extends Stage {
 }
 
 const SUN_DIRECTION = new THREE.Vector3(-7, 22, 8).normalize()
-const SHADOW_HALF = 42
+const SHADOW_HALF = 34
 const SHADOW_DEPTH = 160
 const TOP_PITCH = THREE.MathUtils.degToRad(58)
 const TOP_DISTANCE = 22

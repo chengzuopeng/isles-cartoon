@@ -364,8 +364,15 @@ export function createInkPipeline(renderer: THREE.WebGLRenderer, look: InkLook =
 
   const sphere = new THREE.Sphere()
   const tooFar = (object: THREE.Object3D, eye: THREE.Vector3): boolean => {
+    const instanced = object as THREE.InstancedMesh
+    if (instanced.isInstancedMesh) {
+      if (!instanced.boundingSphere) instanced.computeBoundingSphere()
+      if (!instanced.boundingSphere) return false
+      sphere.copy(instanced.boundingSphere).applyMatrix4(object.matrixWorld)
+      return eye.distanceTo(sphere.center) - sphere.radius > look.creaseEnd
+    }
     const geometry = (object as THREE.Mesh).geometry
-    if (!geometry || (object as THREE.InstancedMesh).isInstancedMesh) return false
+    if (!geometry) return false
     if (!geometry.boundingSphere) geometry.computeBoundingSphere()
     if (!geometry.boundingSphere) return false
     sphere.copy(geometry.boundingSphere).applyMatrix4(object.matrixWorld)

@@ -956,7 +956,7 @@ function placeEye(alpha: number, dt: number): void {
 }
 
 function syncViews(dt: number, alpha: number): void {
-  levelView?.update(world, dt)
+  levelView?.update(world, dt, stage.camera.position)
   views.sync(world, alpha, dt)
   pickupViews.sync(world, dt)
   projectileViews.sync(world, alpha, dt)

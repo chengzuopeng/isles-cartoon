@@ -3,7 +3,7 @@
 | 目录 | 内容 |
 |---|---|
 | [design/](design/) | 策划：愿景、玩法、画风、样机关卡、设定摘要 |
-| [tech/](tech/) | 技术：架构、墨线渲染管线 |
+| [tech/](tech/) | 技术：架构、墨线渲染管线、性能 |
 | [plan/](plan/) | 计划：路线图 |
 | [decisions/](decisions/) | 决策记录（ADR）：一个决策一个文件，编号递增；已采纳的不改，推翻时新开一篇并注明替代了哪篇 |
 | [reference/](reference/) | 参考资料 |
@@ -29,6 +29,7 @@
 - 技术
   - [技术架构](tech/architecture.md)
   - [墨线渲染管线](tech/rendering.md)
+  - [性能](tech/performance.md)
 - [路线图](plan/roadmap.md)
 - 决策
   - [ADR-0001 独立仓库做第一人称卡通版试验](decisions/0001-separate-repo.md)（部分被 ADR-0005 替代）

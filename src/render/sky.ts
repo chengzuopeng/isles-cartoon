@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { toonMaterial } from './toon'
 
 export interface SkyOptions {
@@ -150,6 +151,35 @@ function starTower(stone: THREE.Material, trim: THREE.Material, glow: THREE.Mate
   return group
 }
 
+export function mergeByMaterial(root: THREE.Object3D, keep: THREE.Object3D): void {
+  root.updateMatrixWorld(true)
+  const inverse = root.matrixWorld.clone().invert()
+  const groups = new Map<THREE.Material, THREE.BufferGeometry[]>()
+  const merged: THREE.Mesh[] = []
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh
+    if (!mesh.isMesh || mesh === keep || Array.isArray(mesh.material)) return
+    const geometry = (mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone()).applyMatrix4(mesh.matrixWorld.clone().premultiply(inverse))
+    for (const name of Object.keys(geometry.attributes)) if (name !== 'position' && name !== 'normal') geometry.deleteAttribute(name)
+    const list = groups.get(mesh.material) ?? []
+    list.push(geometry)
+    groups.set(mesh.material, list)
+    merged.push(mesh)
+  })
+  for (const mesh of merged) {
+    mesh.removeFromParent()
+    mesh.geometry.dispose()
+  }
+  for (const node of [...root.children]) if (node !== keep && node.children.length === 0 && !(node as THREE.Mesh).isMesh) node.removeFromParent()
+  for (const [material, geometries] of groups) {
+    const geometry = mergeGeometries(geometries)
+    for (const part of geometries) part.dispose()
+    if (!geometry) continue
+    geometry.computeBoundingSphere()
+    root.add(new THREE.Mesh(geometry, material))
+  }
+}
+
 export function createSky(options: SkyOptions): Sky {
   const group = new THREE.Group()
   group.name = 'sky'
@@ -225,6 +255,8 @@ export function createSky(options: SkyOptions): Sky {
     island.rotation.y = spot.angle * 2.3
     far.add(island)
   })
+
+  mergeByMaterial(far, sea)
 
   const stone = toonMaterial({ color: '#c9c2d6' })
   const trim = toonMaterial({ color: '#d8b25a' })

@@ -9,7 +9,7 @@ import type { ModelId } from './asset-urls'
 import { lineTexture, type LineTextureKind } from './line-textures'
 import type { ModelLibrary } from './model-library'
 import { buildBuilding } from './buildings'
-import { buildTerrain, createTerrainMaterials, surfaceHeight } from './fps-terrain'
+import { buildTerrain, createTerrainMaterials, surfaceHeight, terrainChunks } from './fps-terrain'
 import { bakeNode, type NodePart } from './node-parts'
 import {
   PROP_MODELS,
@@ -35,7 +35,7 @@ import { toToon, toonMaterial, toonify } from './toon'
 export interface FpsLevelView {
   readonly group: THREE.Group
   heightAt(x: number, z: number): number
-  update(world: World, dt: number): void
+  update(world: World, dt: number, eye?: THREE.Vector3Like): void
   handle(event: GameEvent): void
   dispose(): void
 }
@@ -49,6 +49,11 @@ export const VISUAL_HEIGHTS = {
 } as const
 
 const BOULDER_WIDTH = 1.3
+
+export const LEVEL_CULL = {
+  chunkRows: 20,
+  drawDistance: 90,
+} as const
 
 const PROP_FIT: Readonly<Partial<Record<PropKind, number>>> = {
   rock: 1.2 / 0.75,
@@ -76,6 +81,8 @@ const TILE_PROPS: Readonly<Partial<Record<Tile, PropKind>>> = {
 }
 
 interface Batch {
+  name: string
+  band: number
   parts: readonly NodePart[]
   matrices: THREE.Matrix4[]
   shadow: boolean
@@ -150,12 +157,12 @@ function edgeCorners(column: number, row: number, side: (typeof SIDES)[number]):
   return [column, row, column, row + 1]
 }
 
-export function buildWalls(level: BuiltLevel): Map<Theme, THREE.BufferGeometry> {
+export function buildWalls(level: BuiltLevel, fromRow = 0, toRow = level.grid.rows): Map<Theme, THREE.BufferGeometry> {
   const { grid } = level
   const builders = new Map<Theme, GeometryBuilder>()
   const white = new THREE.Color('#ffffff')
   const solid = (column: number, row: number) => column >= 0 && row >= 0 && column < grid.columns && row < grid.rows && tileAt(grid, column, row) === Tile.Wall && !isBorder(grid, column, row)
-  for (let row = 0; row < grid.rows; row++) {
+  for (let row = fromRow; row < Math.min(toRow, grid.rows); row++) {
     for (let column = 0; column < grid.columns; column++) {
       if (!solid(column, row)) continue
       const theme = themeOf(level, row)
@@ -218,12 +225,19 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   const disposables: { dispose(): void }[] = []
   const has = (id: string) => models.has(id)
 
+  const culled: { object: THREE.Object3D; near: number; far: number }[] = []
+  const band = (row: number) => Math.floor(row / LEVEL_CULL.chunkRows)
+  const bandRange = (index: number) => ({ near: index * LEVEL_CULL.chunkRows, far: (index + 1) * LEVEL_CULL.chunkRows })
   const terrain = buildTerrain(level)
   const terrainMaterials = createTerrainMaterials(level)
-  const groundMesh = new THREE.Mesh(terrain.geometry, terrainMaterials.ground)
-  groundMesh.receiveShadow = true
-  groundMesh.name = 'ground'
-  group.add(groundMesh)
+  for (const chunk of terrainChunks(terrain, grid.rows, LEVEL_CULL.chunkRows)) {
+    const mesh = new THREE.Mesh(chunk.geometry, terrainMaterials.ground)
+    mesh.receiveShadow = true
+    mesh.name = 'ground'
+    group.add(mesh)
+    culled.push({ object: mesh, near: chunk.near, far: chunk.far })
+    if (chunk.geometry !== terrain.geometry) disposables.push(chunk.geometry)
+  }
   const waterMesh = new THREE.Mesh(terrain.water, terrainMaterials.water)
   waterMesh.receiveShadow = true
   waterMesh.name = 'water'
@@ -234,13 +248,24 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   disposables.push(terrain.geometry, terrain.water, terrain.underside, terrainMaterials)
   const groundAt = (x: number, z: number, floor: number) => Math.min(floor, terrain.heightAt(x, z))
 
-  for (const [theme, geometry] of buildWalls(level)) {
-    const material = toonMaterial({ color: PALETTES[theme].wall, map: lineTexture(WALL_TEXTURES[theme]) })
-    const mesh = new THREE.Mesh(geometry, material)
-    mesh.castShadow = true
-    mesh.receiveShadow = true
-    group.add(mesh)
-    disposables.push(geometry, material)
+  const wallMaterials = new Map<Theme, THREE.Material>()
+  for (let index = 0; index * LEVEL_CULL.chunkRows < grid.rows; index++) {
+    const range = bandRange(index)
+    for (const [theme, geometry] of buildWalls(level, range.near, range.far)) {
+      let material = wallMaterials.get(theme)
+      if (!material) {
+        material = toonMaterial({ color: PALETTES[theme].wall, map: lineTexture(WALL_TEXTURES[theme]) })
+        wallMaterials.set(theme, material)
+        disposables.push(material)
+      }
+      const mesh = new THREE.Mesh(geometry, material)
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      mesh.name = `walls-${theme}`
+      group.add(mesh)
+      culled.push({ object: mesh, ...range })
+      disposables.push(geometry)
+    }
   }
 
   const batches = new Map<string, Batch>()
@@ -253,11 +278,12 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     if (!node) return models.parts(id as ModelId)
     return bakeNode(models.shared(id as ModelId).root, node)
   }
-  const place = (key: string, parts: readonly NodePart[] | null, x: number, y: number, z: number, yaw: number, sx: number, sy: number, sz: number, shadow: boolean) => {
+  const place = (name: string, parts: readonly NodePart[] | null, x: number, y: number, z: number, yaw: number, sx: number, sy: number, sz: number, shadow: boolean) => {
     if (!parts) return
+    const key = `${name}#${band(Math.floor(z))}`
     let batch = batches.get(key)
     if (!batch) {
-      batch = { parts, matrices: [], shadow }
+      batch = { name, band: band(Math.floor(z)), parts, matrices: [], shadow }
       batches.set(key, batch)
     }
     position.set(x, y, z)
@@ -286,11 +312,11 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       const z = row + 0.5
       const border = isBorder(grid, column, row)
       if (tile === Tile.Fence || (tile === Tile.Wall && border)) {
-        place('fence-post', fenceParts.post, x, floor, z, 0, 1.15, fenceScale, 1.15, true)
+        place('fence-post', fenceParts.post, x, floor, z, 0, 1.15, fenceScale, 1.15, false)
         const links = linksOf(grid, column, row, border ? borderJoins(column, row) : fenceJoins)
         for (const [direction, linked] of Object.entries(links)) {
           if (!linked) continue
-          place('fence-rail', fenceParts.rail, x, floor, z, railYaw[direction], 1, fenceScale, 1, true)
+          place('fence-rail', fenceParts.rail, x, floor, z, railYaw[direction], 1, fenceScale, 1, false)
         }
         continue
       }
@@ -346,7 +372,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     }
   }
 
-  for (const [key, batch] of batches) {
+  for (const batch of batches.values()) {
     for (const part of batch.parts) {
       const mesh = new THREE.InstancedMesh(part.geometry, toToon(part.material), batch.matrices.length)
       batch.matrices.forEach((m, index) => mesh.setMatrixAt(index, m))
@@ -354,12 +380,13 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       mesh.computeBoundingSphere()
       mesh.castShadow = batch.shadow
       mesh.receiveShadow = true
-      mesh.name = key
+      mesh.name = batch.name
       group.add(mesh)
+      culled.push({ object: mesh, ...bandRange(batch.band) })
     }
   }
 
-  const tuftSpots: THREE.Matrix4[] = []
+  const tuftSpots = new Map<number, THREE.Matrix4[]>()
   for (let row = 0; row < grid.rows; row++) {
     if (!TUFT_THEMES.has(themeOf(level, row))) continue
     for (let column = 0; column < grid.columns; column++) {
@@ -372,22 +399,27 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
         position.set(tx, terrain.heightAt(tx, tz) - 0.02, tz)
         quaternion.setFromAxisAngle(yAxis, cellHash(column, row, 80 + k) * Math.PI * 2)
         scale.set(size, size * (0.9 + cellHash(column, row, 90 + k) * 0.5), size)
-        tuftSpots.push(new THREE.Matrix4().compose(position, quaternion, scale))
+        const spots = tuftSpots.get(band(row)) ?? []
+        spots.push(new THREE.Matrix4().compose(position, quaternion, scale))
+        tuftSpots.set(band(row), spots)
       }
     }
   }
-  if (tuftSpots.length > 0) {
+  if (tuftSpots.size > 0) {
     const tuftGeo = tuftGeometry()
     const tuftMaterial = toonMaterial({ vertexColors: true, side: THREE.DoubleSide })
-    const tufts = new THREE.InstancedMesh(tuftGeo, tuftMaterial, tuftSpots.length)
-    tuftSpots.forEach((m, index) => tufts.setMatrixAt(index, m))
-    tufts.instanceMatrix.needsUpdate = true
-    tufts.computeBoundingSphere()
-    tufts.receiveShadow = true
-    tufts.name = 'tufts'
-    tufts.userData.noInk = true
-    group.add(tufts)
     disposables.push(tuftGeo, tuftMaterial)
+    for (const [index, spots] of tuftSpots) {
+      const tufts = new THREE.InstancedMesh(tuftGeo, tuftMaterial, spots.length)
+      spots.forEach((m, at) => tufts.setMatrixAt(at, m))
+      tufts.instanceMatrix.needsUpdate = true
+      tufts.computeBoundingSphere()
+      tufts.receiveShadow = true
+      tufts.name = 'tufts'
+      tufts.userData.noInk = true
+      group.add(tufts)
+      culled.push({ object: tufts, ...bandRange(index) })
+    }
   }
 
   const exitMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#9ff6ff').multiplyScalar(1.1), transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide })
@@ -439,9 +471,11 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   return {
     group,
     heightAt: terrain.heightAt,
-    update(world, dt) {
+    update(world, dt, eye) {
       time += dt
       terrainMaterials.update(dt)
+      const z = eye ? eye.z : world.player.pos.y
+      for (const item of culled) item.object.visible = item.far >= z - LEVEL_CULL.drawDistance && item.near <= z + LEVEL_CULL.drawDistance
       for (const entry of motions) {
         turn.setFromAxisAngle(entry.axis, motionAngle(entry.motion, time))
         entry.node.quaternion.copy(entry.rest).multiply(turn)

@@ -17,9 +17,10 @@
 | `pnpm test` | Vitest 单元测试 |
 | `pnpm typecheck` | 类型检查 |
 | `pnpm build` | 类型检查 + 生产构建 |
+| `pnpm e2e` | Playwright 冒烟测试：用本机 Chrome 无界面打开真实页面跑整备、设置改键、1-1 开枪进谷仓打 Boss 到结算、切关卸载模型，整备界面和截图基线对比（自己在 5290 端口起开发服务器） |
+| `pnpm e2e:update` | 改了整备界面的样式后重新生成截图基线 |
+| `pnpm perf spots` | 性能测量：到重点位置量 draw call、三角形、帧时间（自己在 5291 端口起开发服务器），见 `docs/tech/performance.md` |
 | `./scripts/build-assets.sh` | 把 `art/` 里的原图处理成 `public/assets/` 下的运行时资源（天空无缝拼接、抠图、裁切） |
-
-e2e 冒烟测试还没接，要用 Playwright 时先问用户。
 
 在 Claude Code 桌面版里，如果会话最早是在主仓库开的，内置浏览器的 `preview_start` 只认主仓库的 `.claude/launch.json`，起的会是主仓库的服务器。这时在后台跑 `pnpm exec vite --port 5280 --strictPort`，再用 `preview_start` 的 `url` 打开 http://localhost:5280。浏览器面板隐藏时页面不刷新，帧率和 GPU 计时都不准。
 

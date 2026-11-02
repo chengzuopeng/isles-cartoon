@@ -35,6 +35,12 @@ export interface Terrain {
   heightAt(x: number, z: number): number
 }
 
+export interface TerrainChunk {
+  readonly geometry: THREE.BufferGeometry
+  readonly near: number
+  readonly far: number
+}
+
 export interface TerrainMaterials {
   readonly ground: THREE.MeshToonMaterial
   readonly water: THREE.MeshToonMaterial
@@ -256,6 +262,35 @@ export function buildTerrain(level: BuiltLevel): Terrain {
     depth,
     heightAt,
   }
+}
+
+export function terrainChunks(terrain: Terrain, rows: number, chunkRows: number): TerrainChunk[] {
+  const { sub, margin } = TERRAIN
+  const source = terrain.geometry
+  const index = source.getIndex()
+  if (!index) return [{ geometry: source, near: -margin, far: rows + margin }]
+  const cellsPerRow = terrain.width - 1
+  const chunks: TerrainChunk[] = []
+  const count = Math.ceil(rows / chunkRows)
+  for (let k = 0; k < count; k++) {
+    const firstRow = k === 0 ? 0 : (k * chunkRows + margin) * sub
+    const lastRow = k === count - 1 ? terrain.depth - 1 : (Math.min(rows, (k + 1) * chunkRows) + margin) * sub
+    if (lastRow <= firstRow) continue
+    const geometry = new THREE.BufferGeometry()
+    for (const name of Object.keys(source.attributes)) geometry.setAttribute(name, source.getAttribute(name))
+    geometry.setIndex(new THREE.BufferAttribute((index.array as Uint32Array).slice(firstRow * cellsPerRow * 6, lastRow * cellsPerRow * 6), 1))
+    const box = new THREE.Box3()
+    const position = source.getAttribute('position')
+    const point = new THREE.Vector3()
+    for (let j = firstRow; j <= lastRow; j++) {
+      for (let i = 0; i < terrain.width; i += 3) box.expandByPoint(point.fromBufferAttribute(position, j * terrain.width + i))
+      box.expandByPoint(point.fromBufferAttribute(position, j * terrain.width + terrain.width - 1))
+    }
+    geometry.boundingBox = box
+    geometry.boundingSphere = box.getBoundingSphere(new THREE.Sphere())
+    chunks.push({ geometry, near: k === 0 ? -margin : k * chunkRows, far: k === count - 1 ? rows + margin : (k + 1) * chunkRows })
+  }
+  return chunks
 }
 
 function cellTexture(grid: Grid, fill: (column: number, row: number, out: number[]) => void): THREE.DataTexture {

@@ -92,6 +92,8 @@ interface TripleLanes {
   lanes: { lane: THREE.Group; area: THREE.Object3D; fill: THREE.Object3D }[]
 }
 
+export const ENTITY_CULL = { distance: 72 } as const
+
 export interface EntityViews {
   sync(world: World, alpha: number, dt: number): void
   handle(event: GameEvent): void
@@ -934,6 +936,9 @@ export function createEntityViews(
         enemyViews.set(enemy.id, view)
       }
       view.seen = true
+      const near = enemy.kind === 'boss' || Math.hypot(enemy.pos.x - world.player.pos.x, enemy.pos.y - world.player.pos.y) <= ENTITY_CULL.distance
+      view.root.visible = near
+      if (!near) continue
       syncEnemy(world, enemy, view, alpha, dt)
       if (enemy.kind !== 'boss') blobs.add(view.root.position.x, view.root.position.z, enemy.radius, 1 - Math.max(0, view.veil.amount))
     }
