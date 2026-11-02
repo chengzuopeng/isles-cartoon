@@ -520,3 +520,7 @@
 .fps-hiding.shown {
   opacity: 1;
 }
+
+.fps-mode .player-bar {
+  display: none !important;
+}

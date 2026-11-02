@@ -3,6 +3,7 @@ import { getBoss } from '../data/bosses'
 import { CLUES } from '../data/clues'
 import { BOSS_LINES } from '../data/dialogue'
 import { AFFIXES } from '../data/elites'
+import { floorAt } from '../sim/grid'
 import { LANDMARKS } from '../data/landmarks'
 import { BUFFS, CHEST_NAMES, type BuffId } from '../data/loot'
 import { SKILLS, SKILL_SLOTS, type SkillSlot } from '../data/skills'
@@ -104,6 +105,8 @@ export interface Hud {
 }
 
 const PLAYER_BAR_HEIGHT = 1.75
+export const BAR_SCALE = { reference: 9, min: 0.45, max: 1, lift: 0.18, plateRange: 30 } as const
+
 const ENEMY_BAR_HEIGHTS: Readonly<Record<MinionKind, { plain: number; crowned: number }>> = {
   grunt: { plain: 1.3, crowned: 1.42 },
   gunner: { plain: 1.6, crowned: 1.8 },
@@ -242,11 +245,12 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
   let shownStatus: WorldStatus = 'playing'
   let deadSince: number | null = null
 
-  const place = (bar: UnitBar, x: number, y: number, height: number) => {
+  const place = (bar: UnitBar, x: number, y: number, height: number, scale = 1) => {
     stage.project(x, height, y, point)
-    syncStyle(bar.root, 'transform', `translate3d(${point.x.toFixed(1)}px, ${point.y.toFixed(1)}px, 0)`)
+    syncStyle(bar.root, 'transform', `translate3d(${point.x.toFixed(1)}px, ${point.y.toFixed(1)}px, 0) scale(${scale.toFixed(2)})`)
     syncStyle(bar.root, 'visibility', point.visible ? 'visible' : 'hidden')
   }
+  const barScale = (world: World, x: number, y: number) => Math.max(BAR_SCALE.min, Math.min(BAR_SCALE.max, BAR_SCALE.reference / Math.max(1, Math.hypot(x - world.player.pos.x, y - world.player.pos.y))))
 
   const releaseBar = (id: number, bar: EnemyBar) => {
     syncStyle(bar.root, 'display', 'none')
@@ -278,7 +282,9 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
         targetBars.set(index, bar)
       }
       const state = world.landmarks[index]
-      place(bar, placement.column + placement.width / 2, placement.row + placement.depth / 2, LANDMARKS[placement.id].height + TARGET_BAR_LIFT)
+      const cx = placement.column + placement.width / 2
+      const cy = placement.row + placement.depth / 2
+      place(bar, cx, cy, floorAt(world.grid, cx, cy) + LANDMARKS[placement.id].height + TARGET_BAR_LIFT, barScale(world, cx, cy))
       syncStyle(bar.fill, 'transform', `scaleX(${Math.max(0, state.hp / state.maxHp).toFixed(4)})`)
     })
   }
@@ -516,7 +522,9 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
       seen.clear()
       const foggy = world.level.areas.some((area) => area.fog)
       for (const enemy of world.enemies) {
-        if (enemy.hp <= 0 || enemy.kind === 'boss' || (!enemy.aggro && enemy.hp >= enemy.maxHp)) continue
+        if (enemy.hp <= 0 || enemy.kind === 'boss') continue
+        const plate = enemy.elite !== null && Math.hypot(enemy.pos.x - player.pos.x, enemy.pos.y - player.pos.y) <= BAR_SCALE.plateRange
+        if (!enemy.aggro && enemy.hp >= enemy.maxHp && !plate) continue
         seen.add(enemy.id)
         let bar = enemyBars.get(enemy.id)
         if (!bar) {
@@ -525,8 +533,10 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
           enemyBars.set(enemy.id, bar)
         }
         const heights = ENEMY_BAR_HEIGHTS[enemy.kind]
-        const height = (enemy.elite ? heights.crowned : heights.plain) * modelScale(enemy)
-        place(bar, lerp(enemy.prev.x, enemy.pos.x, alpha), lerp(enemy.prev.y, enemy.pos.y, alpha), height)
+        const height = lerp(enemy.prevZ, enemy.z, alpha) + (enemy.elite ? heights.crowned : heights.plain) * modelScale(enemy) + BAR_SCALE.lift
+        const x = lerp(enemy.prev.x, enemy.pos.x, alpha)
+        const y = lerp(enemy.prev.y, enemy.pos.y, alpha)
+        place(bar, x, y, height, barScale(world, x, y))
         syncStyle(bar.fill, 'transform', `scaleX(${Math.max(0, enemy.hp / enemy.maxHp).toFixed(4)})`)
         const elite = enemy.elite
         syncText(bar.tag, elite ? `精英 · ${elite.affixes.map((id) => AFFIXES[id].name).join(' ')}` : '')
