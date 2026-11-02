@@ -27,9 +27,9 @@ export async function spots(ctx) {
       const placed = await placeAtSpot(session.page, spot)
       await session.page.evaluate(() => window.__perf.frames(20))
       await sleep((ctx.options.warmup ?? 1) * 1000)
-      await session.page.evaluate(() => window.__perf.start())
+      await session.page.evaluate(() => window.__perf.startRecording({ capacity: 50_000 }))
       await sleep(seconds * 1000)
-      const stats = await session.page.evaluate(() => window.__perf.stop())
+      const stats = await session.page.evaluate(() => window.__perf.stopRecording({ worst: 0 }))
       results.push({ spot, placed, stats })
       process.stderr.write(`  ${spot.id} ${spot.name} 完成\n`)
     }

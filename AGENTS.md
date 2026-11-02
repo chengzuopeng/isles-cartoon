@@ -19,7 +19,7 @@
 | `pnpm build` | 类型检查 + 生产构建 |
 | `pnpm e2e` | Playwright 冒烟测试：用本机 Chrome 无界面打开真实页面跑整备、设置改键、1-1 开枪进谷仓打 Boss 到结算、切关卸载模型，整备界面和截图基线对比（自己在 5290 端口起开发服务器） |
 | `pnpm e2e:update` | 改了整备界面的样式后重新生成截图基线 |
-| `pnpm perf spots` | 性能测量：到重点位置量 draw call、三角形、帧时间（自己在 5291 端口起开发服务器），见 `docs/tech/performance.md` |
+| `pnpm perf <命令…>` | 性能测量（自己在 5291 端口起开发服务器）：`spots` 到重点位置量 draw call、三角形、帧时间，`startup` 启动到整备界面出现和 1-1 准备好的时间、启动后内存，`enter` 进关的时间和进关后第一帧，`leak` 反复进关、重开后的资源数和内存，`stutter` 自动驾驶从进关打到通关看卡顿，`all` 依次全跑；要用关卡的默认只跑 1-1。命令和选项见 `docs/tech/performance.md`「测法」 |
 | `pnpm shots` | 截图巡检：到 `scripts/shots/spots.json` 里的固定机位各截一张图（自己在 5292 端口起开发服务器；截图时逻辑冻住，敌人不动），`--out` 指定目录，`--compare <上次的目录>` 算每张图和上次相比变了多少像素，`--spots` 只截一部分 |
 | `./scripts/build-assets.sh` | 把 `art/` 里的原图处理成 `public/assets/` 下的运行时资源（天空无缝拼接、抠图、裁切） |
 
