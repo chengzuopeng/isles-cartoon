@@ -33,6 +33,7 @@ export interface FpsStage extends Stage {
   setFovBoost(degrees: number): void
   setRoll(radians: number): void
   setOverlay(draw: ((renderer: THREE.WebGLRenderer) => void) | null): void
+  setLevel(grid: Grid): void
   setStyle(toggles: Partial<StyleToggles>): StyleToggles
   styleInfo(): InkTimings | null
   freeMove(forward: number, right: number, up: number): void
@@ -310,6 +311,9 @@ export function createFpsStage({ container, grid, quality, fov }: FpsStageOption
     },
     setOverlay(draw) {
       overlay = draw
+    },
+    setLevel(next) {
+      sky.far.position.set(next.columns / 2 - center.x, 0, next.rows / 2 - center.z)
     },
     setStyle(next) {
       Object.assign(pipeline.toggles, next)

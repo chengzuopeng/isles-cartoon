@@ -12,6 +12,7 @@ export const LEVEL_1_3: LevelDef = {
   parSeconds: 600,
   maxHits: 12,
   unlockAfter: '1-2',
+  wip: '第一人称版还没做：还是俯视版的平地布局，雾、刀片、传送带等机制在第一人称下还没有画面',
   areas: [
     {
       name: '村口废墟',

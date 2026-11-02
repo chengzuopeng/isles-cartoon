@@ -128,3 +128,35 @@
   margin-left: auto;
   align-self: center;
 }
+
+.settings-hint {
+  font-size: 13px;
+  opacity: 0.65;
+}
+
+.settings-bindings {
+  display: grid;
+  grid-template-columns: max-content 8.5em 1fr;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 14px;
+}
+
+.settings-bind {
+  padding: 2px 8px;
+  font-weight: 800;
+}
+
+.settings-bind.waiting {
+  border-color: #ffd34d;
+  color: #ffd34d;
+}
+
+.settings-bind.unbound {
+  opacity: 0.55;
+}
+
+.settings-fixed {
+  font-size: 12px;
+  opacity: 0.55;
+}

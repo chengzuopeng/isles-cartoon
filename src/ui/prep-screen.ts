@@ -19,6 +19,7 @@ export interface PrepLevelInfo {
   chapter: number
   challenges: readonly ChallengeId[]
   unlockAfter?: string
+  wip?: string
 }
 
 export interface PrepScreenOptions {
@@ -137,6 +138,7 @@ export function createPrepScreen(container: HTMLElement, options: PrepScreenOpti
     const text = element('div', 'prep-mission-text', card)
     element('div', 'prep-mission-title', text, `${mission.title} · ${mission.subtitle}`)
     element('div', 'prep-mission-line', text, `目标：${mission.objective}`)
+    if (mission.wip) element('div', 'prep-mission-wip', text, mission.wip)
     const record = element('div', 'prep-mission-line', text)
     const goals = element('div', 'prep-mission-goals', text)
     const start = button(card, 'primary', '出发', () => options.onStart(mission.id))

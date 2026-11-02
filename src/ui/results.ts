@@ -20,6 +20,7 @@ export interface ResultsOptions {
   onAllocate(id: AttributeId): void
   onReplay(): void
   onPrep(): void
+  onNext(): void
   onLevelUp(level: number): void
 }
 
@@ -29,6 +30,7 @@ export interface ResultsScreen {
   isOpen(): boolean
   filling(): boolean
   refresh(profile: Profile): void
+  setNext(title: string | null): void
   update(dt: number): void
   skip(): void
 }
@@ -52,7 +54,9 @@ export function createResults(container: HTMLElement, options: ResultsOptions): 
   const cards = createAttributeCards(allocate, options.onAllocate)
   const buttons = element('div', 'screen-buttons', panel)
   button(buttons, 'ghost', '再玩一次（R）', options.onReplay)
-  button(buttons, 'primary', '返回整备（Enter）', options.onPrep)
+  const prep = button(buttons, 'primary', '返回整备（Enter）', options.onPrep)
+  const next = button(buttons, 'primary', '下一关', options.onNext)
+  next.style.display = 'none'
 
   let open = false
   let from = 0
@@ -144,6 +148,13 @@ export function createResults(container: HTMLElement, options: ResultsOptions): 
     refresh(profile) {
       latest = profile
       if (open) showAllocation(profile)
+    },
+    setNext(title) {
+      next.style.display = title ? '' : 'none'
+      next.textContent = title ? `下一关：${title}（Enter）` : '下一关'
+      prep.textContent = title ? '返回整备（Esc）' : '返回整备（Enter）'
+      prep.classList.toggle('primary', !title)
+      prep.classList.toggle('ghost', Boolean(title))
     },
     update(dt) {
       if (open) advance(dt)

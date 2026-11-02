@@ -113,6 +113,7 @@ export interface LevelDef {
   waves?: boolean
   radar?: boolean
   unlockAfter?: string
+  wip?: string
   areas: readonly AreaDef[]
 }
 

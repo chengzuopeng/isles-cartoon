@@ -25,6 +25,7 @@ export interface DevState {
   flags: DebugFlags
   view: ViewFlags
   areas: string[]
+  levels: readonly { id: string; title: string }[]
   training: boolean
   bosses: BossDef[]
   look: LookSettings
@@ -32,7 +33,12 @@ export interface DevState {
   onLook(): void
 }
 
+export interface DevPanel {
+  setAreas(names: readonly string[]): void
+}
+
 export interface DevActions {
+  startLevel(id: string): void
   restart(): void
   teleport(area: number): void
   teleportToBoss(): void
@@ -204,7 +210,7 @@ export function loadTuningOverrides(tuning: Tuning): void {
   }
 }
 
-export function createTuningPanel(tuning: Tuning, state: DevState, actions: DevActions): Pane {
+export function createTuningPanel(tuning: Tuning, state: DevState, actions: DevActions): DevPanel {
   const pane = new Pane({ title: '调参与开发工具（` 显示/隐藏）', expanded: false })
 
   const dev = pane.addFolder({ title: '开发工具', expanded: true })
@@ -243,11 +249,20 @@ export function createTuningPanel(tuning: Tuning, state: DevState, actions: DevA
   growth.addButton({ title: '复制战斗记录 JSON（最近 40 局）' }).on('click', () => {
     void navigator.clipboard?.writeText(JSON.stringify(readRunLog(), null, 2)).catch(() => undefined)
   })
-  if (!state.training) {
-    state.areas.forEach((name, index) => {
-      dev.addButton({ title: `传送：${name}` }).on('click', () => actions.teleport(index))
+  let travel: FolderApi | null = null
+  const setAreas = (names: readonly string[]) => {
+    if (state.training) return
+    travel?.dispose()
+    travel = dev.addFolder({ title: '传送', expanded: false, index: 4 })
+    names.forEach((name, index) => {
+      travel?.addButton({ title: `传送：${name}` }).on('click', () => actions.teleport(index))
     })
-    dev.addButton({ title: '传送到 Boss 门前' }).on('click', () => actions.teleportToBoss())
+    travel.addButton({ title: '传送到 Boss 门前' }).on('click', () => actions.teleportToBoss())
+  }
+  setAreas(state.areas)
+  if (!state.training) {
+    const switcher = dev.addFolder({ title: '切换关卡', expanded: false })
+    for (const level of state.levels) switcher.addButton({ title: level.title }).on('click', () => actions.startLevel(level.id))
   }
   dev.addButton({ title: '清空当前区域的敌人' }).on('click', () => actions.clearArea())
   dev.addButton({ title: '重开（* 项重开后生效）' }).on('click', () => actions.restart())
@@ -442,7 +457,7 @@ export function createTuningPanel(tuning: Tuning, state: DevState, actions: DevA
   window.addEventListener('keydown', (event) => {
     if (event.code === 'Backquote') pane.hidden = !pane.hidden
   })
-  return pane
+  return { setAreas }
 }
 
 function addWeapon(parent: FolderApi, weapon: WeaponDef, fields: WeaponField[]): void {

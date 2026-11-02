@@ -735,6 +735,16 @@ body {
   opacity: 0.85;
 }
 
+.prep-mission-wip {
+  align-self: start;
+  padding: 1px 8px;
+  border: 1px dashed rgba(255, 211, 77, 0.6);
+  border-radius: 6px;
+  color: #ffd34d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .xp-block {
   display: grid;
   grid-template-columns: auto 1fr auto;

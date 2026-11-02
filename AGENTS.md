@@ -13,7 +13,7 @@
 
 | 命令 | 作用 |
 |---|---|
-| `pnpm dev` | 本地开发，http://localhost:5280（主仓库是 5180）。点画面开始，鼠标会被锁定，Esc 解锁并暂停 |
+| `pnpm dev` | 本地开发，http://localhost:5280（主仓库是 5180）。先进整备界面，选关出发后鼠标会被锁定，Esc 解锁并暂停 |
 | `pnpm test` | Vitest 单元测试 |
 | `pnpm typecheck` | 类型检查 |
 | `pnpm build` | 类型检查 + 生产构建 |
@@ -64,9 +64,12 @@ e2e 冒烟测试还没接，要用 Playwright 时先问用户。
 | 成员 | 作用 |
 |---|---|
 | `world` / `tuning` / `profile` / `debug` | 当前局面、生效的参数、存档、调试开关（`debug.invincible = true` 无敌） |
-| `screen` / `paused` / `view` | 当前画面（`title` 开始界面 / `play`）、是否暂停、镜头（`fps` / `top` / `free`） |
-| `start()` / `restart()` | 开始一局 / 重开。自动化里拿不到指针锁定，`start()` 照样能进关 |
-| `skipDialogue()` | 关掉正在播的对话 |
+| `screen` / `level` / `paused` / `view` | 当前画面（`prep` 整备 / `play` 关卡）、当前关卡 id、是否暂停、镜头（`fps` / `top` / `free`） |
+| `difficulty` / `music` / `models` | 当前难度；正在放的背景音乐；已加载的模型 id（常驻的 + 当前关 + 最多一关留着的） |
+| `start()` / `restart()` | 开始一局 / 重开本关。自动化里拿不到指针锁定，照样能进关 |
+| `startLevel(关卡)` / `openPrep()` | 切到某一关（`1-1`~`1-5`、`trial-systems`、`trial-harvester`）并开始；回到整备界面。`startLevel` 先回整备界面加载模型、编译着色器，返回的 Promise 在进关后完成 |
+| `skipDialogue()` / `playInterlude(幕间)` | 关掉正在播的对话（关卡还在加载时调用，进关后就不播开场对话）；在整备界面播一段幕间 |
+| `setDifficulty(难度)` | 切换难度（`easy` / `normal` / `hard`），下一局生效 |
 | `teleport(区域)` / `teleportToBoss()` | 传送 |
 | `advance(秒)` / `act(指令, 秒)` | 不依赖画面刷新直接推进逻辑；`act` 带着指定的指令推进，比如 `act({ fire: true, aimX, aimY, pitch }, 1)`、`act({ melee: true }, 0.05)`、`act({ jump: true }, 0.3)` |
 | `look(偏航, 俯仰)` | 直接设视角（弧度） |
@@ -75,6 +78,8 @@ e2e 冒烟测试还没接，要用 Playwright 时先问用户。
 | `renderInfo()` | 上一帧所有遍合计的 draw call、三角形数、显存里的资源数 |
 | `scene` / `camera` | three 的场景和镜头，查问题用 |
 | `giveWeapon()` / `giveBuff()` / `drop()` / `chargeUltimate()` | 给武器、增益、掉落、充满大招 |
+| `addXp()` / `allocate()` / `learnSkill()` / `equipSkill()` / `unlockSlotE()` / `resetSave()` | 加经验、加点、学技能、装备技能、解锁 E 槽、清空存档 |
+| `breakTargets(区域)` / `openPens(区域)` / `raiseAlarms()` / `lightLamps(区域)` | 打爆破坏目标、打开羊圈、敲响警报、点亮驱雾灯，返回处理了几个（1-2~1-4 的机制） |
 | `toScreen(x, y)` / `runLog()` | sim 坐标换算成页面坐标；最近的战斗记录 |
 
 开发环境按 V 在第一人称、俯视、自由镜头之间切；`` ` `` 打开调参面板，里面有「第一人称」和「墨线画风」两组参数。

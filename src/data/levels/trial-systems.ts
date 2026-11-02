@@ -8,6 +8,7 @@ export const TRIAL_SYSTEMS: LevelDef = {
   subtitle: '六种敌人和精英一次见齐',
   objective: '穿过郊外，击败收割场的看守',
   chapter: 1,
+  wip: '第一人称版还没做：还是俯视版的平地布局，雾、刀片、传送带等机制在第一人称下还没有画面',
   bossId: 'scarecrow',
   parSeconds: 420,
   maxHits: 15,

@@ -13,6 +13,7 @@ export const LEVEL_1_4: LevelDef = {
   maxHits: 9,
   radar: true,
   unlockAfter: '1-3',
+  wip: '第一人称版还没做：还是俯视版的平地布局，雾、刀片、传送带等机制在第一人称下还没有画面',
   areas: [
     {
       name: '林边小溪',

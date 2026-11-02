@@ -44,6 +44,7 @@ export const LEVEL_1_5: LevelDef = {
   parSeconds: 720,
   maxHits: 18,
   unlockAfter: '1-4',
+  wip: '第一人称版还没做：还是俯视版的平地布局，雾、刀片、传送带等机制在第一人称下还没有画面',
   areas: [
     {
       name: '收割道',

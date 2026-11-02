@@ -1,3 +1,5 @@
+import { actionCodes, type KeyAction, type KeyMap } from './keymap'
+
 export interface LookDelta {
   x: number
   y: number
@@ -11,6 +13,9 @@ export interface FpsInput {
   moveAxes(): { forward: number; right: number }
   held(code: string): boolean
   pressed(code: string): boolean
+  actionHeld(action: KeyAction): boolean
+  actionPressed(action: KeyAction): boolean
+  lastPressed(): string | null
   fireHeld(): boolean
   meleePressed(): boolean
   wheel(): number
@@ -20,9 +25,9 @@ export interface FpsInput {
   dispose(): void
 }
 
-const CAPTURED_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight', 'Tab', 'KeyQ', 'KeyE', 'KeyR', 'KeyF'])
+const CAPTURED_KEYS = new Set(['Space', 'ShiftLeft', 'ShiftRight', 'Tab', 'AltLeft', 'AltRight', 'ControlLeft', 'ControlRight', 'Backspace', 'Slash', 'Quote'])
 
-export function createFpsInput(surface: HTMLElement): FpsInput {
+export function createFpsInput(surface: HTMLElement, keys: () => KeyMap): FpsInput {
   const held = new Set<string>()
   const justPressed = new Set<string>()
   const look: LookDelta = { x: 0, y: 0 }
@@ -33,12 +38,19 @@ export function createFpsInput(surface: HTMLElement): FpsInput {
   let wheelSteps = 0
   let isLocked = false
   let lastLockRequest = 0
+  let last: string | null = null
+  const isHeld = (action: KeyAction) => actionCodes(keys(), action).some((code) => held.has(code))
+  const isPressed = (action: KeyAction) => actionCodes(keys(), action).some((code) => justPressed.has(code))
+  const bound = (code: string) => Object.values(keys()).includes(code)
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (isTyping(event.target)) return
-    if (!event.repeat) justPressed.add(event.code)
+    if (!event.repeat) {
+      justPressed.add(event.code)
+      last = event.code
+    }
     held.add(event.code)
-    if (CAPTURED_KEYS.has(event.code) && isLocked) event.preventDefault()
+    if (isLocked && (CAPTURED_KEYS.has(event.code) || bound(event.code))) event.preventDefault()
   }
   const onKeyUp = (event: KeyboardEvent) => {
     held.delete(event.code)
@@ -114,12 +126,15 @@ export function createFpsInput(surface: HTMLElement): FpsInput {
       return delta
     },
     moveAxes() {
-      const forward = Number(held.has('KeyW') || held.has('ArrowUp')) - Number(held.has('KeyS') || held.has('ArrowDown'))
-      const right = Number(held.has('KeyD') || held.has('ArrowRight')) - Number(held.has('KeyA') || held.has('ArrowLeft'))
+      const forward = Number(isHeld('forward')) - Number(isHeld('back'))
+      const right = Number(isHeld('right')) - Number(isHeld('left'))
       return { forward, right }
     },
     held: (code) => held.has(code),
     pressed: (code) => justPressed.has(code),
+    actionHeld: isHeld,
+    actionPressed: isPressed,
+    lastPressed: () => last,
     fireHeld: () => fire,
     meleePressed: () => melee,
     wheel: () => wheelSteps,
@@ -129,6 +144,7 @@ export function createFpsInput(surface: HTMLElement): FpsInput {
     },
     endFrame() {
       justPressed.clear()
+      last = null
       melee = false
       click = false
       wheelSteps = 0

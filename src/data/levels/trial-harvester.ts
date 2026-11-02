@@ -8,6 +8,7 @@ export const TRIAL_HARVESTER: LevelDef = {
   subtitle: '第 1 章大 Boss',
   objective: '击败巨型收割机：看准预警躲招，引它撞上石头',
   chapter: 1,
+  wip: '第一人称版还没做：还是俯视版的平地布局，雾、刀片、传送带等机制在第一人称下还没有画面',
   bossId: 'harvester',
   parSeconds: 240,
   maxHits: 18,
