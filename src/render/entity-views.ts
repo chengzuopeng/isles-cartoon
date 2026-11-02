@@ -26,7 +26,7 @@ import { createSheepViews } from './sheep-views'
 import type { Stage } from './stage'
 import { BUFF_COLORS, CHEST_COLORS, CLUE_GLOW, ELITE_CROWN, FOG_LAYER, FOG_VEIL, HEAL_COLOR } from './themes'
 import { BULLET_HEIGHT, GEAR_COLOR, flat, part, standard, type Disposable } from './view-helpers'
-import { BODY_HEIGHTS, CHEST_HEIGHT, muzzleHeightOf } from '../data/heights'
+import { BODY_HEIGHTS, CHEST_HEIGHT, eyeHeightOf, muzzleHeightOf } from '../data/heights'
 import { bossExposed } from '../sim/boss'
 import { crumbling } from '../sim/melee'
 import { cloneInked } from './toon'
@@ -74,6 +74,7 @@ interface EnemyView {
   beam: THREE.Mesh | null
   eliteRing: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | null
   triple: TripleLanes | null
+  cone: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null
 }
 
 interface Veil {
@@ -158,6 +159,41 @@ function curtainGradient(): THREE.DataTexture {
   return texture
 }
 const beamGeometry = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true).translate(0, 0.5, 0)
+
+export const EYE_CONE = {
+  length: 5.5,
+  spreadDeg: 17,
+  tiltDeg: -7,
+  idle: 0.1,
+  noticing: 0.4,
+  color: '#fff1b8',
+} as const
+
+function coneGradient(): THREE.DataTexture {
+  const size = 32
+  const data = new Uint8Array(size * 4)
+  for (let i = 0; i < size; i++) {
+    const t = i / (size - 1)
+    data[i * 4] = 255
+    data[i * 4 + 1] = 255
+    data[i * 4 + 2] = 255
+    data[i * 4 + 3] = Math.round(255 * Math.pow(t, 1.4))
+  }
+  const texture = new THREE.DataTexture(data, 1, size, THREE.RGBAFormat)
+  texture.needsUpdate = true
+  texture.magFilter = THREE.LinearFilter
+  texture.minFilter = THREE.LinearFilter
+  return texture
+}
+
+function coneGeometry(): THREE.BufferGeometry {
+  const radius = Math.tan(THREE.MathUtils.degToRad(EYE_CONE.spreadDeg))
+  const geometry = new THREE.ConeGeometry(radius, 1, 18, 1, true)
+  geometry.translate(0, -0.5, 0)
+  geometry.rotateZ(Math.PI / 2)
+  geometry.rotateZ(THREE.MathUtils.degToRad(EYE_CONE.tiltDeg))
+  return geometry
+}
 const CRUMBLE_EYE = new THREE.Color('#ff2a1a')
 
 function materialMeshes(root: THREE.Object3D, name: string): THREE.Mesh[] {
@@ -212,6 +248,8 @@ export function createEntityViews(
   const laneGeometry = new THREE.PlaneGeometry(1, 1)
   laneGeometry.translate(0.5, 0, 0)
   const kit = createModelKit()
+  const eyeCone = coneGeometry()
+  const eyeConeMaterial = new THREE.MeshBasicMaterial({ color: EYE_CONE.color, map: coneGradient(), transparent: true, opacity: EYE_CONE.idle, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
   const geometries = {
     fuse: new THREE.CylinderGeometry(0.04, 0.04, 0.22, 6),
     spark: new THREE.SphereGeometry(0.09, 8, 6),
@@ -294,6 +332,7 @@ export function createEntityViews(
       beam: null,
       eliteRing: null,
       triple: null,
+      cone: null,
     }
   }
 
@@ -435,6 +474,15 @@ export function createEntityViews(
       }
     }
     if (kind !== 'boss') {
+      const material = eyeConeMaterial.clone()
+      view.owned.push(material)
+      const cone = new THREE.Mesh(eyeCone, material)
+      cone.position.y = eyeHeightOf(kind)
+      cone.scale.setScalar(EYE_CONE.length)
+      cone.userData.noInk = true
+      cone.renderOrder = 3
+      view.ground.add(cone)
+      view.cone = cone
       view.root.traverse((object) => {
         object.castShadow = false
       })
@@ -940,6 +988,10 @@ export function createEntityViews(
       view.root.visible = near
       if (!near) continue
       syncEnemy(world, enemy, view, alpha, dt)
+      if (view.cone) {
+        view.cone.visible = !enemy.aggro
+        view.cone.material.opacity = EYE_CONE.idle + (EYE_CONE.noticing - EYE_CONE.idle) * enemy.notice
+      }
       if (enemy.kind !== 'boss') blobs.add(view.root.position.x, view.root.position.z, enemy.radius, 1 - Math.max(0, view.veil.amount))
     }
     blobs.end()

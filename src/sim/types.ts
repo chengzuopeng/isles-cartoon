@@ -177,6 +177,7 @@ export interface Enemy extends Body {
   aggro: boolean
   alert: AlertState
   alertTime: number
+  notice: number
   lookTime: number
   lastSeen: Vec2
   sinceSeen: number

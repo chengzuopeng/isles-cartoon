@@ -430,3 +430,63 @@
   color: var(--paper);
   text-shadow: 2px 2px 0 var(--ink);
 }
+
+.notice-marks {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.notice-mark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 46px;
+  border: 3px solid #1d1714;
+  border-radius: 48% 48% 44% 44%;
+  background: #fffaf0;
+  box-shadow: 2px 3px 0 rgba(29, 23, 20, 0.55);
+  font-family: var(--comic-font);
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 42px;
+  text-align: center;
+  transform-origin: 50% 100%;
+}
+
+.notice-mark-ghost,
+.notice-mark-fill {
+  position: absolute;
+  inset: 0;
+}
+
+.notice-mark-ghost {
+  color: #d9cfbd;
+}
+
+.notice-mark-fill {
+  color: #ff9f1a;
+  -webkit-text-stroke: 1.5px #1d1714;
+  paint-order: stroke fill;
+}
+
+.notice-mark.urgent {
+  border-color: #b3261e;
+}
+
+.notice-mark.urgent .notice-mark-fill {
+  color: #ff4b2b;
+  animation: notice-pulse 0.28s ease-in-out infinite alternate;
+}
+
+@keyframes notice-pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.12);
+  }
+}

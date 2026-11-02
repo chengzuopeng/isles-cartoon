@@ -92,6 +92,7 @@ import { createDialogue } from './ui/dialogue'
 import { createFpsOverlay } from './ui/fps-overlay'
 import { createHud } from './ui/hud'
 import { createMapOverlay } from './ui/map-overlay'
+import { createNoticeMarks } from './ui/notice-marks'
 import { createPrepScreen } from './ui/prep-screen'
 import { createResults } from './ui/results'
 import { appendRunLog, readRunLog, summarizeRun, type RunLogEntry, type RunResult } from './ui/run-log'
@@ -237,6 +238,7 @@ const tips = createTips(container)
 let map = createMapOverlay(container, level, Boolean(devTools))
 const overlay = createFpsOverlay(container)
 const words = createSfxWords(container, stage)
+const notices = createNoticeMarks(container, stage)
 const bounty = createBountyCard(container)
 const prep = createPrepScreen(container, {
   missions: levels.map((def) => ({
@@ -473,6 +475,7 @@ function resetScene(): void {
   tips.clear()
   overlay.clear()
   words.clear()
+  notices.clear()
   bounty.hide()
   Object.assign(soundtrack, createSoundtrackState())
   results.hide()
@@ -1021,6 +1024,8 @@ function frame(now: number): void {
   )
   overlay.setHint(screen === 'play' && paused ? '点击画面继续' : null)
   words.update(dt)
+  if (screen === 'play' && views) notices.update(world)
+  else notices.clear()
   bounty.update(dt)
   if (screen === 'play' && !paused && !dialogue.isOpen() && !map.isOpen()) tips.update(world, dt)
   map.update(world, dt)

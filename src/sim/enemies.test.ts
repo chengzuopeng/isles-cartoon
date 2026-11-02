@@ -34,12 +34,37 @@ function count(world: World, type: string): number {
 }
 
 describe('perception', () => {
-  it('notices a player in sight and in line of sight', () => {
+  it('notices a player in sight and in line of sight after a moment of looking', () => {
     const { world } = setup(['##########', '#P.....m.#', '##########'])
     faceWest(world)
     stepWorld(world, idle(), DT)
+    expect(world.enemies[0].aggro).toBe(false)
+    expect(world.enemies[0].notice).toBeGreaterThan(0)
+    run(world, idle(), 0.6)
     expect(world.enemies[0].aggro).toBe(true)
+    expect(world.enemies[0].notice).toBe(1)
     expect(count(world, 'enemyAlerted')).toBe(1)
+  })
+
+  it('lets the notice meter drain again when the player ducks out of sight', () => {
+    const { world } = setup(['##########', '#P.....m.#', '##########'])
+    faceWest(world)
+    run(world, idle(), 0.2)
+    const half = world.enemies[0].notice
+    expect(half).toBeGreaterThan(0.2)
+    world.player.pos = { x: 1.5, y: 1.5 }
+    world.grid.tiles[1 * world.grid.columns + 3] = world.grid.tiles[0]
+    world.grid.top[1 * world.grid.columns + 3] = 3
+    run(world, idle(), 0.5)
+    expect(world.enemies[0].notice).toBeLessThan(half)
+    expect(world.enemies[0].aggro).toBe(false)
+  })
+
+  it('notices a player right next to it at once', () => {
+    const { world } = setup(['##########', '#P.m.....#', '##########'])
+    faceWest(world)
+    stepWorld(world, idle(), DT)
+    expect(world.enemies[0].aggro).toBe(true)
   })
 
   it('does not see through walls', () => {
@@ -67,7 +92,7 @@ describe('perception', () => {
   it('calls nearby allies who cannot see the player', () => {
     const { world } = setup(['############', '#P....m....#', '#######.####', '#......m...#', '############'])
     faceWest(world)
-    stepWorld(world, idle(), DT)
+    run(world, idle(), 0.6)
     expect(world.enemies.every((enemy) => enemy.aggro)).toBe(true)
   })
 })
@@ -75,7 +100,7 @@ describe('perception', () => {
 describe('gunner', () => {
   it('aims, fires a bullet and hurts the player', () => {
     const { world, tuning } = setup(['############', '#P.....r...#', '############'])
-    run(world, idle(), 2)
+    run(world, idle(), 2.5)
     expect(count(world, 'enemyShot')).toBe(1)
     expect(world.player.hp).toBe(tuning.player.maxHp - tuning.weapons.rifle.damage)
   })
@@ -115,7 +140,7 @@ describe('bomber', () => {
 describe('turret', () => {
   it('fires a spread of bullets at a player it can see', () => {
     const { world, tuning } = setup(['############', '#P.....t...#', '############'])
-    run(world, idle(), tuning.weapons.cannon.windup + 0.05)
+    run(world, idle(), tuning.weapons.cannon.windup + 0.65)
     expect(count(world, 'enemyShot')).toBe(1)
     expect(world.bullets.filter((bullet) => bullet.team === 'enemy')).toHaveLength(tuning.weapons.cannon.pellets)
   })

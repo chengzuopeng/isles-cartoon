@@ -33,6 +33,36 @@ export function canSeePlayer(world: World, enemy: Enemy, sight: number): boolean
   return lineClear(grid, eyeOf(enemy), playerChest(player), blocksSight)
 }
 
+export function noticeRate(world: World, enemy: Enemy, distance: number, sight: number): number {
+  const { perception } = world.tuning
+  if (distance <= perception.proximity) return Infinity
+  const closeness = Math.min(1.5, Math.max(0.5, 1.5 - distance / Math.max(sight, 1e-3)))
+  const suspicious = enemy.alert === 'suspicious' || enemy.alert === 'search' ? perception.noticeSuspicious : 1
+  return (closeness * suspicious) / perception.noticeSeconds
+}
+
+export type Watch = 'none' | 'noticing' | 'spotted'
+
+export function watchPlayer(world: World, enemy: Enemy, dt: number): Watch {
+  const sight = sightOf(world, enemy)
+  if (!canSeePlayer(world, enemy, sight)) {
+    enemy.notice = Math.max(0, enemy.notice - dt / world.tuning.perception.noticeFade)
+    return 'none'
+  }
+  const distance = Math.hypot(world.player.pos.x - enemy.pos.x, world.player.pos.y - enemy.pos.y)
+  enemy.notice = Math.min(1, enemy.notice + dt * noticeRate(world, enemy, distance, sight))
+  if (enemy.notice >= 1) return 'spotted'
+  enemy.facing = turnToward(enemy.facing, Math.atan2(world.player.pos.y - enemy.pos.y, world.player.pos.x - enemy.pos.x), dt * world.tuning.perception.lookSpeed * 2)
+  return 'noticing'
+}
+
+function turnToward(from: number, to: number, amount: number): number {
+  let diff = to - from
+  while (diff > Math.PI) diff -= Math.PI * 2
+  while (diff < -Math.PI) diff += Math.PI * 2
+  return from + diff * Math.min(1, Math.max(0, amount))
+}
+
 export function inView(world: World, enemy: Enemy, angle: number): boolean {
   const half = (world.tuning.perception.fovDeg * Math.PI) / 360
   let diff = angle - enemy.facing
@@ -44,6 +74,7 @@ export function inView(world: World, enemy: Enemy, angle: number): boolean {
 export function aggro(world: World, enemy: Enemy, hops = world.tuning.ai.alertHops): void {
   if (enemy.aggro || enemy.kind === 'boss' || enemy.hp <= 0) return
   enemy.aggro = true
+  enemy.notice = 1
   enemy.alert = 'combat'
   enemy.leashed = false
   enemy.sinceSeen = 0

@@ -2,7 +2,7 @@ import { ELITE } from '../../data/elites'
 import { runForAlarm } from '../alarms'
 import { bossBlocks } from '../boss'
 import { decay, type Vec2 } from '../math'
-import { aggro, canSeePlayer, sightOf } from '../perception'
+import { aggro, canSeePlayer, sightOf, watchPlayer } from '../perception'
 import { disabled, speedFactor, updateEnemyStatus } from '../status'
 import { settleWalker } from '../terrain'
 import type { AlertState, Enemy } from '../types'
@@ -35,10 +35,16 @@ export function updateEnemies(world: World, dt: number): void {
           integrate(world, enemy, still(), dt)
           continue
         }
-      } else if (!enemy.leashed && canSeePlayer(world, enemy, sightOf(world, enemy))) aggro(world, enemy)
-      else {
-        integrate(world, enemy, calm(world, enemy, dt), dt)
-        continue
+      } else {
+        const watch = enemy.leashed ? 'none' : watchPlayer(world, enemy, dt)
+        if (watch === 'spotted') aggro(world, enemy)
+        else if (watch === 'noticing') {
+          integrate(world, enemy, still(), dt)
+          continue
+        } else {
+          integrate(world, enemy, calm(world, enemy, dt), dt)
+          continue
+        }
       }
     }
     const errand = runForAlarm(world, enemy, dt)

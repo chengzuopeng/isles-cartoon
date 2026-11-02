@@ -93,6 +93,9 @@ export type PerceptionTuning = {
   fovDeg: number
   proximity: number
   noiseRadius: number
+  noticeSeconds: number
+  noticeFade: number
+  noticeSuspicious: number
   loseTime: number
   searchTime: number
   suspicionTime: number
@@ -275,6 +278,9 @@ export function createDefaultTuning(): Tuning {
       fovDeg: 140,
       proximity: 4,
       noiseRadius: 9.6,
+      noticeSeconds: 0.55,
+      noticeFade: 1.6,
+      noticeSuspicious: 1.6,
       loseTime: 5,
       searchTime: 4,
       suspicionTime: 3,
