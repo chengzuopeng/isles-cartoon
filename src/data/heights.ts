@@ -45,6 +45,8 @@ export const CHEST_HEIGHT = 1
 
 export const THROW_HEIGHT = 1.2
 
+export const BLAST_REACH = { up: 0.75, down: 0.5 } as const
+
 export const STRIKE_REACH = 0.5
 
 export const MAX_PITCH = (85 * Math.PI) / 180

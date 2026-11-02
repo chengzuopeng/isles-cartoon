@@ -245,6 +245,7 @@ function startMove(world: World, boss: Enemy, state: BossState, def: BossDef, dt
       spawnBlast(world, {
         x: boss.pos.x,
         y: boss.pos.y,
+        z: boss.z,
         radius: slam.radius,
         delay: slam.windup,
         playerDamage: slam.damage,

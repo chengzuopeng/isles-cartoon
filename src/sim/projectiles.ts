@@ -261,6 +261,7 @@ function explode(world: World, bullet: Bullet, x: number, y: number): void {
   spawnBlast(world, {
     x,
     y,
+    z: bullet.z,
     radius: bullet.explodeRadius,
     delay: 0,
     playerDamage: bullet.team === 'enemy' ? bullet.splash : 0,

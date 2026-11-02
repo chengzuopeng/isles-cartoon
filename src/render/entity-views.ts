@@ -384,7 +384,7 @@ export function createEntityViews(
   const enemyViews = new Map<number, EnemyView>()
   const defeatTarget: DefeatTarget = { x: 0, y: 0 }
   const markerMeshes: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>[] = []
-  const blastMeshes: { ring: THREE.Mesh; fill: THREE.Mesh }[] = []
+  const blastMeshes: { ring: THREE.Mesh; fill: THREE.Mesh; wall: THREE.Mesh }[] = []
   let clock = 0
 
   function shell(kind: EnemyKind): EnemyView {
@@ -1225,26 +1225,32 @@ export function createEntityViews(
     round.forEach((blast, index) => {
       let item = blastMeshes[index]
       if (!item) {
+        const wall = new THREE.Mesh(ringCurtain, curtainMaterial)
+        wall.userData.noInk = true
+        wall.renderOrder = 2
         item = {
           ring: flat(new THREE.Mesh(ringGeometry, areaMaterial), 0.05),
           fill: flat(new THREE.Mesh(discGeometry, fillMaterial), 0.055),
+          wall,
         }
-        scene.add(item.ring, item.fill)
+        scene.add(item.ring, item.fill, item.wall)
         blastMeshes.push(item)
       }
       const amount = blast.total > 0 ? clamp(1 - blast.delay / blast.total, 0, 1) : 1
       item.ring.visible = true
       item.fill.visible = true
-      item.ring.position.x = blast.x
-      item.ring.position.z = blast.y
-      item.fill.position.x = blast.x
-      item.fill.position.z = blast.y
+      item.wall.visible = true
+      item.ring.position.set(blast.x, blast.z + 0.05, blast.y)
+      item.fill.position.set(blast.x, blast.z + 0.055, blast.y)
+      item.wall.position.set(blast.x, blast.z, blast.y)
+      item.wall.scale.set(blast.radius, CURTAIN_HEIGHT, blast.radius)
       item.ring.scale.setScalar(blast.radius)
       item.fill.scale.setScalar(Math.max(0.05, blast.radius * amount))
     })
     for (let i = round.length; i < blastMeshes.length; i++) {
       blastMeshes[i].ring.visible = false
       blastMeshes[i].fill.visible = false
+      blastMeshes[i].wall.visible = false
     }
   }
 

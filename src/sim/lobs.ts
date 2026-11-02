@@ -88,6 +88,7 @@ export function updateLobs(world: World, dt: number): void {
     spawnBlast(world, {
       x: lob.to.x,
       y: lob.to.y,
+      z: lob.toZ,
       radius: lob.radius,
       delay: 0,
       playerDamage: lob.team === 'enemy' ? lob.damage : 0,

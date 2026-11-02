@@ -125,6 +125,8 @@ export type AiTuning = {
   shieldStrikeDeg: number
   interruptCooldown: number
   meleeSlots: number
+  unseenSlots: number
+  viewHalfDeg: number
   orbitRadius: number
   volleyGap: number
   alertHops: number
@@ -313,6 +315,8 @@ export function createDefaultTuning(): Tuning {
       shieldStrikeDeg: 30,
       interruptCooldown: 0.5,
       meleeSlots: 2,
+      unseenSlots: 1,
+      viewHalfDeg: 70,
       orbitRadius: 5.4,
       volleyGap: 0.6,
       alertHops: 2,

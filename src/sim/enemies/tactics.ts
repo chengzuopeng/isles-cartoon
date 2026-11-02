@@ -95,9 +95,19 @@ export function assignSlots(world: World): void {
   }
   candidates.sort((a, b) => a.score - b.score)
   const slots = Math.max(1, tuning.ai.meleeSlots + world.difficulty.slots)
-  candidates.forEach((item, index) => {
-    item.enemy.engaged = index < slots
-  })
+  const half = (tuning.ai.viewHalfDeg * Math.PI) / 180
+  let engaged = 0
+  let unseen = 0
+  for (const item of candidates) {
+    const angle = Math.atan2(item.enemy.pos.y - player.pos.y, item.enemy.pos.x - player.pos.x) - player.facing
+    const behind = Math.abs(Math.atan2(Math.sin(angle), Math.cos(angle))) > half
+    const busy = item.score === -Infinity
+    const allowed = busy || (engaged < slots && (!behind || unseen < tuning.ai.unseenSlots))
+    item.enemy.engaged = allowed
+    if (!allowed) continue
+    engaged += 1
+    if (behind) unseen += 1
+  }
 }
 
 export function trackShare(world: World): number {

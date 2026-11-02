@@ -3,6 +3,7 @@ import { EYE_CRIT, eyeHeightOf } from '../data/heights'
 import { createDefaultTuning } from '../data/tuning'
 import { fireEnemyWeapon } from './arsenal'
 import { lineClear } from './collision'
+import { blastReaches } from './combat'
 import { blocksSight } from './grid'
 import { createFlowField, distanceAt, updateFlowField } from './pathing'
 import { canSeePlayer } from './perception'
@@ -171,5 +172,16 @@ describe('paths with heights', () => {
     updateFlowField(field, world.grid, world.player.pos)
     expect(distanceAt(field, world.grid, 5, 1)).toBe(1)
     expect(distanceAt(field, world.grid, 7, 1)).toBe(3)
+  })
+})
+
+describe('blasts in two and a half dimensions', () => {
+  it('reaches a little above and below its centre but not a hero standing on a ledge far above it', () => {
+    const blast = { z: 0, radius: 2 } as Parameters<typeof blastReaches>[0]
+    expect(blastReaches(blast, 0, 1.6)).toBe(true)
+    expect(blastReaches(blast, 1.4, 1.6)).toBe(true)
+    expect(blastReaches(blast, 1.6, 1.6)).toBe(false)
+    expect(blastReaches(blast, -2.5, 1.6)).toBe(true)
+    expect(blastReaches(blast, -2.7, 1.6)).toBe(false)
   })
 })

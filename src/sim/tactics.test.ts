@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createDefaultTuning } from '../data/tuning'
 import { lineClear } from './collision'
+import { assignSlots } from './enemies/tactics'
 import { blocksBullets } from './grid'
 import { aggro } from './perception'
 import { stepWorld } from './step'
@@ -202,5 +203,17 @@ describe('difficulty', () => {
       return gunner.aimAngle
     })
     expect(angles[1]).toBeLessThan(angles[0])
+  })
+})
+
+describe('melee slots in first person', () => {
+  it('lets at most one engaged charger come from outside the hero view', () => {
+    const world = createWorld(singleArea(['#############', '#...........#', '#.m...P...m.#', '#.....m.....#', '#...........#', '#############']), createDefaultTuning())
+    world.player.facing = Math.PI / 2
+    for (const enemy of world.enemies) enemy.aggro = true
+    const [west, east, south] = [...world.enemies].sort((a, b) => a.pos.y - b.pos.y || a.pos.x - b.pos.x)
+    assignSlots(world)
+    expect(south.engaged).toBe(true)
+    expect([west.engaged, east.engaged].filter(Boolean)).toHaveLength(1)
   })
 })

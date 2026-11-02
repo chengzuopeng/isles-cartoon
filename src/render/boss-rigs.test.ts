@@ -341,7 +341,7 @@ describe('boss rigs', () => {
     const hatRest = hat?.position.y ?? 0
     state.phase = 'recover'
     state.timer = def.slam?.recover ?? 0.8
-    rig.handle({ type: 'blast', x: 0, y: 0, radius: 2.8, source: 'boss' })
+    rig.handle({ type: 'blast', x: 0, y: 0, z: 0, radius: 2.8, source: 'boss' })
     run(rig, state, 0.1, clock)
     const down = elbow()
     expect(down).toBeLessThan(0)

@@ -267,6 +267,7 @@ export interface Blast {
   id: number
   x: number
   y: number
+  z: number
   radius: number
   delay: number
   total: number
@@ -443,7 +444,7 @@ export type GameEvent =
   | { type: 'enemySpawned'; id: number; x: number; y: number }
   | { type: 'playerHit'; x: number; y: number; damage: number; absorbed: number; fromX: number; fromY: number; knockback: number }
   | { type: 'playerDied'; x: number; y: number; attack: Attack | null }
-  | { type: 'blast'; x: number; y: number; radius: number; source: BlastSource }
+  | { type: 'blast'; x: number; y: number; z: number; radius: number; source: BlastSource }
   | { type: 'waveStarted'; wave: number }
   | { type: 'areaEntered'; index: number; name: string }
   | { type: 'areaLocked'; index: number }

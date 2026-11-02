@@ -24,6 +24,7 @@ function act(world: World, enemy: Enemy): Vec2 {
     spawnBlast(world, {
       x: enemy.pos.x,
       y: enemy.pos.y,
+      z: enemy.z,
       radius: fuse.radius,
       delay: fuse.windup,
       playerDamage: fuse.damage,

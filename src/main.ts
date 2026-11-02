@@ -896,7 +896,7 @@ function dispatch(event: GameEvent): void {
       wordAt('clatter', event.x, event.y, world.player.z + 1.1, event.kind === 'boss' ? 1.8 : 1)
       break
     case 'blast':
-      wordAt('hong', event.x, event.y, world.player.z + 1.4, Math.min(1.8, 0.8 + event.radius * 0.25))
+      wordAt('hong', event.x, event.y, event.z + 1.2, Math.min(1.8, 0.8 + event.radius * 0.25))
       break
     case 'shieldBlocked':
       wordAt('dang', event.x, event.y, world.player.z + 1.2, 0.9)

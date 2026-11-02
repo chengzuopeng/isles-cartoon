@@ -1,4 +1,5 @@
 import { getBoss } from '../data/bosses'
+import { BLAST_REACH, bodyHeightOf } from '../data/heights'
 import { ELITE } from '../data/elites'
 import { ELITE_WEIGHTS } from '../data/loot'
 import { BOSS_XP, ELITE_XP, KILL_XP } from '../data/progression'
@@ -6,6 +7,7 @@ import type { WeaponId } from '../data/weapons'
 import { attackOf, sameAttack } from './attacks'
 import { absorbDamage } from './buffs'
 import { damageCratesInRadius } from './crates'
+import { floorAt } from './grid'
 import { blastLandmarks } from './landmark-state'
 import { aggro, witnessDeath } from './perception'
 import { rollEnemyDrop, rollItem, spawnPickup } from './pickups'
@@ -24,6 +26,7 @@ export interface HitInfo {
 export interface BlastSpec {
   x: number
   y: number
+  z?: number
   radius: number
   delay: number
   playerDamage: number
@@ -178,6 +181,7 @@ function eliteDeath(world: World, enemy: Enemy): void {
     spawnBlast(world, {
       x: enemy.pos.x,
       y: enemy.pos.y,
+      z: enemy.z,
       radius: ELITE.volatileRadius,
       delay: ELITE.volatileDelay,
       playerDamage: ELITE.volatileDamage,
@@ -218,6 +222,7 @@ function detonateBomber(world: World, bomber: Enemy): void {
   spawnBlast(world, {
     x: bomber.pos.x,
     y: bomber.pos.y,
+    z: bomber.z,
     radius: fuse.radius,
     delay: 0,
     playerDamage: fuse.damage,
@@ -260,6 +265,7 @@ export function spawnBlast(world: World, spec: BlastSpec): Blast {
     id: world.nextId++,
     x: spec.x,
     y: spec.y,
+    z: spec.z ?? floorAt(world.grid, spec.x, spec.y),
     radius: spec.radius,
     delay: spec.delay,
     total: spec.delay,
@@ -292,6 +298,10 @@ export function insideBlast(blast: Blast, x: number, y: number, margin: number):
   return true
 }
 
+export function blastReaches(blast: Blast, feet: number, height: number): boolean {
+  return feet <= blast.z + blast.radius * BLAST_REACH.up && feet + height >= blast.z - blast.radius * BLAST_REACH.down
+}
+
 export function angleBetween(a: number, b: number): number {
   let diff = a - b
   while (diff > Math.PI) diff -= Math.PI * 2
@@ -314,8 +324,8 @@ export function updateBlasts(world: World, dt: number): void {
 function detonate(world: World, blast: Blast): void {
   const { player } = world
   const knockback = world.tuning.feel.blastKnockback
-  world.events.push({ type: 'blast', x: blast.x, y: blast.y, radius: blast.radius, source: blast.source })
-  if (blast.playerDamage > 0 && player.alive && insideBlast(blast, player.pos.x, player.pos.y, player.radius)) {
+  world.events.push({ type: 'blast', x: blast.x, y: blast.y, z: blast.z, radius: blast.radius, source: blast.source })
+  if (blast.playerDamage > 0 && player.alive && insideBlast(blast, player.pos.x, player.pos.y, player.radius) && blastReaches(blast, player.z, bodyHeightOf('player'))) {
     const dx = player.pos.x - blast.x
     const dy = player.pos.y - blast.y
     const distance = Math.hypot(dx, dy)
@@ -327,6 +337,7 @@ function detonate(world: World, blast: Blast): void {
       if (enemy.hp <= 0 || enemy.id === blast.ownerId) continue
       if (enemy.boss?.phase === 'dormant') continue
       if (!insideBlast(blast, enemy.pos.x, enemy.pos.y, enemy.radius)) continue
+      if (!blastReaches(blast, enemy.z, bodyHeight(enemy))) continue
       const dx = enemy.pos.x - blast.x
       const dy = enemy.pos.y - blast.y
       const distance = Math.hypot(dx, dy)
