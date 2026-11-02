@@ -55,7 +55,7 @@ interface Flash {
   height: number
 }
 
-export const RING_WALL = { height: 1.4, color: '#4fd6ff', opacity: 0.8, linger: 1.5 }
+export const RING_WALL = { height: 1.4, color: '#4fd6ff', opacity: 0.8, linger: 1.5, start: 1.2 }
 
 type ProjectileModelId = keyof typeof PROJECTILE_SCALES
 type LobModelId = 'grenade-shell' | 'legion-bomb' | 'chief-bomb' | 'wheat-bale' | 'mine'
@@ -629,13 +629,10 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
     handle(event) {
       switch (event.type) {
         case 'shockwave':
-          ring(event.x, event.y, '#bfe9ff', 0.4, event.radius, 0.35)
+          ring(event.x, event.y, '#bfe9ff', RING_WALL.start, Math.max(RING_WALL.start, event.radius), 0.35)
           break
         case 'barrierBroken':
-          ring(event.x, event.y, '#e8fbff', 0.5, Math.max(1.2, event.radius), 0.3)
-          break
-        case 'ultimateFired':
-          ring(event.x, event.y, '#5ff0ff', 0.3, 2.2, 0.3)
+          ring(event.x, event.y, '#e8fbff', RING_WALL.start, Math.max(RING_WALL.start + 0.4, event.radius), 0.3)
           break
         case 'chain':
           chain(event.fromX, event.fromY, event.toX, event.toY)

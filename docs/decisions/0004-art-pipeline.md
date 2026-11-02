@@ -30,4 +30,13 @@
 3. `art/models/fp-arms/assemble.py`（Blender 后台脚本）按贴图颜色找到灰棒子，把右手对到能量枪的握把上、左手对到枪管下面；只留颜色贴图（缩到 2048），材质改成不带金属感的哑光，右手棒子的范围存进节点 extras，导出 `fp-arms.glb`。重跑：`blender --background --factory-startup --python art/models/fp-arms/assemble.py -- --right <混元右臂.glb> --left <混元左臂.glb>`，预览图写到系统临时目录的 `fp-arms-preview/`
 4. `scripts/build-assets.sh` 打包成运行时资源（贴图 1024，KTX2）
 
-混元的模型是一整块网格，没有关节和零件，所以只适合不需要拆零件动的东西；枪的线圈、瓣片这种要单独动的零件，还是用 Blender 脚本做。混元下载的原始 GLB（每个 25 MB 左右，大头是 4K 贴图）不进仓库，`assemble.py` 的输出才是源文件。
+混元的模型是一整块网格，没有关节和零件。混元下载的原始 GLB（每个 25 MB 左右，大头是 4K 贴图）不进仓库，`assemble.py` 的输出才是源文件。
+
+能量枪的第一人称版（`fp-blaster`）也用混元做了，同一天：
+
+1. 输入：主仓库能量枪三视图切成正面、右侧、俯视三张，右侧左右翻一下当左侧，走「道具」流程（`studio/creation/prop/`）
+2. 部件拆分（Component Splitting）试过：先自动预分成 28 块，再生成 28 个独立的零件网格（合计约 88 万面，每块都重新生成了一遍）。线圈的环大多单独成块，但有两三个环粘在一起；枪口护套被拆成前后几片，不是绕枪管一圈的瓣片，没法直接当张开的瓣片用。拆出来的是白模；这次没在拆分结果上接着重拓扑和贴图（没试过混元会不会保留零件），改用没拆分的几何走完流程，零件在下一步自己拆
+3. 实际用的：没拆分的几何 → 重拓扑 High（8,501 面）→ 展 UV → 多视图贴图
+4. `art/models/fp-blaster/assemble.py` 自己拆零件：按贴图颜色找出青色的线圈，沿枪管方向按间隙分成 6 圈（`coil_1`~`coil_6`，从后往前）；枪口八角护套沿角度切成 8 片（`petal_1`~`petal_8`），大招时张开；其余是 `body`。再按旧枪的握把位置和长度（0.42 米）对齐，加上 `socket_muzzle`，导出 `fp-blaster.glb`。重跑：`blender --background --factory-startup --python art/models/fp-blaster/assemble.py -- --source <混元的枪.glb>`
+
+第三人称（俯视、自由镜头）还用旧的 `blaster`。

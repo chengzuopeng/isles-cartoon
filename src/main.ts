@@ -39,6 +39,7 @@ import { gltfSource } from './render/gltf-source'
 import { levelsToKeep, modelsFor, nextLevel } from './render/level-models'
 import { createModelLibrary } from './render/model-library'
 import { createPickupViews, type PickupViews } from './render/pickup-views'
+import { muzzleSource, shareMuzzle } from './render/muzzle-link'
 import { createProjectileViews, type ProjectileViews } from './render/projectile-views'
 import { createRingViews } from './render/ring-views'
 import type { RenderInfo } from './render/stage'
@@ -164,7 +165,7 @@ declare global {
 
 const SAVE_KEY = 'isles-cartoon.save.v1'
 const ELITE_KINDS: readonly MinionKind[] = ['grunt', 'gunner', 'shield', 'thrower']
-const VIEWMODEL_MODELS: readonly ModelId[] = ['blaster', 'fp-arms']
+const VIEWMODEL_MODELS: readonly ModelId[] = ['blaster', 'fp-arms', 'fp-blaster']
 const DEG = Math.PI / 180
 const BOB_HEIGHT = 0.035
 const BOB_RATE = 2.2
@@ -329,13 +330,16 @@ const viewmodel = createViewmodel(models)
 const rings = createRingViews(stage.scene)
 stage.setOverlay((renderer) => viewmodel.draw(renderer))
 const sunDirection = new THREE.Vector3(-7, 22, 8).normalize()
-const muzzle = new THREE.Vector3()
 
 const booted = (async () => {
   await models.ensure([...RESIDENT_MODEL_IDS, ...VIEWMODEL_MODELS])
   views = createEntityViews(stage, tuning, effects, viewFlags, models)
   pickupViews = createPickupViews(stage.scene, models)
   projectileViews = createProjectileViews(stage.scene, models, effects)
+  const thirdPerson = muzzleSource(stage.scene)
+  shareMuzzle(stage.scene, {
+    muzzle: (out) => (stage.view === 'fps' ? viewmodel.muzzle(stage.camera, out) : (thirdPerson?.muzzle(out) ?? null)),
+  })
   viewsReady = true
 })()
 
@@ -1048,7 +1052,6 @@ function frame(now: number): void {
     views.setPlayerVisible(stage.view !== 'fps')
     toonify(stage.scene)
     stage.render(sceneDt)
-    viewmodel.muzzle(stage.camera, muzzle)
   }
   hud.update(world, alpha)
   numbers.update(dt, world)

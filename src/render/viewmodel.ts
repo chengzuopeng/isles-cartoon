@@ -30,7 +30,7 @@ export interface Viewmodel {
   switched(): void
   jumped(): void
   landed(fall: number): void
-  muzzle(worldCamera: THREE.PerspectiveCamera, out: THREE.Vector3): THREE.Vector3
+  muzzle(worldCamera: THREE.PerspectiveCamera, out: THREE.Vector3): THREE.Vector3 | null
   draw(renderer: THREE.WebGLRenderer): void
   resize(width: number, height: number): void
   setVisible(visible: boolean): void
@@ -65,7 +65,8 @@ const TRIGGER_PULL = 0.28
 const LEFT_GRIP = { pivot: new THREE.Vector3(0.22, 0.065, 0), swing: -0.7, show: 0.35, rate: 14 }
 const COIL_LIT = new THREE.Color('#5ff0ff')
 const COIL_DIM = new THREE.Color('#1c3c48')
-const COIL_GLOW = { lit: 0.85, dim: 0.12, charge: 0.6, core: 0.2 }
+const COIL_GLOW = { lit: 0.85, dim: 0.12, charge: 0.6, core: 0.2, shade: 0.4 }
+const FIRST_PERSON_MODELS: Readonly<Partial<Record<string, ModelId>>> = { blaster: 'fp-blaster' }
 const PETAL_OPEN = 1.05
 const MUZZLE_FALLBACK = new THREE.Vector3(0.36, 0.08, 0)
 const UP = new THREE.Vector3(0, 1, 0)
@@ -78,12 +79,17 @@ interface ArmRig {
   left: THREE.Object3D | null
 }
 
+interface Coil {
+  material: THREE.MeshStandardMaterial | THREE.MeshToonMaterial
+  base: THREE.Color
+}
+
 interface WeaponRig {
   id: string
   root: THREE.Object3D
   muzzle: THREE.Object3D | null
   petals: { node: THREE.Object3D; axis: THREE.Vector3; rest: THREE.Quaternion }[]
-  coils: THREE.MeshToonMaterial[]
+  coils: Coil[]
 }
 
 function hullGeometry(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
@@ -152,12 +158,33 @@ function splitByAxis(geometry: THREE.BufferGeometry, parts: number): THREE.Buffe
   return result
 }
 
+function coilNodes(root: THREE.Object3D): THREE.Object3D[] {
+  const nodes: THREE.Object3D[] = []
+  root.traverse((object) => {
+    if (/^coil_\d+$/.test(object.name)) nodes.push(object)
+  })
+  return nodes.sort((a, b) => Number(a.name.slice(5)) - Number(b.name.slice(5)))
+}
+
 function buildWeapon(models: ModelLibrary, id: string, hull: THREE.ShaderMaterial): WeaponRig | null {
-  if (!models.has(id)) return null
-  const instance = models.instance(id as ModelId)
+  const variant = FIRST_PERSON_MODELS[id]
+  const model = variant && models.has(variant) ? variant : id
+  if (!models.has(model)) return null
+  const instance = models.instance(model as ModelId)
   const root = instance.root
   toonify(root)
-  const coils: THREE.MeshToonMaterial[] = []
+  const coils: Coil[] = []
+  for (const node of coilNodes(root)) {
+    node.traverse((object) => {
+      const mesh = object as THREE.Mesh
+      if (!mesh.isMesh) return
+      const material = (mesh.material as THREE.MeshStandardMaterial).clone()
+      material.emissive = COIL_LIT.clone()
+      material.emissiveIntensity = COIL_GLOW.lit
+      mesh.material = material
+      coils.push({ material, base: material.color.clone() })
+    })
+  }
   const glowMeshes: THREE.Mesh[] = []
   root.traverse((object) => {
     const mesh = object as THREE.Mesh
@@ -166,7 +193,7 @@ function buildWeapon(models: ModelLibrary, id: string, hull: THREE.ShaderMateria
     if (material.name === 'mat_glow') glowMeshes.push(mesh)
     if (material.name.startsWith('mat_glow')) (material as THREE.MeshToonMaterial).emissiveIntensity = material.name === 'mat_glow_core' ? COIL_GLOW.core : COIL_GLOW.lit
   })
-  if (id === 'blaster' && glowMeshes.length > 0) {
+  if (id === 'blaster' && coils.length === 0 && glowMeshes.length > 0) {
     const glow = glowMeshes[0]
     const pieces = splitByAxis(glow.geometry, 3)
     pieces.forEach((piece) => {
@@ -177,7 +204,7 @@ function buildWeapon(models: ModelLibrary, id: string, hull: THREE.ShaderMateria
       mesh.scale.copy(glow.scale)
       mesh.userData.noHull = true
       glow.parent?.add(mesh)
-      coils.push(material)
+      coils.push({ material, base: material.color.clone() })
     })
     glow.visible = false
     glow.userData.noHull = true
@@ -238,6 +265,10 @@ function starGeometry(outer: number, inner: number, depth: number): THREE.Buffer
   const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false })
   geometry.translate(0, 0, -depth / 2)
   return geometry
+}
+
+function worldTan(camera: THREE.PerspectiveCamera): number {
+  return Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)
 }
 
 function damp(current: number, target: number, rate: number, dt: number): number {
@@ -396,11 +427,13 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
           petal.node.quaternion.copy(petal.rest)
           if (petals > 0.001) petal.node.rotateOnAxis(petal.axis, petals * PETAL_OPEN)
         })
-        current.coils.forEach((material, index) => {
-          const lit = index < state.ammo
-          const charging = !lit && index === state.ammo ? state.reload : 0
+        const filled = state.magazine > 0 ? (state.ammo / state.magazine) * current.coils.length : 0
+        current.coils.forEach(({ material, base }, index) => {
+          const lit = index < filled - 1e-6
+          const charging = !lit && index === Math.floor(filled) ? state.reload : 0
           material.emissive.copy(lit ? COIL_LIT : COIL_DIM).lerp(COIL_LIT, charging * 0.5)
           material.emissiveIntensity = lit ? COIL_GLOW.lit : COIL_GLOW.dim + charging * COIL_GLOW.charge
+          material.color.copy(base).multiplyScalar(lit ? 1 : COIL_GLOW.shade + charging * (1 - COIL_GLOW.shade))
         })
       }
     },
@@ -422,9 +455,13 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
       jumpVelocity -= Math.min(0.6, 0.15 + fall * 0.12)
     },
     muzzle(worldCamera, out) {
+      if (!rig.visible) return null
       rig.updateMatrixWorld(true)
       if (current?.muzzle) current.muzzle.getWorldPosition(out)
       else out.set(REST.x, REST.y + 0.05, REST.z - 0.4)
+      const depth = -out.z
+      out.project(camera)
+      out.set(out.x * worldCamera.aspect * worldTan(worldCamera), out.y * worldTan(worldCamera), -1).multiplyScalar(depth)
       return out.applyMatrix4(worldCamera.matrixWorld)
     },
     draw(renderer) {
