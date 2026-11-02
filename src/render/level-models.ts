@@ -78,6 +78,7 @@ export function levelModelIds(level: BuiltLevel): ModelId[] {
     add('campfire')
     add('campfire-burnt')
   }
+  add('ch1-fence')
   for (const kind of levelEnemyKinds(level)) add(kind)
   if (level.enemies.some((enemy) => enemy.affixes.length > 0)) add('elite-crown')
   if (level.boss) {

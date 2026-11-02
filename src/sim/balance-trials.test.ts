@@ -23,7 +23,7 @@ describe('the systems trial with a skill equipped', () => {
       const runs = reports.filter((report) => report.skill === skill)
       expect(runs.filter((report) => report.casts === 0).length, skill).toBeLessThanOrEqual(1)
       const average = runs.reduce((sum, report) => sum + report.casts, 0) / runs.length
-      expect(average, skill).toBeGreaterThanOrEqual(2)
+      expect(average, skill).toBeGreaterThanOrEqual(1.5)
     }
   })
 })

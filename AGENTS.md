@@ -71,6 +71,7 @@
 | `startLevel(关卡)` / `openPrep()` | 切到某一关（`1-1`~`1-5`、`trial-systems`、`trial-harvester`）并开始；回到整备界面。`startLevel` 先回整备界面加载模型、编译着色器，返回的 Promise 在进关后完成 |
 | `skipDialogue()` / `playInterlude(幕间)` | 关掉正在播的对话（关卡还在加载时调用，进关后就不播开场对话）；在整备界面播一段幕间 |
 | `setDifficulty(难度)` | 切换难度（`easy` / `normal` / `hard`），下一局生效 |
+| `setAutopilot(开关, 水平)` | 打开或关闭自动驾驶；水平可选 `perfect` 完美、`human` 普通玩家、`novice` 新手。开着时镜头跟着它的瞄准走，`advance()` 也用它的指令。做法见 `docs/tech/autopilot.md` |
 | `teleport(区域)` / `teleportToBoss()` | 传送 |
 | `advance(秒)` / `act(指令, 秒)` | 不依赖画面刷新直接推进逻辑；`act` 带着指定的指令推进，比如 `act({ fire: true, aimX, aimY, pitch }, 1)`、`act({ melee: true }, 0.05)`、`act({ jump: true }, 0.3)` |
 | `look(偏航, 俯仰)` | 直接设视角（弧度） |

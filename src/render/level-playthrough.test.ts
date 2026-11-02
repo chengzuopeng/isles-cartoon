@@ -104,11 +104,6 @@ function playLevel(def: LevelDef, models: ModelLibrary): World {
   }
 }
 
-const MODEL_GAPS: Readonly<Record<string, string>> = {
-  '1-4': 'the first-person view fences the island border with ch1-fence, which level-models only loads for levels with fence tiles',
-  'trial-harvester': 'the first-person view fences the island border with ch1-fence, which level-models only loads for levels with fence tiles',
-}
-
 describe('a full autopilot run of each level in first person', () => {
   for (const def of LEVELS) {
     const used = new Set<ModelId>()
@@ -116,9 +111,7 @@ describe('a full autopilot run of each level in first person', () => {
       const world = playLevel(def, recordingLibrary(everything, used))
       expect(world.status).toBe('complete')
     }, RUN_TIMEOUT)
-    const gap = MODEL_GAPS[def.id]
-    const audit = gap ? it.skip : it
-    audit(`${def.id} draws only models its level loads${gap ? ` (skipped: ${gap})` : ''}`, () => {
+    it(`${def.id} draws only models its level loads`, () => {
       const wanted = new Set<ModelId>([...RESIDENT_MODEL_IDS, ...modelsFor(buildLevel(def)), 'blaster' as ModelId])
       expect(used.size).toBeGreaterThan(0)
       expect([...used].filter((id) => !wanted.has(id))).toEqual([])

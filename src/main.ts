@@ -7,6 +7,7 @@ import { createSoundtrackState, trackFor } from './audio/soundtrack'
 import { createFixedStep } from './core/fixed-step'
 import { loadSettings, saveSettings, type Settings } from './core/settings'
 import { readJson, removeKey, writeJson } from './core/storage'
+import { AUTOPILOT_KITE_LEVELS, AUTOPILOT_ONWARD_LEVELS, AUTOPILOT_SIEGE_LEVELS, type AutopilotSkillId } from './data/autopilot'
 import { BOSSES } from './data/bosses'
 import type { DifficultyId } from './data/difficulty'
 import { INTERLUDES, STORIES } from './data/dialogue'
@@ -45,6 +46,7 @@ import { LEVEL_CACHE } from './render/themes'
 import { toonify } from './render/toon'
 import { createViewmodel } from './render/viewmodel'
 import { giveSpecialWeapon } from './sim/arsenal'
+import { createAutopilot } from './sim/autopilot'
 import { giveBuff } from './sim/buffs'
 import {
   breakTargets,
@@ -123,6 +125,7 @@ interface GameDebugHandle {
   teleport(area: number): void
   teleportToBoss(): void
   setDifficulty(id: DifficultyId): void
+  setAutopilot(on: boolean, skill?: AutopilotSkillId): void
   advance(seconds: number, interact?: boolean): void
   act(next: Partial<PlayerCommand>, seconds: number): void
   skipDialogue(): void
@@ -185,6 +188,8 @@ const debug: DebugFlags = { invincible: false, noWaves: false }
 const viewFlags: ViewFlags = { showSight: false }
 let profile = sanitizeProfile(readJson(SAVE_KEY))
 let seed = 1
+const toggles: { autopilot: boolean; autopilotSkill: AutopilotSkillId } = { autopilot: false, autopilotSkill: 'perfect' }
+let autopilot = pilot()
 const settings = loadSettings()
 const look = loadLookSettings()
 const keys = loadKeys()
@@ -393,6 +398,16 @@ function nextUnlocked(): LevelDef | null {
   return next && unlocked(next.id) ? next : null
 }
 
+function pilot(): ReturnType<typeof createAutopilot> {
+  return createAutopilot({
+    skill: toggles.autopilotSkill,
+    seed,
+    siege: AUTOPILOT_SIEGE_LEVELS.includes(levelDef.id),
+    onward: AUTOPILOT_ONWARD_LEVELS.includes(levelDef.id),
+    kite: AUTOPILOT_KITE_LEVELS.includes(levelDef.id),
+  })
+}
+
 function newWorld(): World {
   seed += 1
   return createWorld(level, tuning, {
@@ -458,6 +473,7 @@ async function readyLevel(id: string): Promise<boolean> {
 function resetScene(): void {
   if (!interluding) dialogue.stop()
   world = newWorld()
+  autopilot = pilot()
   settled = false
   logged = false
   outroPlayed = false
@@ -772,12 +788,19 @@ function clearEdges(): void {
   command.melee = false
 }
 
+function step(): void {
+  const applied = toggles.autopilot ? autopilot.next(world) : command
+  if (toggles.autopilot) {
+    yaw = Math.atan2(applied.aimY - world.player.pos.y, applied.aimX - world.player.pos.x)
+    pitch = applied.pitch
+  }
+  stepWorld(world, applied, loop.stepSeconds)
+  clearEdges()
+}
+
 function simulate(steps: number): void {
   if (screen === 'play' && !map.isOpen() && !paused && !dialogue.isOpen()) {
-    for (let i = 0; i < steps; i++) {
-      stepWorld(world, command, loop.stepSeconds)
-      clearEdges()
-    }
+    for (let i = 0; i < steps; i++) step()
   }
   if (screen !== 'play') clearEdges()
 }
@@ -1042,10 +1065,8 @@ function frame(now: number): void {
 function advance(seconds: number, interact = false): void {
   const steps = Math.max(1, Math.round(seconds / loop.stepSeconds))
   command.interact = interact
-  for (let i = 0; i < steps; i++) {
-    stepWorld(world, command, loop.stepSeconds)
-    clearEdges()
-  }
+  for (let i = 0; i < steps; i++) step()
+  stage.look(yaw, pitch)
   dispatchEvents()
 }
 
@@ -1144,6 +1165,13 @@ if (devTools) {
       settings.difficulty = id
       applySettings(settings)
       prep.refresh(profile)
+    },
+    setAutopilot(on, skill) {
+      toggles.autopilot = on
+      if (skill && skill !== toggles.autopilotSkill) {
+        toggles.autopilotSkill = skill
+        autopilot = pilot()
+      }
     },
     advance,
     act(next, seconds) {
