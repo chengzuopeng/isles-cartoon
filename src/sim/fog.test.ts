@@ -138,10 +138,11 @@ describe('fog lamps', () => {
   it('lights with F from the cell beside it, like opening a chest', () => {
     const world = field({}, {}, 10)
     place(world, 4.9, 10.5)
+    world.player.facing = Math.PI
     expect(interactTarget(world)).toEqual({ kind: 'lamp', lamp: 0, pos: { x: 3.5, y: 10.5 } })
     const seen: GameEvent[] = []
     world.events.length = 0
-    stepWorld(world, idle(world, { interact: true }), DT)
+    stepWorld(world, idle(world, { interact: true, aimX: world.player.pos.x - 1, aimY: world.player.pos.y }), DT)
     seen.push(...world.events)
     expect(world.lamps).toEqual([true])
     expect(seen.filter((event) => event.type === 'lampLit')).toHaveLength(1)

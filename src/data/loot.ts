@@ -81,7 +81,11 @@ export const CHEST_REACH = 0.45
 export const PICKUP_DELAY = 0.3
 export const PICKUP_RADIUS = 0.45
 export const PICKUP_REACH_UP = 1
-export const INTERACT_RANGE = 1.3
+export const INTERACT_RANGE = 2
+export const INTERACT_AIM_DEG = 35
+export const INTERACT_TILT_DEG = 60
+export const INTERACT_NEAR = 1.2
+export const INTERACT_HEIGHTS = { weapon: 0.3, chest: 0.5, pen: 0.8, lamp: 1.6 } as const
 
 export const CRATE_HP = 400
 export const CRATE_DROP_CHANCE = 0.3

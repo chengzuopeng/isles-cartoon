@@ -12,7 +12,11 @@ import {
   HEAL_LARGE,
   HEAL_LARGE_CHANCE,
   HEAL_SMALL,
+  INTERACT_AIM_DEG,
+  INTERACT_HEIGHTS,
+  INTERACT_NEAR,
   INTERACT_RANGE,
+  INTERACT_TILT_DEG,
   PICKUP_BODY,
   PICKUP_DELAY,
   PICKUP_LIFETIME,
@@ -31,6 +35,7 @@ import { equipSpecial, specialMagazine } from './arsenal'
 import { giveBuff } from './buffs'
 import { resolveCircleGrid, segmentClear } from './collision'
 import { lightLamp } from './fog'
+import { eyeHeightOf } from '../data/heights'
 import { blocksMovement, floorAt } from './grid'
 import type { Vec2 } from './math'
 import type { Rng } from './rng'
@@ -130,45 +135,66 @@ export function updatePickups(world: World, command: PlayerCommand, dt: number):
   if (command.interact) interact(world)
 }
 
-export function interactTarget(world: World): InteractTarget | null {
-  const { player } = world
-  let best: InteractTarget | null = null
-  let bestDistance = Infinity
+interface InteractCandidate {
+  target: InteractTarget
+  x: number
+  y: number
+  z: number
+  range: number
+}
+
+function interactCandidates(world: World): InteractCandidate[] {
+  const { grid } = world
+  const found: InteractCandidate[] = []
   for (const pickup of world.pickups) {
     if (pickup.item.type !== 'weapon' || pickup.age < PICKUP_DELAY) continue
-    const distance = Math.hypot(pickup.pos.x - player.pos.x, pickup.pos.y - player.pos.y)
-    if (distance <= INTERACT_RANGE && distance < bestDistance) {
-      best = { kind: 'weapon', pickup }
-      bestDistance = distance
-    }
+    found.push({ target: { kind: 'weapon', pickup }, x: pickup.pos.x, y: pickup.pos.y, z: floorAt(grid, pickup.pos.x, pickup.pos.y) + INTERACT_HEIGHTS.weapon, range: INTERACT_RANGE })
   }
   for (const chest of world.chests) {
     if (chest.opened) continue
-    const distance = Math.hypot(chest.pos.x - player.pos.x, chest.pos.y - player.pos.y)
-    if (distance <= INTERACT_RANGE + CHEST_REACH && distance < bestDistance) {
-      best = { kind: 'chest', chest }
-      bestDistance = distance
-    }
+    const z = chest.perch ? floorAt(grid, chest.perch.x, chest.perch.y) + chest.perch.height : floorAt(grid, chest.pos.x, chest.pos.y)
+    found.push({ target: { kind: 'chest', chest }, x: chest.pos.x, y: chest.pos.y, z: z + INTERACT_HEIGHTS.chest, range: INTERACT_RANGE + CHEST_REACH })
   }
   world.level.landmarks.forEach((placement, index) => {
     const gate = placement.gate
     if (!gate || world.landmarks[index].open) return
     const pos = penDoorway(gate)
-    const distance = Math.hypot(pos.x - player.pos.x, pos.y - player.pos.y)
-    if (distance <= INTERACT_RANGE && distance < bestDistance) {
-      best = { kind: 'pen', landmark: index, pos }
-      bestDistance = distance
-    }
+    found.push({ target: { kind: 'pen', landmark: index, pos }, x: pos.x, y: pos.y, z: floorAt(grid, pos.x, pos.y) + INTERACT_HEIGHTS.pen, range: INTERACT_RANGE })
   })
   world.level.lamps.forEach((lamp, index) => {
     if (world.lamps[index]) return
-    const distance = Math.hypot(lamp.x - player.pos.x, lamp.y - player.pos.y)
-    if (distance <= FOG.lampReach && distance < bestDistance) {
-      best = { kind: 'lamp', lamp: index, pos: { x: lamp.x, y: lamp.y } }
-      bestDistance = distance
-    }
+    found.push({ target: { kind: 'lamp', lamp: index, pos: { x: lamp.x, y: lamp.y } }, x: lamp.x, y: lamp.y, z: floorAt(grid, lamp.x, lamp.y) + INTERACT_HEIGHTS.lamp, range: FOG.lampReach })
   })
-  return best
+  return found
+}
+
+export function interactTarget(world: World): InteractTarget | null {
+  const { player } = world
+  const eyeZ = player.z + eyeHeightOf('player')
+  const turn = (INTERACT_AIM_DEG * Math.PI) / 180
+  const tilt = (INTERACT_TILT_DEG * Math.PI) / 180
+  let aimed: InteractTarget | null = null
+  let bestTurn = turn
+  let near: InteractTarget | null = null
+  let nearest = INTERACT_NEAR
+  for (const candidate of interactCandidates(world)) {
+    const dx = candidate.x - player.pos.x
+    const dy = candidate.y - player.pos.y
+    const distance = Math.hypot(dx, dy)
+    if (distance > candidate.range) continue
+    if (distance <= nearest) {
+      nearest = distance
+      near = candidate.target
+    }
+    if (distance < 1e-6) continue
+    const off = Math.abs(Math.atan2(Math.sin(Math.atan2(dy, dx) - player.facing), Math.cos(Math.atan2(dy, dx) - player.facing)))
+    const lean = Math.abs(Math.atan2(candidate.z - eyeZ, distance) - player.pitch)
+    if (off <= bestTurn && lean <= tilt) {
+      bestTurn = off
+      aimed = candidate.target
+    }
+  }
+  return aimed ?? near
 }
 
 export function penDoorway(gate: { column: number; row: number; outX: number; outY: number }): Vec2 {

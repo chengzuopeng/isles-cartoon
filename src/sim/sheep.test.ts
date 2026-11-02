@@ -55,6 +55,7 @@ describe('sheep pens', () => {
 
   it('opens with F from the doorway, the same way as a chest', () => {
     const world = createWorld(FARM, createDefaultTuning())
+    world.player.facing = Math.PI / 2
     expect(interactTarget(world)).toBeNull()
     place(world, 9.5, 5.6)
     expect(interactTarget(world)).toEqual({ kind: 'pen', landmark: 0, pos: { x: 9.5, y: 5 } })
