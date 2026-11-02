@@ -211,7 +211,7 @@ export function crashTarget(grid: Grid, x: number, y: number, dirX: number, dirY
   }
   return null
 }
-function curtainGradient(): THREE.DataTexture {
+export function curtainGradient(): THREE.DataTexture {
   const size = 32
   const data = new Uint8Array(size * 4)
   for (let i = 0; i < size; i++) {

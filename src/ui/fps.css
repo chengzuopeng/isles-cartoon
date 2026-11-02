@@ -251,6 +251,19 @@
   opacity: 0;
 }
 
+.fps-barrier {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 55%, rgba(60, 210, 255, 0.45) 100%),
+    var(--hex) center / 42px 72px repeat;
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 50%, #000 92%);
+  mask-image: radial-gradient(ellipse at center, transparent 50%, #000 92%);
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+  mix-blend-mode: screen;
+}
+
 .sfx-words {
   position: absolute;
   inset: 0;

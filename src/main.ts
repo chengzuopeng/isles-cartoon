@@ -1061,6 +1061,7 @@ function frame(now: number): void {
       alive: world.player.alive,
       playing: screen === 'play' && !results.isOpen(),
       locked: input.locked(),
+      barrier: world.player.barrier > 0,
     },
     dt,
   )

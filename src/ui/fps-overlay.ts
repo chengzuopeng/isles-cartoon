@@ -12,6 +12,7 @@ export interface OverlayState {
   alive: boolean
   playing: boolean
   locked: boolean
+  barrier: boolean
 }
 
 export interface FpsOverlay {
@@ -26,6 +27,8 @@ export interface FpsOverlay {
 
 const CROSSHAIR = `<svg viewBox="-20 -20 40 40" aria-hidden="true"><path d="M0 -15 L3 -3 L15 0 L3 3 L0 15 L-3 3 L-15 0 L-3 -3 Z" /></svg>`
 const ARC_LIFE = 1.1
+const BARRIER = { opacity: 0.75, pulse: 0.15, rate: 5.5 }
+const HEX_PATTERN = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="42" height="72" viewBox="0 0 42 72"><path d="M21 0 L42 12 L42 36 L21 48 L0 36 L0 12 Z M21 48 L21 72" fill="none" stroke="#7fefff" stroke-width="3"/></svg>')}")`
 const THREAT_LIFE = 0.6
 
 interface Arc {
@@ -51,6 +54,8 @@ export function createFpsOverlay(container: HTMLElement): FpsOverlay {
   const dashFill = element('div', 'fps-dash-fill', dash)
   const hint = element('div', 'fps-hint', root)
   const vignette = element('div', 'fps-hurt-vignette', root)
+  const barrier = element('div', 'fps-barrier', root)
+  barrier.style.setProperty('--hex', HEX_PATTERN)
   const veil = element('div', 'fps-stalk-veil', root)
   veil.style.backgroundImage = stalkVeilUrl()
   const hiding = element('div', 'fps-hiding', root, '藏在草里')
@@ -59,6 +64,7 @@ export function createFpsOverlay(container: HTMLElement): FpsOverlay {
   let killTime = 0
   let ghost = 1
   let hurtFlash = 0
+  let barrierTime = 0
   let markerKind: HitKind = 'hit'
 
   const addArc = (angle: number, className: string, life: number, strength: number) => {
@@ -101,6 +107,8 @@ export function createFpsOverlay(container: HTMLElement): FpsOverlay {
       hurtFlash = Math.max(0, hurtFlash - dt * 1.6)
       const low = ratio < 0.3 ? (0.3 - ratio) / 0.3 : 0
       syncStyle(vignette, 'opacity', Math.min(1, hurtFlash * 0.7 + low * 0.6).toFixed(2))
+      barrierTime = state.barrier ? barrierTime + dt : 0
+      syncStyle(barrier, 'opacity', state.barrier ? (BARRIER.opacity + Math.sin(barrierTime * BARRIER.rate) * BARRIER.pulse).toFixed(2) : '0')
       for (let i = live.length - 1; i >= 0; i--) {
         const arc = live[i]
         arc.age += dt

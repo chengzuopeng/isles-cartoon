@@ -1,9 +1,11 @@
 import * as THREE from 'three'
 import type { WeaponId } from '../data/weapons'
+import { floorAt, type Grid } from '../sim/grid'
 import { clamp, lerp } from '../sim/math'
 import type { Bullet, GameEvent, Lob } from '../sim/types'
 import type { World } from '../sim/world'
 import type { Effects } from './effects'
+import { circleOutline, curtainGradient, curtainPath } from './entity-views'
 import type { ModelId } from './asset-urls'
 import { hasFog } from './fog-motion'
 import { socketWorld, type ModelLibrary } from './model-library'
@@ -50,7 +52,10 @@ interface Flash {
   duration: number
   from: number
   to: number
+  height: number
 }
+
+export const RING_WALL = { height: 1.4, color: '#4fd6ff', opacity: 0.8, linger: 1.5 }
 
 type ProjectileModelId = keyof typeof PROJECTILE_SCALES
 type LobModelId = 'grenade-shell' | 'legion-bomb' | 'chief-bomb' | 'wheat-bale' | 'mine'
@@ -189,6 +194,9 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
   const enemyMarker = new THREE.MeshBasicMaterial({ color: '#ff3b30', transparent: true, opacity: 0.5, depthWrite: false })
   const flashes: Flash[] = []
   const ringGeometry = new THREE.RingGeometry(0.85, 1, 48)
+  const wallGeometry = curtainPath(circleOutline(1, 48), true)
+  const wallGradient = curtainGradient()
+  let grid: Grid | null = null
   const chainMaterial = new THREE.LineBasicMaterial({ color: '#fff9b0', transparent: true, opacity: 1 })
   const chains: { line: THREE.Line; age: number }[] = []
   const pools = new Map<ProjectileModelId, FramePool>()
@@ -539,12 +547,30 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
   }
 
   function ring(x: number, y: number, color: string, from: number, to: number, duration: number): void {
-    const mesh = flat(new THREE.Mesh(ringGeometry, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false })), 0.08)
+    const floor = grid ? floorAt(grid, x, y) : 0
+    const mesh = flat(new THREE.Mesh(ringGeometry, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false })), floor + 0.08)
     mesh.position.x = x
     mesh.position.z = y
     mesh.scale.setScalar(from)
     scene.add(mesh)
-    flashes.push({ mesh, age: 0, duration, from, to })
+    flashes.push({ mesh, age: 0, duration, from, to, height: 0 })
+    const wall = new THREE.Mesh(
+      wallGeometry,
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color).lerp(new THREE.Color(RING_WALL.color), 0.7),
+        map: wallGradient,
+        transparent: true,
+        opacity: RING_WALL.opacity,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    )
+    wall.position.set(x, floor, y)
+    wall.scale.set(from, RING_WALL.height, from)
+    wall.userData.noInk = true
+    wall.renderOrder = 2
+    scene.add(wall)
+    flashes.push({ mesh: wall, age: 0, duration: duration * RING_WALL.linger, from, to, height: RING_WALL.height })
   }
 
   function chain(fromX: number, fromY: number, toX: number, toY: number): void {
@@ -566,8 +592,10 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
       const flash = flashes[i]
       flash.age += dt
       const t = Math.min(1, flash.age / flash.duration)
-      flash.mesh.scale.setScalar(flash.from + (flash.to - flash.from) * (1 - (1 - t) ** 3))
-      flash.mesh.material.opacity = 0.85 * (1 - t)
+      const radius = flash.from + (flash.to - flash.from) * (1 - (1 - t) ** 3)
+      if (flash.height > 0) flash.mesh.scale.set(radius, flash.height, radius)
+      else flash.mesh.scale.setScalar(radius)
+      flash.mesh.material.opacity = (flash.height > 0 ? RING_WALL.opacity : 0.85) * (1 - t)
       if (t < 1) continue
       scene.remove(flash.mesh)
       flash.mesh.material.dispose()
@@ -589,6 +617,7 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
   return {
     sync(world, alpha, dt) {
       frame += 1
+      grid = world.grid
       layerFor(world)
       beginPools()
       syncBullets(world, alpha)
