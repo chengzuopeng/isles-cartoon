@@ -4,6 +4,7 @@ import type { Tuning } from '../data/tuning'
 import type { WeaponId } from '../data/weapons'
 import { tripleLanes } from '../sim/boss'
 import { fogHides } from '../sim/fog'
+import { Tile, blocksMovement, cellFloor, cellTop, floorAt, tileAt, type Grid } from '../sim/grid'
 import { clamp, lerp } from '../sim/math'
 import { sightOf } from '../sim/perception'
 import { disabled } from '../sim/status'
@@ -140,8 +141,73 @@ const BEAM_COLOR = new THREE.Color('#ff2a1a')
 const BEAM_UP = new THREE.Vector3(0, 1, 0)
 const BEAM_LOCK = 0.55
 const beamDirection = new THREE.Vector3()
-const CURTAIN_HEIGHT = 0.7
+const CURTAIN_HEIGHT = 1
 
+export const CRASH_MARK = {
+  step: 0.25,
+  pad: 0.18,
+  radius: 0.85,
+  pulse: 7,
+  color: '#ffd34d',
+} as const
+
+export function curtainPath(points: readonly (readonly [number, number])[], closed: boolean): THREE.BufferGeometry {
+  const positions: number[] = []
+  const uvs: number[] = []
+  let along = 0
+  const count = closed ? points.length : points.length - 1
+  for (let i = 0; i < count; i++) {
+    const [x1, z1] = points[i]
+    const [x2, z2] = points[(i + 1) % points.length]
+    const length = Math.hypot(x2 - x1, z2 - z1)
+    positions.push(x1, 0, z1, x2, 0, z2, x2, 1, z2, x1, 0, z1, x2, 1, z2, x1, 1, z1)
+    uvs.push(along, 0, along + length, 0, along + length, 1, along, 0, along + length, 1, along, 1)
+    along += length
+  }
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  geometry.computeBoundingSphere()
+  return geometry
+}
+
+export function sectorOutline(radius: number, arcDeg: number, segments = 24): [number, number][] {
+  const half = THREE.MathUtils.degToRad(arcDeg) / 2
+  const points: [number, number][] = [[0, 0]]
+  for (let i = 0; i <= segments; i++) {
+    const angle = -half + (i / segments) * half * 2
+    points.push([Math.cos(angle) * radius, -Math.sin(angle) * radius])
+  }
+  return points
+}
+
+export function circleOutline(radius: number, segments = 40): [number, number][] {
+  return Array.from({ length: segments }, (_, i) => {
+    const angle = (i / segments) * Math.PI * 2
+    return [Math.cos(angle) * radius, Math.sin(angle) * radius] as [number, number]
+  })
+}
+
+export function crashTarget(grid: Grid, x: number, y: number, dirX: number, dirY: number, distance: number, radius: number): { column: number; row: number; tile: Tile } | null {
+  const length = Math.hypot(dirX, dirY)
+  if (length < 1e-6) return null
+  const fx = dirX / length
+  const fy = dirY / length
+  const sideX = -fy
+  const sideY = fx
+  for (let travelled = CRASH_MARK.step; travelled <= distance + radius; travelled += CRASH_MARK.step) {
+    for (const offset of [0, radius - CRASH_MARK.pad, -(radius - CRASH_MARK.pad)]) {
+      const px = x + fx * travelled + sideX * offset
+      const py = y + fy * travelled + sideY * offset
+      const column = Math.floor(px)
+      const row = Math.floor(py)
+      if (column < 0 || row < 0 || column >= grid.columns || row >= grid.rows) return null
+      const tile = tileAt(grid, column, row)
+      if (blocksMovement(tile)) return { column, row, tile }
+    }
+  }
+  return null
+}
 function curtainGradient(): THREE.DataTexture {
   const size = 32
   const data = new Uint8Array(size * 4)
@@ -248,6 +314,28 @@ export function createEntityViews(
   const laneGeometry = new THREE.PlaneGeometry(1, 1)
   laneGeometry.translate(0.5, 0, 0)
   const kit = createModelKit()
+  const fanCurtains = new Map<string, THREE.BufferGeometry>()
+  const ringCurtain = curtainPath(circleOutline(1), true)
+  const crashGeometry = new THREE.CylinderGeometry(1, 1, 1, 28, 1, true).translate(0, 0.5, 0)
+  const crashMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(CRASH_MARK.color).multiplyScalar(1.4), map: curtainGradient(), transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
+  const crashMark = new THREE.Mesh(crashGeometry, crashMaterial)
+  crashMark.visible = false
+  crashMark.userData.noInk = true
+  crashMark.renderOrder = 2
+  scene.add(crashMark)
+  const sectorCurtain = (radius: number, arcDeg: number): THREE.Mesh => {
+    const key = `${radius.toFixed(2)}:${arcDeg.toFixed(1)}`
+    let geometry = fanCurtains.get(key)
+    if (!geometry) {
+      geometry = curtainPath(sectorOutline(radius, arcDeg), true)
+      fanCurtains.set(key, geometry)
+    }
+    const curtain = new THREE.Mesh(geometry, curtainMaterial)
+    curtain.scale.y = CURTAIN_HEIGHT
+    curtain.userData.noInk = true
+    curtain.renderOrder = 2
+    return curtain
+  }
   const eyeCone = coneGeometry()
   const eyeConeMaterial = new THREE.MeshBasicMaterial({ color: EYE_CONE.color, map: coneGradient(), transparent: true, opacity: EYE_CONE.idle, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
   const geometries = {
@@ -342,22 +430,30 @@ export function createEntityViews(
     view.owned.push(geometry)
     const group = new THREE.Group()
     const fill = flat(new THREE.Mesh(geometry, fillMaterial), 0.045)
-    group.add(flat(new THREE.Mesh(geometry, areaMaterial), 0.035), fill)
+    group.add(flat(new THREE.Mesh(geometry, areaMaterial), 0.035), fill, sectorCurtain(radius, arcDeg))
     group.visible = false
     view.ground.add(group)
     view.telegraph = group
     view.fill = fill
   }
 
-  function addCurtains(lane: THREE.Group, length: number, width: number): void {
+  function addCurtains(lane: THREE.Group, length: number, width: number): THREE.Mesh[] {
+    const curtains: THREE.Mesh[] = []
     for (const side of [-1, 1]) {
       const curtain = new THREE.Mesh(curtainGeometry, curtainMaterial)
       curtain.position.z = (side * width) / 2
       curtain.scale.set(length, CURTAIN_HEIGHT, 1)
       curtain.userData.noInk = true
       curtain.renderOrder = 2
+      curtain.name = 'curtain'
       lane.add(curtain)
+      curtains.push(curtain)
     }
+    return curtains
+  }
+
+  function stretchCurtains(lane: THREE.Object3D, length: number): void {
+    for (const child of lane.children) if (child.name === 'curtain') child.scale.x = Math.max(0.01, length)
   }
 
   function laneTelegraph(view: EnemyView, length: number, width: number): void {
@@ -439,6 +535,12 @@ export function createEntityViews(
         view.spark = spark
         const danger = flat(new THREE.Mesh(ringGeometry, dangerMaterial), 0.03)
         danger.visible = false
+        const wall = new THREE.Mesh(ringCurtain, curtainMaterial)
+        wall.rotation.x = Math.PI / 2
+        wall.name = 'curtain'
+        wall.userData.noInk = true
+        wall.renderOrder = 2
+        danger.add(wall)
         view.root.add(danger)
         view.danger = danger
         break
@@ -608,6 +710,7 @@ export function createEntityViews(
       cannonArea.scale.set(weapon.range, width, 1)
       cannonFill.scale.set(0.01, width, 1)
       cannonLane.add(cannonArea, cannonFill)
+      addCurtains(cannonLane, weapon.range, width)
       cannonLane.visible = false
       view.ground.add(cannonLane)
       view.lane = cannonLane
@@ -621,6 +724,9 @@ export function createEntityViews(
     view.owned.push(fanGeometry, fanMaterial)
     const fan = flat(new THREE.Mesh(fanGeometry, fanMaterial), 0.04)
     fan.visible = false
+    const fanWall = sectorCurtain(5, tuning.weapons[def.fan.weapon].spreadDeg)
+    fanWall.rotation.x = Math.PI / 2
+    fan.add(fanWall)
     view.ground.add(fan)
     view.fan = fan
   }
@@ -638,6 +744,7 @@ export function createEntityViews(
       area.scale.set(weapon.range, width, 1)
       fill.scale.set(0.01, width, 1)
       lane.add(area, fill)
+      addCurtains(lane, weapon.range, width)
       group.add(lane)
       return { lane, area, fill }
     })
@@ -722,6 +829,7 @@ export function createEntityViews(
         if (view.danger) {
           view.danger.visible = enemy.aggro && !arming
           view.danger.scale.setScalar(fuse.radius)
+          view.danger.getObjectByName('curtain')?.scale.set(1, CURTAIN_HEIGHT / Math.max(0.01, fuse.radius), 1)
         }
         if (!view.model) view.body.scale.multiplyScalar(arming ? 1 + progress(enemy.stateTime, fuse.windup) * 0.35 : 1)
         if (view.spark) view.spark.scale.setScalar((view.model ? MOUNTED_SPARK : 1) * (1 + Math.abs(Math.sin(clock * (arming ? 30 : 8))) * 0.8))
@@ -836,6 +944,15 @@ export function createEntityViews(
       const total = state.move === 'frenzy' ? 0.45 : def.charge.telegraph
       view.fill.scale.x = Math.max(0.01, def.charge.distance * clamp(1 - state.timer / total, 0, 1))
     }
+    const crash = chargeTelegraph && !def.tread ? crashTarget(world.grid, enemy.pos.x, enemy.pos.y, state.chargeX, state.chargeY, def.charge.distance, enemy.radius) : null
+    const marked = crash !== null && (crash.tile === Tile.Rock || crash.tile === Tile.Boulder)
+    crashMark.visible = marked
+    if (crash && marked) {
+      const floor = cellFloor(world.grid, crash.column, crash.row)
+      crashMark.position.set(crash.column + 0.5, floor, crash.row + 0.5)
+      crashMark.scale.set(CRASH_MARK.radius, Math.max(1, cellTop(world.grid, crash.column, crash.row) - floor) + 0.6, CRASH_MARK.radius)
+      crashMaterial.opacity = 0.55 + 0.45 * Math.abs(Math.sin(clock * CRASH_MARK.pulse))
+    }
     const fanTelegraph = state.phase === 'telegraph' && state.move === 'fan'
     if (view.fan && def.fan) {
       view.fan.visible = fanTelegraph
@@ -852,6 +969,7 @@ export function createEntityViews(
     if (cannonTelegraph && view.lane && view.laneFill && def.cannon) {
       const reach = laneLength(world.grid, enemy.pos.x, enemy.pos.y, enemy.aimAngle, tuning.weapons[def.cannon.weapon].range)
       view.lane.children[0]?.scale.setX(Math.max(0.01, reach))
+      stretchCurtains(view.lane, reach)
       view.laneFill.scale.x = Math.max(0.01, reach * clamp(1 - state.timer / Math.max(0.01, def.cannon.telegraph), 0, 1))
     }
     if (view.triple && def.triple) {
@@ -866,6 +984,7 @@ export function createEntityViews(
           const reach = laneLength(world.grid, enemy.pos.x, enemy.pos.y, angle, range)
           item.lane.rotation.y = -(angle - enemy.facing)
           item.area.scale.setX(Math.max(0.01, reach))
+          stretchCurtains(item.lane, reach)
           item.fill.scale.setX(Math.max(0.01, reach * amount))
         })
       }
@@ -1015,7 +1134,7 @@ export function createEntityViews(
       }
       const amount = marker.total > 0 ? 1 - marker.remaining / marker.total : 1
       mesh.visible = true
-      mesh.position.set(marker.pos.x, 0.03, marker.pos.y)
+      mesh.position.set(marker.pos.x, floorAt(world.grid, marker.pos.x, marker.pos.y) + 0.03, marker.pos.y)
       mesh.scale.setScalar(1.3 - 0.4 * amount + Math.sin(clock * 14) * 0.06)
       mesh.material.opacity = 0.35 + 0.55 * amount
     })

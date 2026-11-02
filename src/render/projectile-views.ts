@@ -404,11 +404,11 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
     }
     item.ring.visible = true
     item.ring.material = lob.team === 'enemy' ? enemyMarker : playerMarker
-    item.ring.position.set(lob.to.x, 0.05, lob.to.y)
+    item.ring.position.set(lob.to.x, lob.toZ + 0.05, lob.to.y)
     item.ring.scale.setScalar(lob.radius)
     item.fill.visible = true
     item.fill.material.color.set(lob.team === 'enemy' ? '#ff3b30' : '#5ff0ff')
-    item.fill.position.set(lob.to.x, 0.045, lob.to.y)
+    item.fill.position.set(lob.to.x, lob.toZ + 0.045, lob.to.y)
     item.fill.scale.setScalar(Math.max(0.05, lob.radius * t))
   }
 
