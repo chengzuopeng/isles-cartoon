@@ -32,6 +32,7 @@ import { BODY_HEIGHTS, CHEST_HEIGHT, eyeHeightOf, muzzleHeightOf } from '../data
 import { bossExposed } from '../sim/boss'
 import { crumbling } from '../sim/melee'
 import { cloneInked, toonMaterial } from './toon'
+import { EYE_FACE_LOOK, eyeFaceOf, eyeFaceTexture, type EyeFace } from './eye-faces'
 
 export type ViewFlags = {
   showSight: boolean
@@ -78,6 +79,7 @@ interface EnemyView {
   triple: TripleLanes | null
   cone: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null
   lamp: THREE.Group | null
+  face: { sprite: THREE.Sprite; current: EyeFace; sorryUntil: number } | null
 }
 
 interface Veil {
@@ -226,6 +228,17 @@ function curtainGradient(): THREE.DataTexture {
   return texture
 }
 const beamGeometry = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true).translate(0, 0.5, 0)
+
+export const EYE_FACE_SIZES: Readonly<Partial<Record<EnemyKind, number>>> = {
+  grunt: 0.34,
+  gunner: 0.28,
+  bomber: 0.26,
+  turret: 0.32,
+  shield: 0.28,
+  thrower: 0.28,
+}
+
+const faceAt = new THREE.Vector3()
 
 export const GRASS_LAMP = {
   kinds: ['grunt', 'bomber'] as readonly EnemyKind[],
@@ -436,6 +449,7 @@ export function createEntityViews(
       triple: null,
       cone: null,
       lamp: null,
+      face: null,
     }
   }
 
@@ -600,6 +614,16 @@ export function createEntityViews(
       cone.renderOrder = 3
       view.ground.add(cone)
       view.cone = cone
+      const faceSize = EYE_FACE_SIZES[kind]
+      if (faceSize && view.model?.socket('eye')) {
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: eyeFaceTexture('calm'), transparent: true, depthWrite: false }))
+        sprite.scale.setScalar(faceSize)
+        sprite.renderOrder = 3
+        sprite.userData.noInk = true
+        view.owned.push(sprite.material)
+        view.root.add(sprite)
+        view.face = { sprite, current: 'calm', sorryUntil: -Infinity }
+      }
       if (GRASS_LAMP.kinds.includes(kind)) {
         const lamp = new THREE.Group()
         const mast = new THREE.Mesh(lampMast, lampMastMaterial)
@@ -700,6 +724,25 @@ export function createEntityViews(
     const flicker = 1 + FOG_VEIL.flicker * Math.sin(clock * FOG_VEIL.flickerRate + enemy.id * 1.7)
     eye.material.opacity = Math.min(1, FOG_VEIL.eyeOpacity * amount * flicker)
     halo.material.opacity = Math.min(1, FOG_VEIL.haloOpacity * amount * flicker)
+  }
+
+  function syncFace(world: World, enemy: Enemy, view: EnemyView): void {
+    const face = view.face
+    const node = view.model?.socket('eye')
+    if (!face || !node) return
+    const toPlayerX = world.player.pos.x - enemy.pos.x
+    const toPlayerY = world.player.pos.y - enemy.pos.y
+    const length = Math.hypot(toPlayerX, toPlayerY) || 1
+    const facing = (Math.cos(enemy.facing) * toPlayerX + Math.sin(enemy.facing) * toPlayerY) / length
+    face.sprite.visible = facing > EYE_FACE_LOOK.facingCut && view.veil.amount <= 0
+    if (!face.sprite.visible) return
+    view.root.worldToLocal(socketWorld(node, faceAt))
+    face.sprite.position.set(faceAt.x + Math.cos(enemy.facing) * 0.05, faceAt.y, faceAt.z + Math.sin(enemy.facing) * 0.05)
+    const next = eyeFaceOf({ aggro: enemy.aggro, notice: enemy.notice, dazed: disabled(enemy) || enemy.status.dazed > 0, sorry: clock < face.sorryUntil })
+    if (next === face.current) return
+    face.current = next
+    face.sprite.material.map = eyeFaceTexture(next)
+    face.sprite.material.needsUpdate = true
   }
 
   function wearCrown(anchor: THREE.Object3D): THREE.Object3D {
@@ -1138,6 +1181,7 @@ export function createEntityViews(
         view.cone.visible = !enemy.aggro
         view.cone.material.opacity = EYE_CONE.idle + (EYE_CONE.noticing - EYE_CONE.idle) * enemy.notice
       }
+      if (view.face) syncFace(world, enemy, view)
       if (view.lamp) {
         const column = Math.floor(enemy.pos.x)
         const row = Math.floor(enemy.pos.y)
@@ -1277,6 +1321,10 @@ export function createEntityViews(
       let claimed = false
       for (const view of enemyViews.values()) if (view.boss?.handle(event)) claimed = true
       const { feel } = tuning
+      if (event.type === 'bark' && event.enemy !== null) {
+        const face = enemyViews.get(event.enemy)?.face
+        if (face) face.sorryUntil = clock + event.seconds
+      }
       switch (event.type) {
         case 'enemyShot': {
           const shooter = MUZZLE_KINDS[event.weapon] ?? RIGGED_SHOTS[event.weapon]
