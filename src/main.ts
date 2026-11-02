@@ -128,6 +128,7 @@ interface GameDebugHandle {
   setDifficulty(id: DifficultyId): void
   setAutopilot(on: boolean, skill?: AutopilotSkillId): void
   advance(seconds: number, interact?: boolean): void
+  freeze(on: boolean): void
   act(next: Partial<PlayerCommand>, seconds: number): void
   skipDialogue(): void
   playInterlude(id: string): void
@@ -198,6 +199,7 @@ const keys = loadKeys()
 let world = newWorld()
 let screen: Screen = training ? 'play' : 'prep'
 let paused = false
+let frozen = false
 let settled = false
 let logged = false
 let outroPlayed = false
@@ -807,7 +809,7 @@ function step(): void {
 }
 
 function simulate(steps: number): void {
-  if (screen === 'play' && !map.isOpen() && !paused && !dialogue.isOpen()) {
+  if (screen === 'play' && !map.isOpen() && !paused && !frozen && !dialogue.isOpen()) {
     for (let i = 0; i < steps; i++) step()
   }
   if (screen !== 'play') clearEdges()
@@ -1010,6 +1012,7 @@ function frame(now: number): void {
   const frameMs = now - last
   last = now
   const dt = Math.min(frameMs, 100) / 1000
+  const sceneDt = frozen ? 0 : dt
 
   handleKeys()
   readCommand(dt)
@@ -1019,12 +1022,12 @@ function frame(now: number): void {
 
   if (viewsReady && levelView && (screen === 'play' || !prep.covers())) {
     placeEye(alpha, dt)
-    syncViews(dt, alpha)
-    effects.update(dt)
+    syncViews(sceneDt, alpha)
+    effects.update(sceneDt)
     const { player } = world
     viewmodel.update(
       {
-        dt,
+        dt: sceneDt,
         lookX: lookDelta.x,
         lookY: lookDelta.y,
         speed: Math.hypot(player.pos.x - player.prev.x, player.pos.y - player.prev.y) / loop.stepSeconds,
@@ -1043,7 +1046,7 @@ function frame(now: number): void {
     viewmodel.resize(stage.width * stage.renderer.getPixelRatio(), stage.height * stage.renderer.getPixelRatio())
     views.setPlayerVisible(stage.view !== 'fps')
     toonify(stage.scene)
-    stage.render(dt)
+    stage.render(sceneDt)
     viewmodel.muzzle(stage.camera, muzzle)
   }
   hud.update(world, alpha)
@@ -1191,6 +1194,9 @@ if (devTools) {
       }
     },
     advance,
+    freeze(on) {
+      frozen = on
+    },
     act(next, seconds) {
       const saved = { ...command }
       Object.assign(command, next)

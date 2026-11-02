@@ -20,6 +20,7 @@
 | `pnpm e2e` | Playwright 冒烟测试：用本机 Chrome 无界面打开真实页面跑整备、设置改键、1-1 开枪进谷仓打 Boss 到结算、切关卸载模型，整备界面和截图基线对比（自己在 5290 端口起开发服务器） |
 | `pnpm e2e:update` | 改了整备界面的样式后重新生成截图基线 |
 | `pnpm perf spots` | 性能测量：到重点位置量 draw call、三角形、帧时间（自己在 5291 端口起开发服务器），见 `docs/tech/performance.md` |
+| `pnpm shots` | 截图巡检：到 `scripts/shots/spots.json` 里的固定机位各截一张图（自己在 5292 端口起开发服务器；截图时逻辑冻住，敌人不动），`--out` 指定目录，`--compare <上次的目录>` 算每张图和上次相比变了多少像素，`--spots` 只截一部分 |
 | `./scripts/build-assets.sh` | 把 `art/` 里的原图处理成 `public/assets/` 下的运行时资源（天空无缝拼接、抠图、裁切） |
 
 在 Claude Code 桌面版里，如果会话最早是在主仓库开的，内置浏览器的 `preview_start` 只认主仓库的 `.claude/launch.json`，起的会是主仓库的服务器。这时在后台跑 `pnpm exec vite --port 5280 --strictPort`，再用 `preview_start` 的 `url` 打开 http://localhost:5280。浏览器面板隐藏时页面不刷新，帧率和 GPU 计时都不准。
@@ -74,6 +75,7 @@
 | `setAutopilot(开关, 水平)` | 打开或关闭自动驾驶；水平可选 `perfect` 完美、`human` 普通玩家、`novice` 新手。开着时镜头跟着它的瞄准走，`advance()` 也用它的指令。做法见 `docs/tech/autopilot.md` |
 | `teleport(区域)` / `teleportToBoss()` | 传送 |
 | `advance(秒)` / `act(指令, 秒)` | 不依赖画面刷新直接推进逻辑；`act` 带着指定的指令推进，比如 `act({ fire: true, aimX, aimY, pitch }, 1)`、`act({ melee: true }, 0.05)`、`act({ jump: true }, 0.3)` |
+| `freeze(开关)` | 冻住：主循环不再推进逻辑，麦秆、云、特效、手臂的动画也停住，画面照常刷新，`advance` / `act` 还能用。截图巡检靠它拍出可以对比的画面 |
 | `look(偏航, 俯仰)` | 直接设视角（弧度） |
 | `setView(模式)` / `freeCamera(x, y, z, 偏航, 俯仰)` | 切镜头；自由镜头放到指定位置（sim 坐标，z 是高度） |
 | `setStyle({ toon, outline, halftone, bloom, grade })` / `styleInfo()` | 单独开关渲染管线的每一步；每一步的 GPU 耗时（浏览器支持计时查询时） |
