@@ -165,7 +165,7 @@ declare global {
 
 const SAVE_KEY = 'isles-cartoon.save.v1'
 const ELITE_KINDS: readonly MinionKind[] = ['grunt', 'gunner', 'shield', 'thrower']
-const VIEWMODEL_MODELS: readonly ModelId[] = ['blaster', 'fp-arms', 'fp-blaster']
+const VIEWMODEL_MODELS: readonly ModelId[] = ['blaster', 'fp-arms', 'fp-blaster', 'fp-shotgun', 'fp-smg', 'fp-sniper', 'fp-grenade']
 const DEG = Math.PI / 180
 const BOB_HEIGHT = 0.035
 const BOB_RATE = 2.2

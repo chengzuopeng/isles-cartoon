@@ -66,7 +66,13 @@ const LEFT_GRIP = { pivot: new THREE.Vector3(0.22, 0.065, 0), swing: -0.7, show:
 const COIL_LIT = new THREE.Color('#5ff0ff')
 const COIL_DIM = new THREE.Color('#1c3c48')
 const COIL_GLOW = { lit: 0.85, dim: 0.12, charge: 0.6, core: 0.2, shade: 0.4 }
-const FIRST_PERSON_MODELS: Readonly<Partial<Record<string, ModelId>>> = { blaster: 'fp-blaster' }
+const FIRST_PERSON_MODELS: Readonly<Partial<Record<string, ModelId>>> = {
+  blaster: 'fp-blaster',
+  shotgun: 'fp-shotgun',
+  smg: 'fp-smg',
+  sniper: 'fp-sniper',
+  grenade: 'fp-grenade',
+}
 const PETAL_OPEN = 1.05
 const MUZZLE_FALLBACK = new THREE.Vector3(0.36, 0.08, 0)
 const UP = new THREE.Vector3(0, 1, 0)
