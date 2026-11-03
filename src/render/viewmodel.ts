@@ -72,6 +72,11 @@ const FIRST_PERSON_MODELS: Readonly<Partial<Record<string, ModelId>>> = {
   smg: 'fp-smg',
   sniper: 'fp-sniper',
   grenade: 'fp-grenade',
+  ricochet: 'fp-ricochet',
+  flamer: 'fp-flamer',
+  frost: 'fp-frost',
+  rocket: 'fp-rocket',
+  arc: 'fp-arc',
 }
 const PETAL_OPEN = 1.05
 const MUZZLE_FALLBACK = new THREE.Vector3(0.36, 0.08, 0)

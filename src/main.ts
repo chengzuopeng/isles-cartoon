@@ -30,7 +30,7 @@ import type { PlayerWeaponId } from './data/weapons'
 import { createFpsInput } from './input/fps-input'
 import { loadKeys, saveKeys } from './input/keymap'
 import { GRASS_EYE_HEIGHT, loadLookSettings, saveLookSettings } from './input/look-settings'
-import { RESIDENT_MODEL_IDS, type ModelId } from './render/asset-urls'
+import { RESIDENT_MODEL_IDS, VIEWMODEL_MODEL_IDS, type ModelId } from './render/asset-urls'
 import { createEffects } from './render/effects'
 import { createEntityViews, type EntityViews, type ViewFlags } from './render/entity-views'
 import { createFpsLevelView, type FpsLevelView } from './render/fps-level-view'
@@ -165,7 +165,7 @@ declare global {
 
 const SAVE_KEY = 'isles-cartoon.save.v1'
 const ELITE_KINDS: readonly MinionKind[] = ['grunt', 'gunner', 'shield', 'thrower']
-const VIEWMODEL_MODELS: readonly ModelId[] = ['blaster', 'fp-arms', 'fp-blaster', 'fp-shotgun', 'fp-smg', 'fp-sniper', 'fp-grenade']
+const VIEWMODEL_MODELS: readonly ModelId[] = ['blaster', ...VIEWMODEL_MODEL_IDS]
 const DEG = Math.PI / 180
 const BOB_HEIGHT = 0.035
 const BOB_RATE = 2.2

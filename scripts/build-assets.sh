@@ -27,7 +27,7 @@ key bosses/forest-tank/wanted.png portraits/forest-tank-wanted.png 480 720 0.01 
 key bosses/harvester/wanted.png portraits/harvester-wanted.png 480 720 0.01 bottom
 key ui/skills/concussion.png ui/skills/concussion.png 128 128 0.04
 
-MODELS=(fp-arms/fp-arms fp-blaster/fp-blaster fp-weapons/fp-shotgun fp-weapons/fp-smg fp-weapons/fp-sniper fp-weapons/fp-grenade)
+MODELS=(fp-arms/fp-arms fp-blaster/fp-blaster fp-weapons/fp-shotgun fp-weapons/fp-smg fp-weapons/fp-sniper fp-weapons/fp-grenade fp-weapons/fp-ricochet fp-weapons/fp-flamer fp-weapons/fp-frost fp-weapons/fp-rocket fp-weapons/fp-arc)
 if [[ ${#MODELS[@]} -gt 0 ]]; then
   glbs=()
   for entry in "${MODELS[@]}"; do

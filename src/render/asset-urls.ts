@@ -55,7 +55,19 @@ export type MapIcon = `chest-${ChestTier}` | 'supply' | 'exit' | 'boss' | 'shard
 export const MAP_ICONS: readonly MapIcon[] = ['chest-normal', 'chest-weapon', 'chest-rare', 'supply', 'exit', 'boss', 'shard', 'branch']
 
 export const CHARACTER_MODEL_IDS = ['kai'] as const
-export const VIEWMODEL_MODEL_IDS = ['fp-arms', 'fp-blaster', 'fp-shotgun', 'fp-smg', 'fp-sniper', 'fp-grenade'] as const
+export const VIEWMODEL_MODEL_IDS = [
+  'fp-arms',
+  'fp-blaster',
+  'fp-shotgun',
+  'fp-smg',
+  'fp-sniper',
+  'fp-grenade',
+  'fp-ricochet',
+  'fp-flamer',
+  'fp-frost',
+  'fp-rocket',
+  'fp-arc',
+] as const
 export const ANIMAL_MODEL_IDS = ['sheep'] as const
 export const WEAPON_MODEL_IDS = [
   'blaster',
