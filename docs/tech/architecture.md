@@ -83,7 +83,7 @@ src/
 代码位置（2026-10-31）：
 
 - 高度表 `src/data/heights.ts`：格子高度 `TILE_HEIGHTS`（键是格子名）、身高 `BODY_HEIGHTS`、眼灯高 `EYE_HEIGHTS`、枪口高 `MUZZLE_HEIGHTS`、胸口高 `CHEST_HEIGHT`、弱点 `WEAK_POINTS`
-- 格子 `src/sim/grid.ts`：`Grid.floor` / `Grid.top`；取值用 `cellFloor`、`cellTop`、`floorAt`、`topAt`、`standHeight`；改格子统一走 `setTile`（关门、打碎木箱、地标被打坏时 `top` 跟着变）。新增格子「O」大草垛 / 大石头，2.5 米
+- 格子 `src/sim/grid.ts`：`Grid.floor` / `Grid.top`；取值用 `cellFloor`、`cellTop`、`floorAt`、`topAt`、`standHeight`；改格子统一走 `setTile`（关门、打碎木箱、地标被打坏时 `top` 跟着变）。新增格子「O」大草垛 / 大石头，2.5 米；「K」木箱堆（2026-11-04，1-2 起），还是木箱格子，只是顶面高 2.5 米（`CRATE_STACK_HEIGHT`），跳不上去、挡视线，打碎后整格变平地，画面上叠两只木箱，碎的时候两层各散一堆
 - 身体高度和落地 `src/sim/terrain.ts`，近战和「快散架」`src/sim/melee.ts`，冲击波环 `src/sim/rings.ts`，弱点 `bossExposed`（`src/sim/boss.ts`）
 - 子弹 `Bullet` 多了 `z`、`prevZ`、`vz` 和开火位置 `origin`，`speed` 是水平速度；投掷物 `Lob` 多了 `fromZ`、`toZ`、`z`、`prevZ`
 - 能站上去的：石头、木箱、板车、栅栏、大草垛（站在顶面）。墙、树、关着的门、水、地标永远进不去
@@ -96,7 +96,7 @@ src/
 
 关卡写了 `firstPerson: true` 以后，`validateLevel` 还会按第一人称的规则查开局、叫醒、隐藏区和 Boss 场大小（`src/sim/level-rules.ts`，规则见[关卡 1-1](../design/levels/1-1.md)「第一人称的关卡规则」）。还没重做的关卡写 `wip`（整备界面的任务卡片上显示）。
 
-地标写了 `building`（现在只有谷仓）就不加载模型，由 `src/render/buildings.ts` 按占地生成墙、门洞、人字顶、房梁和室内陈设，能走进去；墙外面和里面分两种材质。
+地标写了 `building`（现在有谷仓 `barn` 和 1-2 的饲料棚 `shed`）就不加载模型，由 `src/render/buildings.ts` 按占地生成墙、门洞、人字顶、房梁和室内陈设，能走进去；墙外面和里面分两种材质。每种房子的颜色、墙高、门高、屋顶坡度在 `BUILDING_STYLES` 里，饲料棚 4 × 5、墙高 2.6 米、里面不堆草捆（宝箱在最里面）。饲料棚原来的模型 2026-11-04 删了
 
 ## 从主仓库拿什么
 

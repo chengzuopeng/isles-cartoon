@@ -53,7 +53,7 @@ export interface LandmarkDef {
   building?: BuildingKind
 }
 
-export type BuildingKind = 'barn'
+export type BuildingKind = 'barn' | 'shed'
 
 export const LANDMARK_IDS = [
   'ch1-town-gate',
@@ -149,11 +149,11 @@ export const LANDMARKS: Readonly<Record<LandmarkId, LandmarkDef>> = {
   'ch1-feed-shed': {
     name: '饲料棚',
     level: '1-2',
-    size: [3, 3],
-    footprint: ['###', '#.#', '#.#'],
+    size: [4, 5],
+    footprint: ['####', '#..#', '#..#', '#..#', '#..#'],
     ...solid,
     height: 2.8,
-    nodes: ['body', 'roof'],
+    building: 'shed',
   },
   'ch1-hay-cart': {
     name: '草料车',

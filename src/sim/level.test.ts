@@ -9,7 +9,7 @@ import { TRIAL_HARVESTER } from '../data/levels/trial-harvester'
 import { TRIAL_SYSTEMS } from '../data/levels/trial-systems'
 import { TRAINING } from '../data/levels/training'
 import { cellVariant, type AreaDef } from '../data/levels/types'
-import { JUMP_HEIGHT } from '../data/heights'
+import { JUMP_HEIGHT, eyeHeightOf } from '../data/heights'
 import { Tile, blocksBullets, blocksMovement, cellFloor, cellTop, climbable, standHeight, tileAt } from './grid'
 import { getBoss } from '../data/bosses'
 import { createDefaultTuning } from '../data/tuning'
@@ -392,19 +392,35 @@ describe('level 1-1', () => {
 
 describe('level 1-2', () => {
   const level = buildLevel(LEVEL_1_2)
+  const { grid } = level
+  const tuning = createDefaultTuning()
   const kinds = (area: number) => level.enemies.filter((enemy) => enemy.area === area).map((enemy) => enemy.kind)
   const count = (area: number, kind: string) => kinds(area).filter((item) => item === kind).length
   const placed = (id: string) => level.landmarks.filter((landmark) => landmark.id === id)
   const inside = (x: number, y: number, landmark: { column: number; row: number; width: number; depth: number }) =>
     x >= landmark.column && x < landmark.column + landmark.width && y >= landmark.row && y < landmark.row + landmark.depth
+  const local = (area: number, row: number) => row - level.areas[area].top
+  const floor = (column: number, area: number, row: number) => cellFloor(grid, column, level.areas[area].top + row)
+  const squad = (area: number, keep: (row: number) => boolean) =>
+    level.enemies.flatMap((enemy, index) => (enemy.area === area && enemy.idle !== 'ambush' && keep(local(area, Math.floor(enemy.y))) ? [index] : []))
+  const apart = (a: number[], b: number[]) => {
+    for (const seed of a) expect(wakeChain(level, seed, tuning).some((index) => b.includes(index))).toBe(false)
+    for (const seed of b) expect(wakeChain(level, seed, tuning).some((index) => a.includes(index))).toBe(false)
+  }
+  const stacks = (area: number) =>
+    Array.from(grid.tiles).flatMap((tile, index) =>
+      tile === Tile.Crate && level.areaOfRow[Math.floor(index / grid.columns)] === area && grid.top[index] - grid.floor[index] > 2 ? [index] : [],
+    )
 
-  it('passes validation', () => {
+  it('is a first-person level and passes validation, its rules included', () => {
+    expect(LEVEL_1_2.firstPerson).toBe(true)
     expect(validateLevel(level)).toEqual([])
   })
 
-  it('stacks five areas of its own themes, 40 wide, with a destroy area and a boss barn', () => {
-    expect(level.grid.columns).toBe(40)
+  it('stacks five areas of its own themes, 40 wide and 167 long, with a destroy area and a boss barn', () => {
+    expect([grid.columns, grid.rows]).toEqual([40, 167])
     expect(level.areas.map((area) => area.name)).toEqual(['牧场入口', '羊圈', '装车场', '磨坊', '大谷仓'])
+    expect(level.areas.map((area) => area.bottom - area.top)).toEqual([38, 32, 40, 22, 35])
     expect(level.areas.map((area) => area.theme)).toEqual(['meadow', 'village', 'farm', 'forest', 'arena'])
     expect(level.areas.map((area) => area.kind)).toEqual(['normal', 'normal', 'destroy', 'normal', 'boss'])
     expect(LEVEL_1_2.unlockAfter).toBe('1-1')
@@ -421,6 +437,83 @@ describe('level 1-2', () => {
     expect(level.summonPoints).toHaveLength(4)
   })
 
+  it('stands the lone bomber on the road 15 metres ahead, out of sight, and hides three more in the grass atop the slope', () => {
+    const lone = level.enemies.filter((enemy) => enemy.area === 0 && enemy.idle !== 'ambush')
+    expect(lone).toHaveLength(1)
+    const start = level.playerStart
+    const distance = Math.hypot(lone[0].x - start.x, lone[0].y - start.y)
+    expect(distance).toBeGreaterThan(14.5)
+    expect(distance).toBeLessThan(15.5)
+    expect(distance).toBeGreaterThan(tuning.bomber.sight)
+    expect(tileAt(grid, Math.floor(lone[0].x), Math.floor(lone[0].y))).toBe(Tile.Path)
+    const grass = level.enemies.filter((enemy) => enemy.area === 0 && enemy.idle === 'ambush')
+    expect(grass).toHaveLength(3)
+    const bushes = (column: number, row: number) => [-1, 0, 1].flatMap((dr) => [-1, 0, 1].map((dc) => tileAt(grid, column + dc, row + dr))).filter((cell) => cell === Tile.Bush).length
+    for (const enemy of grass) {
+      expect(bushes(Math.floor(enemy.x), Math.floor(enemy.y))).toBe(8)
+      expect(enemy.y).toBeLessThan(lone[0].y)
+      expect(cellFloor(grid, Math.floor(enemy.x), Math.floor(enemy.y)) - cellFloor(grid, Math.floor(start.x), Math.floor(start.y))).toBe(1)
+      expect(Math.hypot(enemy.x - lone[0].x, enemy.y - lone[0].y)).toBeGreaterThan(14)
+    }
+    expect(grass.filter((enemy) => enemy.x < start.x)).toHaveLength(1)
+  })
+
+  it('blocks the road in the sheep yard with a hay pile, so the way on runs through the yard', () => {
+    for (let column = 17; column <= 22; column++) {
+      for (let row = 16; row <= 18; row++) expect(tileAt(grid, column, level.areas[1].top + row)).toBe(Tile.Wall)
+    }
+    for (let column = 1; column <= 16; column++) expect(tileAt(grid, column, level.areas[1].top + 17)).toBe(Tile.Wall)
+    const reachable = reachableFrom(grid, level.playerStart)
+    expect(reachable[(level.areas[1].top + 10) * grid.columns + 19]).toBe(1)
+    expect(reachable[(level.areas[1].top + 4) * grid.columns + 23]).toBe(1)
+  })
+
+  it('raises a hay platform two metres over the yard in its south-west court, reached by one ramp, with a view over the hay walls', () => {
+    expect(floor(19, 1, 20)).toBe(1)
+    for (let column = 23; column <= 28; column++) expect(floor(column, 1, 25)).toBe(3)
+    expect([20, 21, 22, 23].map((row) => floor(25, 1, row))).toEqual([1.5, 2, 2.5, 3])
+    const reachable = reachableFrom(grid, level.playerStart)
+    expect(reachable[(level.areas[1].top + 25) * grid.columns + 25]).toBe(1)
+    const wall = cellTop(grid, 29, level.areas[1].top + 25)
+    expect(floor(25, 1, 25) + eyeHeightOf('player')).toBeGreaterThan(wall)
+  })
+
+  it('shuts three corridors of the sheep yard with crate stacks too tall to jump and scatters nine loose crates', () => {
+    const tall = stacks(1)
+    expect(tall).toHaveLength(8)
+    for (const index of tall) expect(grid.top[index] - grid.floor[index]).toBeGreaterThan(JUMP_HEIGHT)
+    const loose = Array.from(grid.tiles).filter(
+      (tile, index) => tile === Tile.Crate && level.areaOfRow[Math.floor(index / grid.columns)] === 1 && grid.top[index] - grid.floor[index] === 1,
+    )
+    expect(loose).toHaveLength(9)
+    expect(reachableFrom(grid, level.playerStart)[(level.areas[1].top + 10) * grid.columns + 23]).toBe(1)
+  })
+
+  it('keeps the north and south squads of the sheep yard from waking each other', () => {
+    const north = squad(1, (row) => row < 10)
+    const south = squad(1, (row) => row > 12)
+    expect(north.map((index) => level.enemies[index].kind).sort()).toEqual(['bomber', 'bomber', 'grunt'])
+    expect(south).toHaveLength(4)
+    apart(north, south)
+  })
+
+  it('keeps the three stations of the loading yard apart and wakes the north one with the dock at most five at once', () => {
+    const north = squad(2, (row) => row < 12)
+    const middle = squad(2, (row) => row > 12 && row < 24)
+    const south = squad(2, (row) => row > 24)
+    expect([north.length, middle.length, south.length]).toEqual([5, 3, 3])
+    apart(north, middle)
+    apart(middle, south)
+    apart(north, south)
+    for (const seed of north) expect(wakeChain(level, seed, tuning).length).toBeLessThanOrEqual(5)
+  })
+
+  it('stands the gunners of the loading yard on loading docks, a haystack and the river bank', () => {
+    const gunners = level.enemies.filter((enemy) => enemy.area === 2 && enemy.kind === 'gunner')
+    const heights = gunners.map((enemy) => cellFloor(grid, Math.floor(enemy.x), Math.floor(enemy.y)) - 1).sort()
+    expect(heights).toEqual([1, 1, 1.5, 1.5, 2])
+  })
+
   it('puts the chests in the feed shed, on the dock and in the hidden nook by the wheel', () => {
     const [shed] = placed('ch1-feed-shed')
     const [dock] = placed('ch1-dock')
@@ -429,15 +522,17 @@ describe('level 1-2', () => {
     const weapon = level.chests.find((chest) => chest.tier === 'weapon')!
     const rare = level.chests.find((chest) => chest.tier === 'rare')!
     expect(level.chests).toHaveLength(3)
+    expect([shed.width, shed.depth]).toEqual([4, 5])
     expect([Math.floor(normal.x), Math.floor(normal.y)]).toEqual([shed.column + 1, shed.row + 1])
     expect(shed.facing).toBe(0)
     expect(inside(weapon.x, weapon.y, dock)).toBe(true)
     expect(weapon.weapon).toBe('shotgun')
     expect(inside(rare.x, rare.y, mill)).toBe(true)
     expect(level.supplies.map((supply) => supply.area)).toEqual([3])
-    expect(reachableFrom(level.grid, level.playerStart)[Math.floor(rare.y) * level.grid.columns + Math.floor(rare.x)]).toBe(0)
+    expect(reachableFrom(grid, level.playerStart)[Math.floor(rare.y) * grid.columns + Math.floor(rare.x)]).toBe(0)
     expect(level.secrets).toHaveLength(1)
     expect(level.secrets[0].landmark).toBe(level.landmarks.indexOf(mill))
+    expect(stacks(3)).toHaveLength(2)
   })
 
   it('lays out the landmarks the design asks for', () => {
@@ -448,7 +543,7 @@ describe('level 1-2', () => {
       [2, 90],
       [2, 180],
     ])
-    expect(placed('ch1-hay-pillar').map((pillar) => pillar.area)).toEqual([4, 4, 4, 4])
+    expect(placed('ch1-hay-pillar').map((pillar) => pillar.area)).toEqual([4, 4, 4, 4, 4, 4])
     expect(placed('ch1-watermill').map((mill) => [mill.area, mill.facing])).toEqual([[3, 90]])
     expect(placed('ch1-dock').map((dock) => [dock.area, dock.facing])).toEqual([[2, 270]])
     expect(placed('grunt-wreck').map((wreck) => wreck.area)).toEqual([3])
@@ -457,46 +552,50 @@ describe('level 1-2', () => {
     expect(level.clues).toEqual([{ id: 'iou', area: 2, at: null }])
   })
 
+  it('sinks the pasture a metre below the yard, fenced, with a sloped gate toward the road', () => {
+    const [pasture] = level.pastures
+    expect(cellFloor(grid, pasture.column + 2, pasture.row + 2)).toBe(0)
+    expect(floor(16, 1, 24)).toBe(1)
+    expect(floor(14, 1, 24)).toBe(0.5)
+    expect(tileAt(grid, 14, level.areas[1].top + 22)).toBe(Tile.Fence)
+  })
+
   it('sets the wheel over the mill race and the dock over the river', () => {
     const [mill] = placed('ch1-watermill')
     expect(mill.water).toHaveLength(4)
-    for (const cell of mill.water) expect(Math.floor(cell / level.grid.columns)).toBe(mill.row + mill.depth - 1)
+    for (const cell of mill.water) expect(Math.floor(cell / grid.columns)).toBe(mill.row + mill.depth - 1)
     const [dock] = placed('ch1-dock')
-    const { columns } = level.grid
+    const { columns } = grid
     const touchesWater = dock.cells.some((cell) =>
-      [1, -1, columns, -columns].some((step) => !dock.cells.includes(cell + step) && level.grid.tiles[cell + step] === Tile.Water),
+      [1, -1, columns, -columns].some((step) => !dock.cells.includes(cell + step) && grid.tiles[cell + step] === Tile.Water),
     )
     expect(touchesWater).toBe(true)
-    for (const cell of dock.cells) expect(blocksMovement(level.grid.tiles[cell] as Tile)).toBe(false)
+    for (const cell of dock.cells) expect(blocksMovement(grid.tiles[cell] as Tile)).toBe(false)
   })
 
-  it('gives the loading yard a north gate only and the sheep yard 8 to 10 crates', () => {
+  it('gives the loading yard a north gate only', () => {
     const yard = level.areas[2]
-    expect(yard.gates.every((gate) => Math.floor(gate / level.grid.columns) === yard.top)).toBe(true)
+    expect(yard.gates.every((gate) => Math.floor(gate / grid.columns) === yard.top)).toBe(true)
     expect(yard.gates).toHaveLength(4)
-    const crates = (area: number) =>
-      Array.from(level.grid.tiles).filter((tile, index) => tile === Tile.Crate && level.areaOfRow[Math.floor(index / level.grid.columns)] === area)
-        .length
-    expect(crates(1)).toBeGreaterThanOrEqual(8)
-    expect(crates(1)).toBeLessThanOrEqual(10)
   })
 
-  it('makes the boss barn a rectangle with four hay pillars to hide behind', () => {
+  it('makes the boss barn a 32 by 30 hall with six hay pillars to hide behind', () => {
     const barn = level.areas[4]
-    const { columns } = level.grid
+    const { columns } = grid
     const open: number[][] = []
     for (let row = barn.top; row < barn.bottom; row++) {
       for (let column = 0; column < columns; column++) {
-        if (!blocksMovement(tileAt(level.grid, column, row)) || level.landmarkAt[row * columns + column] >= 0) open.push([column, row])
+        if (!blocksMovement(tileAt(grid, column, row)) || level.landmarkAt[row * columns + column] >= 0) open.push([column, row])
       }
     }
     const hall = open.filter(([, row]) => row > barn.top + 3 && row < barn.bottom - 1)
     const columnsUsed = new Set(hall.map(([column]) => column))
     const rowsUsed = new Set(hall.map(([, row]) => row))
+    expect([columnsUsed.size, rowsUsed.size]).toEqual([32, 30])
     expect(hall).toHaveLength(columnsUsed.size * rowsUsed.size)
     for (const pillar of placed('ch1-hay-pillar')) {
       expect(LANDMARKS[pillar.id].blocksShots).toBe(true)
-      for (const cell of pillar.cells) expect(blocksBullets(level.grid.tiles[cell] as Tile)).toBe(true)
+      for (const cell of pillar.cells) expect(blocksBullets(grid.tiles[cell] as Tile)).toBe(true)
     }
   })
 })

@@ -1,4 +1,4 @@
-import { FLOOR_STEP, STEP_HEIGHT, TILE_HEIGHTS, type TileKind } from '../data/heights'
+import { CRATE_STACK_HEIGHT, FLOOR_STEP, STEP_HEIGHT, TILE_HEIGHTS, type TileKind } from '../data/heights'
 import type { Vec2 } from './math'
 
 export const Tile = {
@@ -70,6 +70,7 @@ const TERRAIN: Readonly<Record<string, Tile | undefined>> = {
   o: Tile.Rock,
   O: Tile.Boulder,
   c: Tile.Crate,
+  K: Tile.Crate,
   C: Tile.Cart,
   f: Tile.Fence,
   ',': Tile.Path,
@@ -93,6 +94,10 @@ const TERRAIN: Readonly<Record<string, Tile | undefined>> = {
   '>': Tile.Floor,
   '^': Tile.Floor,
   v: Tile.Floor,
+}
+
+const RAISED: Readonly<Record<string, number | undefined>> = {
+  K: CRATE_STACK_HEIGHT,
 }
 
 const MARKERS = new Set(['P', 'E', 'm', 'r', 'b', 't', 'h', 'g', 'B', 'S', '$', 'W', 'R', '+', '<', '>', '^', 'v'])
@@ -152,6 +157,7 @@ export function parseRows(lines: readonly string[], heights?: readonly string[])
   const floor = new Float32Array(columns * rows)
   const markers: Marker[] = []
   const markerCells = new Set<number>()
+  const raised = new Map<number, number>()
   if (heights && heights.length !== rows) throw new Error(`map has ${heights.length} height rows, expected ${rows}`)
   lines.forEach((line, row) => {
     if (line.length !== columns) {
@@ -166,6 +172,8 @@ export function parseRows(lines: readonly string[], heights?: readonly string[])
       const tile = TERRAIN[symbol]
       if (tile === undefined) throw new Error(`unknown map symbol "${symbol}" at ${column},${row}`)
       tiles[row * columns + column] = tile
+      const lift = RAISED[symbol]
+      if (lift !== undefined) raised.set(row * columns + column, lift)
       if (levels !== undefined) floor[row * columns + column] = heightDigit(levels.charAt(column), column, row) * FLOOR_STEP
       if (MARKERS.has(symbol)) {
         markers.push({ symbol, x: column + 0.5, y: row + 0.5 })
@@ -175,7 +183,7 @@ export function parseRows(lines: readonly string[], heights?: readonly string[])
   })
   for (const index of markerCells) tiles[index] = markerGround(tiles, columns, rows, index, markerCells)
   const top = new Float32Array(columns * rows)
-  for (let index = 0; index < top.length; index++) top[index] = floor[index] + tileHeight(tiles[index] as Tile)
+  for (let index = 0; index < top.length; index++) top[index] = floor[index] + (raised.get(index) ?? tileHeight(tiles[index] as Tile))
   return { grid: { columns, rows, tiles, floor, top }, markers }
 }
 

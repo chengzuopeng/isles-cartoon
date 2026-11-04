@@ -367,7 +367,6 @@ describe('nodes the code drives', () => {
   it('adds the gate of the sheep pen and the wheel and secret door of the watermill, but nothing for broken states', () => {
     expect(drivenNodes('ch1-sheep-pen')).toEqual(['gate'])
     expect(drivenNodes('ch1-watermill')).toEqual(['wheel', 'secret_door'])
-    expect(drivenNodes('ch1-feed-shed')).toEqual(['roof'])
     expect(landmarkOf('ch1-hay-cart-wreck')).toBe('ch1-hay-cart')
     expect(landmarkOf('ch1-hay-pillar-collapsed')).toBe('ch1-hay-pillar')
     expect(stateOf('ch1-hay-cart', 'ch1-hay-cart-wreck')).toBe('wreck')

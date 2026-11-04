@@ -2,12 +2,14 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import {
   CHEST_SPENT_GLOW,
+  CRATE_STACK,
   CRATE_WOBBLE,
   DEBRIS_MIN_REST,
   DEBRIS_SETTLE,
   DEBRIS_SINK_TIME,
   DEBRIS_YAW_JITTER,
   LID_OPEN_ANGLE,
+  crateLayers,
   crateTurn,
   debrisLanding,
   debrisLaunches,
@@ -116,6 +118,15 @@ describe('crate layout', () => {
 
   it('is stable for the same cell', () => {
     expect(crateTurn(3, 9)).toBe(crateTurn(3, 9))
+  })
+
+  it('draws a one-metre crate as one box and a crate stack as two boxes reaching its full height', () => {
+    expect(crateLayers(1)).toEqual([{ base: 0, size: CRATE_STACK.scale }])
+    const stack = crateLayers(2.5)
+    expect(stack.map((layer) => layer.base)).toEqual([0, 1.25])
+    expect(stack.every((layer) => layer.size === 1.25)).toBe(true)
+    const top = stack[stack.length - 1]
+    expect(top.base + top.size).toBeCloseTo(2.5, 9)
   })
 })
 

@@ -8,6 +8,19 @@ export const CHEST_SPENT_GLOW = 0.2
 
 export const CRATE_CENTER = 0.43
 export const CRATE_WOBBLE = 0.08
+export const CRATE_STACK = { scale: 1.15, single: 1.5, layer: 1.25, twist: 0.12 } as const
+
+export interface CrateLayer {
+  base: number
+  size: number
+}
+
+export function crateLayers(height: number): CrateLayer[] {
+  if (height <= CRATE_STACK.single) return [{ base: 0, size: CRATE_STACK.scale }]
+  const count = Math.max(2, Math.round(height / CRATE_STACK.layer))
+  const size = height / count
+  return Array.from({ length: count }, (_, layer) => ({ base: layer * size, size }))
+}
 
 export const DEBRIS_GRAVITY = 12
 export const DEBRIS_SPEED = 3.2

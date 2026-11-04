@@ -37,6 +37,8 @@ export const TILE_HEIGHTS: Readonly<Record<TileKind, number>> = {
 
 export const FLOOR_STEP = 0.5
 
+export const CRATE_STACK_HEIGHT = 2.5
+
 export const STEP_HEIGHT = 0.5
 
 export const JUMP_HEIGHT = 1.3

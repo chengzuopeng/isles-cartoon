@@ -19,6 +19,7 @@ export interface BuildingStyle {
   pitch: number
   overhang: number
   roofThickness: number
+  bales: boolean
 }
 
 export const BUILDING_STYLES: Readonly<Record<BuildingKind, BuildingStyle>> = {
@@ -37,6 +38,24 @@ export const BUILDING_STYLES: Readonly<Record<BuildingKind, BuildingStyle>> = {
     pitch: 0.75,
     overhang: 0.55,
     roofThickness: 0.16,
+    bales: true,
+  },
+  shed: {
+    wall: '#8c6a47',
+    inside: '#6f5236',
+    trim: '#e3d5b8',
+    roof: '#7c5a3c',
+    door: '#7a5232',
+    hay: '#e2c35c',
+    wallTexture: 'wood',
+    roofTexture: 'wood',
+    wallHeight: 2.6,
+    wallThickness: 0.35,
+    doorHeight: 2.2,
+    pitch: 0.6,
+    overhang: 0.4,
+    roofThickness: 0.14,
+    bales: false,
   },
 }
 
@@ -267,11 +286,13 @@ export function buildBuilding(kind: BuildingKind, placement: LandmarkPlacement, 
     const d = turn ? 0.95 : 0.55
     hay.box(new THREE.Vector3(x - w / 2, floor + level * 0.5, z - d / 2), new THREE.Vector3(x + w / 2, floor + level * 0.5 + 0.48, z + d / 2))
   }
-  bale(x0 + half + 0.6, z0 + half + 0.45, 0, false)
-  bale(x0 + half + 1.6, z0 + half + 0.45, 0, false)
-  bale(x0 + half + 1.1, z0 + half + 0.45, 1, false)
-  bale(x1 - half - 0.45, z0 + half + 0.9, 0, true)
-  bale(x1 - half - 0.45, z0 + half + 1.9, 0, true)
+  if (style.bales) {
+    bale(x0 + half + 0.6, z0 + half + 0.45, 0, false)
+    bale(x0 + half + 1.6, z0 + half + 0.45, 0, false)
+    bale(x0 + half + 1.1, z0 + half + 0.45, 1, false)
+    bale(x1 - half - 0.45, z0 + half + 0.9, 0, true)
+    bale(x1 - half - 0.45, z0 + half + 1.9, 0, true)
+  }
 
   const doors = new Mesher(0.5)
   for (const gap of openings) {

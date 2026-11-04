@@ -136,7 +136,6 @@ export const LANDMARK_MODEL_IDS = [
   'ch1-wheat-ears-b',
   'ch1-wheat-ears-c',
   'ch1-sheep-pen',
-  'ch1-feed-shed',
   'ch1-dock',
   'ch1-hay-cart',
   'ch1-hay-cart-wreck',

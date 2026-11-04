@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { TRAINING } from '../data/levels/training'
-import { Tile, blocksBullets, blocksMovement, parseMap, parseRows, tileAt } from './grid'
+import { CRATE_STACK_HEIGHT, JUMP_HEIGHT } from '../data/heights'
+import { Tile, blocksBullets, blocksMovement, cellFloor, cellTop, parseMap, parseRows, standHeight, tileAt } from './grid'
 
 describe('parseMap', () => {
   it('reads tiles and spawn points', () => {
@@ -42,6 +43,15 @@ describe('terrain', () => {
     row0.forEach((tile, column) => expect(tileAt(grid, column, 0)).toBe(tile))
     row1.forEach((tile, column) => expect(tileAt(grid, column, 1)).toBe(tile))
     expect(markers.map((marker) => marker.symbol)).toEqual(['P', 'm'])
+  })
+
+  it('reads a crate stack as a crate too tall to jump on, standing on the floor of its cell', () => {
+    const { grid } = parseRows(['cK.'], ['002'])
+    expect(tileAt(grid, 1, 0)).toBe(Tile.Crate)
+    expect(cellTop(grid, 0, 0) - cellFloor(grid, 0, 0)).toBe(1)
+    expect(cellTop(grid, 1, 0) - cellFloor(grid, 1, 0)).toBe(CRATE_STACK_HEIGHT)
+    expect(standHeight(grid, 1, 0)).toBeGreaterThan(standHeight(grid, 2, 0) + JUMP_HEIGHT)
+    expect(blocksBullets(tileAt(grid, 1, 0))).toBe(true)
   })
 
   it('gives markers the ground they stand on, so a spawn on a dirt road stays on the road', () => {

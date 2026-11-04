@@ -248,7 +248,7 @@ export const BARKS: Readonly<Record<string, readonly Bark[]>> = {
       speaker: null,
       text: '抱歉！干草也借用一下！',
       display: 'bubble',
-      trigger: { on: 'spotted', area: 2, at: [24, 20] },
+      trigger: { on: 'spotted', area: 2, at: [16, 27] },
     },
     {
       id: 'cashbox',

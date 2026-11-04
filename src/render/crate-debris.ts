@@ -3,7 +3,7 @@ import { Tile } from '../sim/grid'
 import type { World } from '../sim/world'
 import { nodeMap, type ModelLibrary } from './model-library'
 import { mergeJoints } from './node-parts'
-import { crateTurn, debrisLaunches, debrisLife, debrisPose, type DebrisLaunch, type DebrisPiece } from './prop-motion'
+import { crateLayers, crateTurn, debrisLaunches, debrisLife, debrisPose, type CrateLayer, type DebrisLaunch, type DebrisPiece } from './prop-motion'
 
 interface Burst {
   root: THREE.Object3D
@@ -28,7 +28,7 @@ export function createCrateDebris(scene: THREE.Scene, models: ModelLibrary): Cra
   const quaternion = new THREE.Quaternion()
   let layout: DebrisPiece[] | null = null
   let tracked: World | null = null
-  let standing = new Set<number>()
+  let standing = new Map<number, CrateLayer[]>()
   let template: THREE.Object3D | null = null
 
   function mergedPieces(): THREE.Object3D {
@@ -62,7 +62,7 @@ export function createCrateDebris(scene: THREE.Scene, models: ModelLibrary): Cra
     idle.push(burst)
   }
 
-  function spawn(world: World, index: number): void {
+  function spawn(world: World, index: number, lift: number, layer: number): void {
     const burst = idle.pop() ?? create()
     if (!layout) {
       idle.push(burst)
@@ -70,9 +70,10 @@ export function createCrateDebris(scene: THREE.Scene, models: ModelLibrary): Cra
     }
     const column = index % world.grid.columns
     const row = (index - column) / world.grid.columns
-    burst.root.position.set(column + 0.5, 0, row + 0.5)
-    burst.root.rotation.y = crateTurn(column, row)
-    burst.launches = debrisLaunches(layout, index)
+    burst.root.position.set(column + 0.5, world.grid.floor[index], row + 0.5)
+    burst.root.rotation.y = crateTurn(column, row) + layer
+    const pieces = lift > 0 ? layout.map((piece) => ({ ...piece, center: piece.center.clone().setY(piece.center.y + lift) })) : layout
+    burst.launches = debrisLaunches(pieces, index + layer * 31)
     burst.start = world.time
     burst.life = Math.max(...burst.launches.map(debrisLife))
     burst.root.visible = true
@@ -82,9 +83,9 @@ export function createCrateDebris(scene: THREE.Scene, models: ModelLibrary): Cra
   function track(world: World): void {
     for (const burst of active.splice(0)) retire(burst)
     tracked = world
-    standing = new Set()
+    standing = new Map()
     world.grid.tiles.forEach((tile, index) => {
-      if (tile === Tile.Crate) standing.add(index)
+      if (tile === Tile.Crate) standing.set(index, crateLayers(world.grid.top[index] - world.grid.floor[index]))
     })
   }
 
@@ -92,10 +93,10 @@ export function createCrateDebris(scene: THREE.Scene, models: ModelLibrary): Cra
     sync(world) {
       if (!available) return
       if (world !== tracked) track(world)
-      for (const index of standing) {
+      for (const [index, layers] of standing) {
         if (world.grid.tiles[index] === Tile.Crate) continue
         standing.delete(index)
-        spawn(world, index)
+        layers.forEach((layer, k) => spawn(world, index, layer.base, k))
       }
       for (let i = active.length - 1; i >= 0; i--) {
         const burst = active[i]

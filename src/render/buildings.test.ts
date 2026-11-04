@@ -30,6 +30,21 @@ describe('buildings', () => {
     building.dispose()
   })
 
+  it('builds the feed shed of 1-2 as a small walk-in shed open to the south, with no hay stacked over its chest', () => {
+    const mask = [...(LANDMARKS['ch1-feed-shed'].footprint ?? [])]
+    expect(LANDMARKS['ch1-feed-shed'].building).toBe('shed')
+    expect(openingsOf(mask)).toEqual([{ side: 'south', from: 1, to: 3 }])
+    const placement: LandmarkPlacement = { id: 'ch1-feed-shed', area: 0, column: 4, row: 2, width: 4, depth: 5, facing: 0, variant: 1, mask, cells: [], water: [], pool: [], gate: null }
+    const building = buildBuilding('shed', placement, 1)
+    const names = building.group.children.map((child) => child.name)
+    expect(names).not.toContain('hay')
+    expect(names).toContain('roof')
+    const box = new THREE.Box3().setFromObject(building.group)
+    expect(box.max.y).toBeLessThan(1 + BUILDING_STYLES.barn.wallHeight)
+    expect(box.max.y).toBeGreaterThan(1 + BUILDING_STYLES.shed.wallHeight)
+    building.dispose()
+  })
+
   it('paints the wall faces that look into the barn with the inside material', () => {
     const building = buildBuilding('barn', barnAt(0, 0), 0)
     const walls = building.group.getObjectByName('walls') as THREE.Mesh

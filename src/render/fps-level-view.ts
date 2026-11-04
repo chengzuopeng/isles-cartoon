@@ -31,6 +31,7 @@ import {
   variantModel,
   type PropKind,
 } from './scene-models'
+import { CRATE_STACK, crateLayers } from './prop-motion'
 import { PALETTES } from './themes'
 import { toToon, toonMaterial, toonify } from './toon'
 
@@ -361,17 +362,21 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       }
       if (tile === Tile.Crate) {
         if (!crateModel) continue
-        const instance = models.instance('crate' as ModelId)
-        toonify(instance.root)
-        instance.root.position.set(x, floor, z)
-        instance.root.rotation.y = Math.floor(cellHash(column, row, 4) * 4) * (Math.PI / 2)
-        instance.root.scale.setScalar(1.15)
-        instance.root.traverse((object) => {
-          object.castShadow = true
-          object.receiveShadow = true
-        })
-        group.add(instance.root)
-        crates.push({ index: row * grid.columns + column, root: instance.root })
+        const index = row * grid.columns + column
+        const layers = crateLayers(grid.top[index] - floor)
+        for (let layer = 0; layer < layers.length; layer++) {
+          const instance = models.instance('crate' as ModelId)
+          toonify(instance.root)
+          instance.root.position.set(x, floor + layers[layer].base, z)
+          instance.root.rotation.y = Math.floor(cellHash(column, row + layer * 7, 4) * 4) * (Math.PI / 2) + layer * CRATE_STACK.twist
+          instance.root.scale.setScalar(layers[layer].size)
+          instance.root.traverse((object) => {
+            object.castShadow = true
+            object.receiveShadow = true
+          })
+          group.add(instance.root)
+          crates.push({ index, root: instance.root })
+        }
         continue
       }
       const bridge = tile === Tile.Path || tile === Tile.Floor ? bridgeAt(grid, column, row) : null
