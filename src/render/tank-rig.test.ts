@@ -279,7 +279,7 @@ describe('forest tank rig', () => {
     const fx = effects()
     const rig = createTankRig(def, view, { models, effects: fx, tuning })
     rig.sync(tankState(), STEP, STEP)
-    expect(rig.handle({ type: 'enemyKilled', id: 1, kind: 'boss', x: 20, y: 20 })).toBe(true)
+    expect(rig.handle({ type: 'enemyKilled', id: 1, kind: 'boss', x: 20, y: 20, dirX: 0, dirY: 0 })).toBe(true)
     const target = { x: 20, y: 25, exit: { x: 20, y: 3.5 } }
     rig.defeat(0.5, target)
     const early = view.body.position.z

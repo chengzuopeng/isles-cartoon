@@ -8,11 +8,13 @@ import {
   JOINT_ATTRIBUTE,
   RIGID_PROGRAM,
   RigidDepthMaterial,
+  RigidNormalMaterial,
   RigidStandardMaterial,
   bindRigid,
   jointMatrices,
   mergeRigid,
   rigidMeshes,
+  rigidNormalFor,
   rigidVertex,
   type RigidTable,
 } from './rigid-parts'
@@ -120,7 +122,7 @@ function renderer(frame: number): THREE.WebGLRenderer {
 
 describe('rigid joints in the vertex shader', () => {
   it('patch the vertex stage of the standard, depth and basic programs', () => {
-    for (const source of [THREE.ShaderLib.standard.vertexShader, THREE.ShaderLib.depth.vertexShader, THREE.ShaderLib.basic.vertexShader]) {
+    for (const source of [THREE.ShaderLib.standard.vertexShader, THREE.ShaderLib.depth.vertexShader, THREE.ShaderLib.basic.vertexShader, THREE.ShaderLib.normal.vertexShader]) {
       const patched = rigidVertex(source)
       expect(patched).toContain(`uniform mat4 rigidJoints[ ${RIGID_PARTS.joints} ];`)
       expect(patched).toContain(`attribute float ${JOINT_ATTRIBUTE};`)
@@ -143,6 +145,27 @@ describe('rigid joints in the vertex shader', () => {
     expect(copy.map).toBe(atlas)
     expect(copy.roughness).toBe(0.4)
     expect(new RigidDepthMaterial().clone()).toBeInstanceOf(RigidDepthMaterial)
+  })
+
+  it('give the outline pass a normal material that follows the same joints and goes away with its source', () => {
+    const material = new RigidStandardMaterial({ side: THREE.DoubleSide })
+    const normal = rigidNormalFor(material)
+    expect(normal).toBeInstanceOf(RigidNormalMaterial)
+    expect(rigidNormalFor(material)).toBe(normal)
+    expect(normal.rigidJoints).toBe(material.rigidJoints)
+    expect(normal.side).toBe(THREE.DoubleSide)
+    expect(normal.customProgramCacheKey()).toBe(RIGID_PROGRAM)
+    const values = new Float32Array(32)
+    material.rigidJoints.value = values
+    const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.normal.vertexShader, fragmentShader: THREE.ShaderLib.normal.fragmentShader }
+    normal.onBeforeCompile(shader as unknown as THREE.WebGLProgramParametersWithUniforms)
+    expect((shader.uniforms as Record<string, { value: Float32Array }>).rigidJoints.value).toBe(values)
+    let disposed = false
+    normal.addEventListener('dispose', () => {
+      disposed = true
+    })
+    material.dispose()
+    expect(disposed).toBe(true)
   })
 })
 

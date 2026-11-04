@@ -446,6 +446,30 @@ export const BOSS_DEFEAT = {
   smoke: '#4a4540',
 } as const
 
+export const WRECK = {
+  gravity: 16,
+  push: 3.2,
+  pushHeavy: 1.4,
+  spread: 1.5,
+  spreadHeavy: 0.5,
+  lift: 4,
+  liftHeavy: 2,
+  spin: 10,
+  spinHeavy: 3,
+  jitter: 0.3,
+  minRest: 0.06,
+  climb: 0.25,
+  bounce: 0.3,
+  wallBounce: 0.35,
+  restSpeed: 0.7,
+  friction: 0.84,
+  life: 2.6,
+  sink: 0.5,
+  sinkScale: 0.4,
+  flash: 0.2,
+  glow: 1.4,
+} as const
+
 export const SCARECROW_DEFEAT = {
   seconds: 4.6,
   recoil: 0.3,
@@ -683,6 +707,9 @@ export const CLUE_PAPER = {
   beamRadius: 0.32,
   beamHeight: 1.8,
   beamOpacity: 0.22,
+  fadeNear: 1.6,
+  fadeFar: 5.5,
+  glowNear: 0.1,
 } as const
 
 export const SHEEP_RIG = {

@@ -3,7 +3,7 @@ import { createDefaultTuning } from '../data/tuning'
 import { killEnemy } from './combat'
 import { stepWorld } from './step'
 import { pitchAt, singleArea } from './testing'
-import type { MinionKind, PlayerCommand } from './types'
+import type { GameEvent, MinionKind, PlayerCommand } from './types'
 import { createEnemy, createWorld, type World } from './world'
 
 const DT = 1 / 60
@@ -84,6 +84,9 @@ describe('bullets', () => {
     expect(world.stats.kills).toBe(1)
     expect(world.enemies).toHaveLength(0)
     expect(count(world, 'enemyKilled')).toBe(1)
+    const killed = world.events.find((event): event is Extract<GameEvent, { type: 'enemyKilled' }> => event.type === 'enemyKilled')
+    expect(killed?.dirX).toBeCloseTo(1, 3)
+    expect(killed?.dirY).toBeCloseTo(0, 3)
   })
 
   it('stop at walls', () => {

@@ -127,7 +127,7 @@ describe('smashing', () => {
     expect(crumbling(world, grunt)).toBe(true)
     const events = swing(world)
     expect(events.find((event) => event.type === 'smashed')).toMatchObject({ id: grunt.id, kind: 'grunt' })
-    expect(events.some((event) => event.type === 'enemyKilled' && event.id === grunt.id)).toBe(true)
+    expect(events.find((event) => event.type === 'enemyKilled' && event.id === grunt.id)).toMatchObject({ dirX: 1, dirY: 0 })
     expect(world.stats.kills).toBe(1)
     expect(world.stats.smashes).toBe(1)
     expect(world.pickups.map((pickup) => pickup.item)).toEqual([{ type: 'heal', amount: FOOD_HEAL, food: foodOf(grunt) }])

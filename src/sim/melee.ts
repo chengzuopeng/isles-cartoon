@@ -66,8 +66,11 @@ export function swingMelee(world: World): void {
 export function smash(world: World, enemy: Enemy): void {
   const { x, y } = enemy.pos
   const left = Math.max(0, enemy.hp)
+  const dx = x - world.player.pos.x
+  const dy = y - world.player.pos.y
+  const length = Math.hypot(dx, dy) || 1
   world.events.push({ type: 'smashed', id: enemy.id, kind: enemy.kind, x, y, z: enemy.z })
-  killEnemy(world, enemy, true, true, false)
+  killEnemy(world, enemy, true, true, false, dx / length, dy / length)
   spawnPickup(world, { type: 'heal', amount: FOOD_HEAL, food: foodOf(enemy) }, x, y, { from: { x, y } })
   world.stats.smashes += 1
   onDamageDealt(world, left)

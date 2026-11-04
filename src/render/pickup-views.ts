@@ -61,12 +61,20 @@ interface ClueView {
   root: THREE.Group
   paper: THREE.Group
   ring: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>
+  sheet: THREE.MeshStandardMaterial
+  beam: THREE.MeshBasicMaterial
   seen: boolean
 }
 
 export interface PickupViews {
-  sync(world: World, dt: number): void
+  sync(world: World, dt: number, eye?: THREE.Vector3): void
   reset(): void
+}
+
+export function clueGlowNear(distance: number): number {
+  const t = (distance - CLUE_PAPER.fadeNear) / (CLUE_PAPER.fadeFar - CLUE_PAPER.fadeNear)
+  const clamped = Math.max(0, Math.min(1, t))
+  return clamped * clamped * (3 - 2 * clamped)
 }
 
 const POP_TIME = 0.3
@@ -359,9 +367,9 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     return { root, flame, outer, inner, fresh, burnt, charred, models: instances, owned, used: null, seen: true }
   }
 
-  function paperHalf(side: number): THREE.Group {
+  function paperHalf(side: number, material: THREE.MeshStandardMaterial): THREE.Group {
     const half = new THREE.Group()
-    const sheet = new THREE.Mesh(paperGeometry, paperMaterial)
+    const sheet = new THREE.Mesh(paperGeometry, material)
     sheet.position.x = (side * CLUE_PAPER.width) / 4
     sheet.castShadow = true
     half.add(sheet)
@@ -384,24 +392,28 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     const root = new THREE.Group()
     const paper = new THREE.Group()
     paper.rotation.order = 'YXZ'
-    paper.add(paperHalf(-1), paperHalf(1))
+    const sheet = paperMaterial.clone()
+    paper.add(paperHalf(-1, sheet), paperHalf(1, sheet))
     root.add(paper)
     const ring = flat(new THREE.Mesh(clueRing, new THREE.MeshBasicMaterial({ color: CLUE_PAPER.ring, transparent: true, opacity: 0.6, depthWrite: false })), 0.03)
-    const beam = new THREE.Mesh(beamGeometry, beamMaterial)
+    const glow = beamMaterial.clone()
+    const beam = new THREE.Mesh(beamGeometry, glow)
     beam.renderOrder = 2
     root.add(ring, beam)
     root.position.set(drop.pos.x, world ? floorAt(world.grid, drop.pos.x, drop.pos.y) : 0, drop.pos.y)
     layer(root)
     scene.add(root)
-    return { root, paper, ring, seen: true }
+    return { root, paper, ring, sheet, beam: glow, seen: true }
   }
 
   function removeClue(view: ClueView): void {
     scene.remove(view.root)
     view.ring.material.dispose()
+    view.sheet.dispose()
+    view.beam.dispose()
   }
 
-  function syncClues(world: World): void {
+  function syncClues(world: World, eye: THREE.Vector3 | undefined): void {
     const time = world.time
     for (const view of clues.values()) view.seen = false
     for (const drop of world.clues) {
@@ -415,9 +427,12 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
       view.paper.position.y = CLUE_PAPER.float + Math.sin(time * CLUE_PAPER.bobRate + drop.id) * CLUE_PAPER.bob
       view.paper.rotation.set(-CLUE_PAPER.tilt, Math.sin(time * CLUE_PAPER.swayRate + drop.id) * CLUE_PAPER.sway, 0)
       view.ring.material.opacity = 0.4 + Math.sin(time * 4 + drop.id) * 0.25
+      const near = eye ? clueGlowNear(Math.hypot(eye.x - drop.pos.x, eye.y - view.root.position.y - view.paper.position.y, eye.z - drop.pos.y)) : 1
+      const glow = CLUE_PAPER.glowBase + CLUE_PAPER.glowSwing * Math.sin(time * CLUE_PAPER.glowRate)
+      view.sheet.emissiveIntensity = CLUE_PAPER.glowNear + (glow - CLUE_PAPER.glowNear) * near
+      view.beam.opacity = CLUE_PAPER.beamOpacity * (0.75 + 0.25 * Math.sin(time * CLUE_PAPER.glowRate)) * near
+      view.beam.visible = near > 0
     }
-    paperMaterial.emissiveIntensity = CLUE_PAPER.glowBase + CLUE_PAPER.glowSwing * Math.sin(time * CLUE_PAPER.glowRate)
-    beamMaterial.opacity = CLUE_PAPER.beamOpacity * (0.75 + 0.25 * Math.sin(time * CLUE_PAPER.glowRate))
     for (const [id, view] of clues) {
       if (view.seen) continue
       removeClue(view)
@@ -527,13 +542,13 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
   }
 
   return {
-    sync(next) {
+    sync(next, _dt, eye) {
       if (next.level !== world?.level) foggy = hasFog(next.level)
       world = next
       syncPickups(next)
       syncChests(next)
       syncSupplies(next)
-      syncClues(next)
+      syncClues(next, eye)
       debris.sync(next)
     },
     reset() {

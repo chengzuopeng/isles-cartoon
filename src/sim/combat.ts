@@ -154,10 +154,10 @@ export function damageEnemy(
     crit: hit.crit ?? false,
   })
   aggro(world, enemy)
-  if (enemy.hp <= 0) killEnemy(world, enemy, true)
+  if (enemy.hp <= 0) killEnemy(world, enemy, true, true, true, dirX, dirY)
 }
 
-export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain = true, drop = true): void {
+export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain = true, drop = true, dirX = 0, dirY = 0): void {
   enemy.hp = 0
   if (enemy.elite && !enemy.summoned) world.stats.elites += 1
   if (byPlayer) {
@@ -170,7 +170,7 @@ export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain =
   }
   const { feel } = world.tuning
   world.hitstop = Math.max(world.hitstop, enemy.kind === 'boss' ? feel.hitstopBoss : feel.hitstopKill)
-  world.events.push({ type: 'enemyKilled', id: enemy.id, kind: enemy.kind, x: enemy.pos.x, y: enemy.pos.y })
+  world.events.push({ type: 'enemyKilled', id: enemy.id, kind: enemy.kind, x: enemy.pos.x, y: enemy.pos.y, dirX, dirY })
   if (enemy.kind === 'bomber' && chain) detonateBomber(world, enemy)
   if (enemy.elite && chain) eliteDeath(world, enemy)
   if (enemy.boss) defeatBoss(world, enemy)

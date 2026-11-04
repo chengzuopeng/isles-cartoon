@@ -439,7 +439,7 @@ export type GameEvent =
   | { type: 'bulletHitWall'; x: number; y: number; z: number; team: Team }
   | { type: 'bulletExpired'; x: number; y: number; z: number; team: Team }
   | { type: 'enemyHit'; id: number; x: number; y: number; z: number; damage: number; crit: boolean }
-  | { type: 'enemyKilled'; id: number; kind: EnemyKind; x: number; y: number }
+  | { type: 'enemyKilled'; id: number; kind: EnemyKind; x: number; y: number; dirX: number; dirY: number }
   | { type: 'enemyWindup'; id: number }
   | { type: 'enemyCharge'; id: number; x: number; y: number; angle: number }
   | { type: 'enemyAlerted'; id: number; x: number; y: number }

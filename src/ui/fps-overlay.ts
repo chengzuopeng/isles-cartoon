@@ -37,8 +37,10 @@ interface Arc {
   life: number
 }
 
-export function createFpsOverlay(container: HTMLElement): FpsOverlay {
+export function createFpsOverlay(container: HTMLElement, scene: HTMLElement): FpsOverlay {
   const root = element('div', 'fps-overlay', container)
+  const under = element('div', 'fps-veil-layer', container)
+  scene.after(under)
   const cross = element('div', 'fps-crosshair', root)
   cross.innerHTML = CROSSHAIR
   const marker = element('div', 'fps-hitmarker', root)
@@ -56,7 +58,7 @@ export function createFpsOverlay(container: HTMLElement): FpsOverlay {
   const vignette = element('div', 'fps-hurt-vignette', root)
   const barrier = element('div', 'fps-barrier', root)
   barrier.style.setProperty('--hex', HEX_PATTERN)
-  const veil = element('div', 'fps-stalk-veil', root)
+  const veil = element('div', 'fps-stalk-veil', under)
   veil.style.backgroundImage = stalkVeilUrl()
   const hiding = element('div', 'fps-hiding', root, '藏在草里')
   const live: Arc[] = []
@@ -90,6 +92,7 @@ export function createFpsOverlay(container: HTMLElement): FpsOverlay {
     },
     update(state, dt) {
       root.classList.toggle('hidden', !state.playing)
+      under.classList.toggle('hidden', !state.playing)
       cross.classList.toggle('dim', !state.alive)
       markerTime = Math.max(0, markerTime - dt)
       killTime = Math.max(0, killTime - dt)

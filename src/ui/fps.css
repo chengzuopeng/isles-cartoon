@@ -34,6 +34,16 @@
   display: none;
 }
 
+.fps-veil-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fps-veil-layer.hidden {
+  display: none;
+}
+
 .fps-crosshair {
   position: absolute;
   left: 50%;
@@ -515,8 +525,8 @@
 
 .fps-hiding {
   position: absolute;
-  left: 50%;
-  bottom: 118px;
+  left: 128px;
+  bottom: 92px;
   padding: 2px 12px;
   border: 2px solid #1d1714;
   border-radius: 8px;
@@ -526,7 +536,7 @@
   font-size: 18px;
   font-weight: 900;
   opacity: 0;
-  transform: translateX(-50%);
+  transform: rotate(-2deg);
   transition: opacity 0.2s;
 }
 

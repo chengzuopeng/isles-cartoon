@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+import { RigidStandardMaterial, rigidNormalFor } from './rigid-parts'
 import { INK_COLOR } from './toon'
 
 export interface StyleToggles {
@@ -389,7 +390,7 @@ export function createInkPipeline(renderer: THREE.WebGLRenderer, look: InkLook =
         drawn.visible = false
         return
       }
-      drawn.material = first?.side === THREE.DoubleSide ? normalDouble : first?.side === THREE.BackSide ? normalBack : normalFront
+      drawn.material = first instanceof RigidStandardMaterial ? rigidNormalFor(first) : first?.side === THREE.DoubleSide ? normalDouble : first?.side === THREE.BackSide ? normalBack : normalFront
     })
   }
   const restore = () => {

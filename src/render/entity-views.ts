@@ -12,6 +12,7 @@ import { disabled } from '../sim/status'
 import type { Blast, Enemy, EnemyKind, GameEvent, MinionKind } from '../sim/types'
 import type { World } from '../sim/world'
 import { createBlobShadows } from './blob-shadows'
+import { createEnemyWrecks, wreckSource, type WreckSource } from './enemy-wrecks'
 import { defeatTime } from './boss-motion'
 import { createBossRigs, type BossRig, type DefeatTarget } from './boss-rigs'
 import { laneLength } from './chief-motion'
@@ -80,6 +81,7 @@ interface EnemyView {
   cone: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null
   lamp: THREE.Group | null
   face: { sprite: THREE.Sprite; current: EyeFace; sorryUntil: number } | null
+  wreck: WreckSource | null
 }
 
 interface Veil {
@@ -399,6 +401,31 @@ export function createEntityViews(
   const markerMeshes: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>[] = []
   const blastMeshes: { ring: THREE.Mesh; fill: THREE.Mesh; wall: THREE.Mesh }[] = []
   let clock = 0
+  let current: World | null = null
+  const wrecks = createEnemyWrecks(scene)
+  const wreckGround = (x: number, z: number): number => {
+    const grid = current?.grid
+    if (!grid) return 0
+    const column = Math.floor(x)
+    const row = Math.floor(z)
+    return blocksMovement(tileAt(grid, column, row)) ? cellTop(grid, column, row) : cellFloor(grid, column, row)
+  }
+
+  function shatter(view: EnemyView, event: Extract<GameEvent, { type: 'enemyKilled' }>): void {
+    const wreck = view.wreck
+    if (!wreck || !view.root.visible || view.veil.amount > 0) return
+    let dirX = event.dirX
+    let dirZ = event.dirY
+    if (Math.hypot(dirX, dirZ) < 1e-6 && current) {
+      dirX = event.x - current.player.pos.x
+      dirZ = event.y - current.player.pos.y
+    }
+    view.root.updateMatrixWorld(true)
+    view.owned = view.owned.filter((item) => item !== wreck.instance)
+    view.wreck = null
+    wrecks.spawn({ ...wreck, lights: view.eyes?.map((eye) => eye.material) ?? [] }, dirX, dirZ, event.id)
+    view.root.visible = false
+  }
 
   function shell(kind: EnemyKind): EnemyView {
     const root = new THREE.Group()
@@ -450,6 +477,7 @@ export function createEntityViews(
       cone: null,
       lamp: null,
       face: null,
+      wreck: null,
     }
   }
 
@@ -526,6 +554,7 @@ export function createEntityViews(
       view.owned.push(model)
       view.model = createEnemyRig(kind, view.pose, { model, models, effects })
       view.anchor = view.model.anchor
+      view.wreck = wreckSource(model, ENEMY_JOINTS[kind])
     } else {
       view.materials.push(material)
       if (enemy.kind !== 'boss') {
@@ -1304,6 +1333,7 @@ export function createEntityViews(
     },
     sync(world, alpha, dt) {
       clock += dt
+      current = world
       if (world.level !== foggyLevel) {
         foggyLevel = world.level
         foggy = hasFog(world.level)
@@ -1314,6 +1344,7 @@ export function createEntityViews(
       syncEnemies(world, alpha, dt)
       syncMarkers(world)
       syncBlasts(world)
+      wrecks.update(dt, wreckGround)
     },
     handle(event) {
       player.handle(event)
@@ -1350,10 +1381,13 @@ export function createEntityViews(
           stage.addTrauma(feel.shakeHit)
           break
         }
-        case 'enemyKilled':
+        case 'enemyKilled': {
           if (!claimed) effects.burst(event.x, event.y, KILL_COLORS[event.kind], event.kind === 'boss' ? 2.2 : 1)
           stage.addTrauma(event.kind === 'boss' ? (claimed ? 0.45 : 1) : feel.shakeKill)
+          const view = enemyViews.get(event.id)
+          if (view) shatter(view, event)
           break
+        }
         case 'enemySpawned':
           effects.puff(event.x, 0.4, event.y, '#ffb4a8', 0.4, 1.1, 0.25)
           break
@@ -1418,6 +1452,7 @@ export function createEntityViews(
       player.reset()
       sheep.reset()
       mines.reset()
+      wrecks.reset()
     },
   }
 }

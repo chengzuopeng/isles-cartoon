@@ -65,6 +65,30 @@ export class RigidDepthMaterial extends THREE.MeshDepthMaterial {
   }
 }
 
+export class RigidNormalMaterial extends THREE.MeshNormalMaterial {
+  rigidJoints: JointValues = { value: new Float32Array(16) }
+
+  override onBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms): void {
+    patch(shader, this.rigidJoints)
+  }
+
+  override customProgramCacheKey(): string {
+    return RIGID_PROGRAM
+  }
+}
+
+const normals = new WeakMap<RigidStandardMaterial, RigidNormalMaterial>()
+
+export function rigidNormalFor(material: RigidStandardMaterial): RigidNormalMaterial {
+  const known = normals.get(material)
+  if (known) return known
+  const normal = new RigidNormalMaterial({ side: material.side })
+  normal.rigidJoints = material.rigidJoints
+  material.addEventListener('dispose', () => normal.dispose())
+  normals.set(material, normal)
+  return normal
+}
+
 function jointCopy(mesh: THREE.Mesh, inverse: THREE.Matrix4, joint: number): THREE.BufferGeometry {
   const geometry = floatCopy(mesh.geometry)
   geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverse, mesh.matrixWorld))

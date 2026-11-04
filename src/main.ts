@@ -249,7 +249,7 @@ const hud = createHud(container, stage, {
 const numbers = createDamageNumbers(container, stage, tuning)
 const tips = createTips(container)
 let map = createMapOverlay(container, level, Boolean(devTools))
-const overlay = createFpsOverlay(container)
+const overlay = createFpsOverlay(container, stage.renderer.domElement)
 const words = createSfxWords(container, stage)
 const notices = createNoticeMarks(container, stage)
 const bounty = createBountyCard(container)
@@ -1005,7 +1005,7 @@ function placeEye(alpha: number, dt: number): void {
 function syncViews(dt: number, alpha: number): void {
   levelView?.update(world, dt, stage.camera.position)
   views.sync(world, alpha, dt)
-  pickupViews.sync(world, dt)
+  pickupViews.sync(world, dt, stage.camera.position)
   projectileViews.sync(world, alpha, dt)
   rings.sync(world, alpha)
 }
@@ -1062,7 +1062,7 @@ function frame(now: number): void {
       dashReady: 1 - Math.min(1, world.player.dashCooldown / 3),
       meleeReady: 1 - Math.min(1, world.player.meleeCooldown / 0.6),
       alive: world.player.alive,
-      playing: screen === 'play' && !results.isOpen(),
+      playing: screen === 'play' && !results.isOpen() && !dialogue.isOpen(),
       locked: input.locked(),
       barrier: world.player.barrier > 0,
     },
