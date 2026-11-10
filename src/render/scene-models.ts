@@ -9,6 +9,8 @@ export type TurnRule = 'quarter' | 'any' | 'neighbors'
 
 export type ShadowCaster = 'model' | 'none' | 'box' | 'lathe'
 
+export const BACKDROP_THEMES: ReadonlySet<Theme> = new Set<Theme>(['farm', 'meadow', 'village'])
+
 export interface PropRule {
   model: Readonly<Record<Theme, string>>
   variants: number

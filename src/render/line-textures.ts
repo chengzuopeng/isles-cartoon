@@ -5,8 +5,8 @@ export type LineTextureKind = 'wood' | 'stone' | 'rock' | 'metal' | 'dirt' | 'gr
 const SIZE = 256
 const INK = 'rgba(29, 23, 20, 0.85)'
 const SOFT_INK = 'rgba(29, 23, 20, 0.35)'
-const GRASS_INK = 'rgba(38, 62, 18, 0.34)'
-const EARTH_INK = 'rgba(52, 34, 18, 0.3)'
+const GRASS_INK = 'rgba(30, 58, 20, 0.72)'
+const EARTH_INK = 'rgba(58, 34, 18, 0.74)'
 const OFFSETS: readonly [number, number][] = [-SIZE, 0, SIZE].flatMap((dx) => [-SIZE, 0, SIZE].map((dy) => [dx, dy] as [number, number]))
 
 function random(seed: number): () => number {
@@ -180,7 +180,7 @@ function grass(context: CanvasRenderingContext2D, rand: () => number): void {
       const spread = (b - (blades - 1) / 2) * 3.4
       const height = 7 + rand() * 8
       const tip = lean + spread * 0.8
-      wrappedStroke(context, [[x + spread, y], [x + spread + tip * 0.45, y - height * 0.55], [x + spread + tip, y - height]], 1.3, GRASS_INK)
+      wrappedStroke(context, [[x + spread, y], [x + spread + tip * 0.45, y - height * 0.55], [x + spread + tip, y - height]], 2.1, GRASS_INK)
     }
   }
   for (let i = 0; i < 40; i++) wrappedEllipse(context, rand() * SIZE, rand() * SIZE, 1 + rand() * 0.8, 0.8 + rand() * 0.6, 0, GRASS_INK, null)
@@ -189,21 +189,21 @@ function grass(context: CanvasRenderingContext2D, rand: () => number): void {
 function gravel(context: CanvasRenderingContext2D, rand: () => number): void {
   context.fillStyle = '#ffffff'
   context.fillRect(0, 0, SIZE, SIZE)
-  for (let i = 0; i < 26; i++) {
-    const shade = 0.88 + rand() * 0.1
-    const tone = `rgb(${Math.round(255 * shade)}, ${Math.round(250 * shade)}, ${Math.round(240 * shade)})`
-    wrappedEllipse(context, rand() * SIZE, rand() * SIZE, 3 + rand() * 5, 2 + rand() * 3, rand() * Math.PI, tone, EARTH_INK, 1.3)
+  for (let i = 0; i < 20; i++) {
+    const shade = 0.8 + rand() * 0.2
+    const tone = `rgb(${Math.round(255 * shade)}, ${Math.round(246 * shade)}, ${Math.round(230 * shade)})`
+    wrappedEllipse(context, rand() * SIZE, rand() * SIZE, 5 + rand() * 9, 3.5 + rand() * 5, rand() * Math.PI, tone, EARTH_INK, 2.4)
   }
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 9; i++) {
     let x = rand() * SIZE
     let y = rand() * SIZE
     const points: [number, number][] = [[x, y]]
-    for (let s = 0; s < 4; s++) {
-      x += 8 + rand() * 14
-      y += (rand() - 0.5) * 14
+    for (let s = 0; s < 5; s++) {
+      x += (rand() - 0.5) * 16
+      y += 10 + rand() * 16
       points.push([x, y])
     }
-    wrappedStroke(context, points, 1.1, EARTH_INK)
+    wrappedStroke(context, points, 2.2, EARTH_INK)
   }
   for (let i = 0; i < 70; i++) wrappedEllipse(context, rand() * SIZE, rand() * SIZE, 0.9 + rand(), 0.9 + rand(), 0, EARTH_INK, null)
 }

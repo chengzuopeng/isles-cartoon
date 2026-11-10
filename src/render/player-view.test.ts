@@ -60,7 +60,7 @@ async function setup(rigged = true) {
   const kit = { buildKai: () => kai } as unknown as ModelKit
   const scene = new THREE.Scene()
   const stage = { scene, addTrauma: vi.fn() } as unknown as Stage
-  const effects: Effects = { puff: vi.fn(), burst: vi.fn(), update: vi.fn(), clear: vi.fn() }
+  const effects: Effects = { puff: vi.fn(), burst: vi.fn(), sparks: vi.fn(), smoke: vi.fn(), explosion: vi.fn(), update: vi.fn(), clear: vi.fn() }
   const tuning = createDefaultTuning()
   const view = createPlayerView(stage, tuning, effects, kit, library)
   const world = createWorld(buildLevel(TRAINING), tuning)

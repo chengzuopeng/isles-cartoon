@@ -446,6 +446,13 @@ export const BOSS_DEFEAT = {
   smoke: '#4a4540',
 } as const
 
+export const FX = {
+  sparks: { max: 700, gravity: 11, drag: 1.6, width: 0.05, stretch: 0.06, glow: 2.6, hit: '#ffd060', crit: '#fff2a0', wall: '#ffe6b0', kill: '#ffb040', blast: '#ffc24a' },
+  blobs: { max: 160 },
+  fire: { count: 7, life: 0.42, glow: 1.9, colors: ['#ffe45a', '#ffb02e', '#ff7a1f'] },
+  smoke: { count: 16, life: 1.3, colors: ['#5c4536', '#7a5f47', '#4a372c', '#93755a'] },
+} as const
+
 export const WRECK = {
   gravity: 16,
   push: 3.2,

@@ -27,7 +27,7 @@ import { EMPTY_LIBRARY, socketWorld, type ModelLibrary } from './model-library'
 import { createPlayerView } from './player-view'
 import { createSheepViews } from './sheep-views'
 import type { Stage } from './stage'
-import { BUFF_COLORS, CHEST_COLORS, CLUE_GLOW, ELITE_CROWN, FOG_LAYER, FOG_VEIL, HEAL_COLOR } from './themes'
+import { BUFF_COLORS, CHEST_COLORS, CLUE_GLOW, ELITE_CROWN, FOG_LAYER, FOG_VEIL, FX, HEAL_COLOR } from './themes'
 import { BULLET_HEIGHT, GEAR_COLOR, flat, part, standard, type Disposable } from './view-helpers'
 import { BODY_HEIGHTS, CHEST_HEIGHT, eyeHeightOf, muzzleHeightOf } from '../data/heights'
 import { bossExposed } from '../sim/boss'
@@ -410,6 +410,9 @@ export function createEntityViews(
     const row = Math.floor(z)
     return blocksMovement(tileAt(grid, column, row)) ? cellTop(grid, column, row) : cellFloor(grid, column, row)
   }
+
+  const awayX = (x: number) => (current ? current.player.pos.x - x : 0)
+  const awayY = (y: number) => (current ? current.player.pos.y - y : 0)
 
   function shatter(view: EnemyView, event: Extract<GameEvent, { type: 'enemyKilled' }>): void {
     const wreck = view.wreck
@@ -1368,23 +1371,41 @@ export function createEntityViews(
         case 'secretFound':
           effects.puff(event.x, 0.8, event.y, CLUE_GLOW, 0.3, 1.3, 0.6)
           break
-        case 'bulletHitWall':
-          effects.puff(event.x, 'z' in event ? event.z : BULLET_HEIGHT, event.y, event.team === 'player' ? '#f3e2c4' : '#ffb3c8', 0.2, 0.6, 0.16)
+        case 'bulletHitWall': {
+          const height = 'z' in event ? event.z : BULLET_HEIGHT
+          effects.puff(event.x, height, event.y, event.team === 'player' ? '#f3e2c4' : '#ffb3c8', 0.2, 0.6, 0.16)
+          if (event.team === 'player') effects.sparks(event.x, height, event.y, awayX(event.x), awayY(event.y), { count: 7, speed: 5.5, life: 0.26, color: FX.sparks.wall, spread: 0.8 })
           break
+        }
         case 'bulletExpired':
           effects.puff(event.x, 'z' in event ? event.z : BULLET_HEIGHT, event.y, '#fff7d6', 0.12, 0.3, 0.1)
           break
         case 'enemyHit': {
           const view = enemyViews.get(event.id)
           if (view) view.flash = 1
-          effects.puff(event.x, 0.75, event.y, '#ffffff', 0.3, 0.7, 0.12)
+          effects.puff(event.x, event.z, event.y, '#ffffff', 0.3, 0.8, 0.1)
+          effects.sparks(event.x, event.z, event.y, awayX(event.x), awayY(event.y), {
+            count: event.crit ? 26 : 14,
+            speed: event.crit ? 9.5 : 7.5,
+            life: 0.32,
+            color: event.crit ? FX.sparks.crit : FX.sparks.hit,
+            spread: 0.9,
+          })
           stage.addTrauma(feel.shakeHit)
           break
         }
         case 'enemyKilled': {
-          if (!claimed) effects.burst(event.x, event.y, KILL_COLORS[event.kind], event.kind === 'boss' ? 2.2 : 1)
-          stage.addTrauma(event.kind === 'boss' ? (claimed ? 0.45 : 1) : feel.shakeKill)
           const view = enemyViews.get(event.id)
+          if (!claimed) {
+            const base = view ? view.root.position.y : 0
+            if (event.kind === 'boss') effects.burst(event.x, event.y, KILL_COLORS[event.kind], 2.2)
+            else {
+              effects.puff(event.x, base + 0.7, event.y, KILL_COLORS[event.kind], 0.5, 1.5, 0.14)
+              effects.smoke(event.x, base + 0.5, event.y, 0.6, 5)
+              effects.sparks(event.x, base + 0.7, event.y, event.dirX, event.dirY, { count: 30, speed: 9, life: 0.45, color: FX.sparks.kill, spread: 0.85, lift: 0.5 })
+            }
+          }
+          stage.addTrauma(event.kind === 'boss' ? (claimed ? 0.45 : 1) : feel.shakeKill)
           if (view) shatter(view, event)
           break
         }
@@ -1398,7 +1419,7 @@ export function createEntityViews(
           effects.burst(event.x, event.y, '#bfeaff', 0.6)
           break
         case 'crateBroken':
-          effects.burst(event.x, event.y, '#c8995a', 0.85)
+          effects.smoke(event.x, 0.6, event.y, 0.8, 4, '#b08a5a')
           stage.addTrauma(feel.shakeHit)
           break
         case 'chestOpened':
@@ -1415,7 +1436,7 @@ export function createEntityViews(
           break
         }
         case 'blast':
-          if (!claimed) effects.burst(event.x, event.y, event.source === 'boss' ? '#ffd27a' : event.source === 'player' ? '#ffb347' : '#ff9b3d', event.radius * 0.7)
+          if (!claimed) effects.explosion(event.x, event.z, event.y, event.radius * 0.75)
           stage.addTrauma(feel.shakeBlast)
           break
         case 'bossCrash':

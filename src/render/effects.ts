@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { FX } from './themes'
+import { toonMaterial } from './toon'
 
 interface Puff {
   mesh: THREE.Mesh<THREE.IcosahedronGeometry, THREE.MeshBasicMaterial>
@@ -8,6 +10,43 @@ interface Puff {
   to: number
   base: number
   rise: number
+}
+
+interface Blob {
+  mesh: THREE.Mesh
+  age: number
+  life: number
+  size: number
+  grow: number
+  fade: number
+  vx: number
+  vy: number
+  vz: number
+  drag: number
+}
+
+interface Spark {
+  x: number
+  y: number
+  z: number
+  vx: number
+  vy: number
+  vz: number
+  age: number
+  life: number
+  width: number
+  stretch: number
+  color: THREE.Color
+}
+
+export interface SparkStyle {
+  count: number
+  speed: number
+  life: number
+  color: THREE.ColorRepresentation
+  spread?: number
+  lift?: number
+  width?: number
 }
 
 export interface Effects {
@@ -22,6 +61,9 @@ export interface Effects {
     rise?: number,
   ): void
   burst(x: number, y: number, color: THREE.ColorRepresentation, size?: number): void
+  sparks(x: number, height: number, y: number, dirX: number, dirY: number, style: SparkStyle): void
+  smoke(x: number, height: number, y: number, size: number, count?: number, color?: THREE.ColorRepresentation): void
+  explosion(x: number, height: number, y: number, radius: number): void
   update(dt: number): void
   clear(): void
 }
@@ -34,11 +76,49 @@ const BURST_OFFSETS = [
 ] as const
 
 const START_OPACITY = 0.9
+const SMOKE_INK = {
+  inkShadeLow: { value: 0.95 },
+  inkShadeHigh: { value: 1.1 },
+  inkTintAmount: { value: 0.3 },
+  inkShadowLevel: { value: 0.8 },
+  inkShadowDesat: { value: 0 },
+  inkDotDarken: { value: 0.42 },
+  inkDotCell: { value: 7 },
+}
+const FORWARD = new THREE.Vector3(0, 0, 1)
+
+export function blobScale(age: number, life: number, grow: number, fade: number): number {
+  if (age <= 0 || age >= life) return 0
+  const t = age / life
+  if (t < grow) return 1 - (1 - t / grow) ** 3
+  if (t > 1 - fade) return Math.max(0, (1 - t) / fade)
+  return 1
+}
 
 export function createEffects(scene: THREE.Scene): Effects {
   const geometry = new THREE.IcosahedronGeometry(0.5, 1)
+  const round = new THREE.IcosahedronGeometry(0.5, 2)
   const active: Puff[] = []
   const idle: Puff[] = []
+  const blobs: Blob[] = []
+  const spare: THREE.Mesh[] = []
+  const smokeMaterials = new Map<string, THREE.Material>()
+  const fireMaterials = FX.fire.colors.map((color) => new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(FX.fire.glow) }))
+  const sparks: Spark[] = []
+  const sparkMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
+  const sparkMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), sparkMaterial, FX.sparks.max)
+  sparkMesh.count = 0
+  sparkMesh.frustumCulled = false
+  sparkMesh.userData.noInk = true
+  sparkMesh.renderOrder = 3
+  sparkMesh.setColorAt(0, new THREE.Color('#ffffff'))
+  scene.add(sparkMesh)
+  const matrix = new THREE.Matrix4()
+  const position = new THREE.Vector3()
+  const heading = new THREE.Vector3()
+  const turn = new THREE.Quaternion()
+  const scale = new THREE.Vector3()
+  const tint = new THREE.Color()
 
   const createPuff = (): Puff => {
     const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }))
@@ -62,12 +142,140 @@ export function createEffects(scene: THREE.Scene): Effects {
     active.push(item)
   }
 
+  const smokeMaterial = (color: THREE.ColorRepresentation): THREE.Material => {
+    const key = new THREE.Color(color).getHexString()
+    let material = smokeMaterials.get(key)
+    if (!material) {
+      const made = toonMaterial({ color })
+      const inked = made.onBeforeCompile.bind(made)
+      made.onBeforeCompile = (shader, renderer) => {
+        inked(shader, renderer)
+        Object.assign(shader.uniforms, SMOKE_INK)
+      }
+      material = made
+      smokeMaterials.set(key, material)
+    }
+    return material
+  }
+
+  const blob = (material: THREE.Material, x: number, y: number, z: number, size: number, life: number, delay: number, vx: number, vy: number, vz: number, grow: number, fade: number, drag: number) => {
+    if (blobs.length >= FX.blobs.max) return
+    const mesh = spare.pop() ?? new THREE.Mesh(round, material)
+    mesh.material = material
+    mesh.position.set(x, y, z)
+    mesh.rotation.set(Math.random() * 6.28, Math.random() * 6.28, 0)
+    mesh.scale.setScalar(0.0001)
+    mesh.visible = false
+    if (!mesh.parent) scene.add(mesh)
+    blobs.push({ mesh, age: -delay, life, size, grow, fade, vx, vy, vz, drag })
+  }
+
+  const spray: Effects['sparks'] = (x, height, y, dirX, dirY, style) => {
+    const aim = Math.hypot(dirX, dirY)
+    const spread = style.spread ?? 1
+    const base = new THREE.Color(style.color)
+    for (let i = 0; i < style.count && sparks.length < FX.sparks.max; i++) {
+      const yaw = Math.random() * Math.PI * 2
+      const pitch = (Math.random() - 0.35) * Math.PI * 0.9
+      let vx = Math.cos(yaw) * Math.cos(pitch) * spread
+      let vy = Math.sin(pitch) * spread + (style.lift ?? 0.35)
+      let vz = Math.sin(yaw) * Math.cos(pitch) * spread
+      if (aim > 1e-6) {
+        vx += dirX / aim
+        vz += dirY / aim
+      }
+      const length = Math.hypot(vx, vy, vz) || 1
+      const speed = style.speed * (0.45 + Math.random() * 0.85)
+      sparks.push({
+        x,
+        y: height,
+        z: y,
+        vx: (vx / length) * speed,
+        vy: (vy / length) * speed,
+        vz: (vz / length) * speed,
+        age: 0,
+        life: style.life * (0.55 + Math.random() * 0.7),
+        width: (style.width ?? FX.sparks.width) * (0.7 + Math.random() * 0.6),
+        stretch: FX.sparks.stretch * (0.7 + Math.random() * 0.6),
+        color: base.clone().multiplyScalar(FX.sparks.glow * (0.7 + Math.random() * 0.6)),
+      })
+    }
+  }
+
+  const smoke: Effects['smoke'] = (x, height, y, size, count = 7, color) => {
+    for (let i = 0; i < count; i++) {
+      const yaw = (i / count) * Math.PI * 2 + Math.random() * 0.9
+      const reach = size * (0.15 + Math.random() * 0.4)
+      const shade = color ?? FX.smoke.colors[i % FX.smoke.colors.length]
+      blob(
+        smokeMaterial(shade),
+        x + Math.cos(yaw) * reach,
+        height + (Math.random() - 0.3) * size * 0.5,
+        y + Math.sin(yaw) * reach,
+        size * (0.4 + Math.random() * 0.45),
+        FX.smoke.life * (0.6 + Math.random() * 0.4),
+        Math.random() * 0.08,
+        Math.cos(yaw) * size * 0.9,
+        size * (0.5 + Math.random() * 0.6),
+        Math.sin(yaw) * size * 0.9,
+        0.18,
+        0.4,
+        2.6,
+      )
+    }
+  }
+
   return {
     puff,
     burst(x, y, color, size = 1) {
       for (const [dx, height, dy] of BURST_OFFSETS) {
         puff(x + dx * size, height * size, y + dy * size, color, 0.45 * size, 1.4 * size, 0.32)
       }
+    },
+    sparks: spray,
+    smoke,
+    explosion(x, height, y, radius) {
+      const size = Math.max(0.8, radius)
+      puff(x, height + size * 0.4, y, '#fffbe0', size * 0.6, size * 2.4, 0.12)
+      for (let i = 0; i < FX.fire.count; i++) {
+        const yaw = (i / FX.fire.count) * Math.PI * 2 + Math.random()
+        const reach = size * (0.1 + Math.random() * 0.45)
+        blob(
+          fireMaterials[i % fireMaterials.length],
+          x + Math.cos(yaw) * reach,
+          height + size * (0.2 + Math.random() * 0.5),
+          y + Math.sin(yaw) * reach,
+          size * (0.7 + Math.random() * 0.5),
+          FX.fire.life * (0.8 + Math.random() * 0.5),
+          Math.random() * 0.04,
+          Math.cos(yaw) * size * 1.6,
+          size * (0.8 + Math.random()),
+          Math.sin(yaw) * size * 1.6,
+          0.3,
+          0.45,
+          3,
+        )
+      }
+      for (let i = 0; i < FX.smoke.count; i++) {
+        const yaw = (i / FX.smoke.count) * Math.PI * 2 + Math.random() * 0.7
+        const reach = size * (0.25 + Math.random() * 0.6)
+        blob(
+          smokeMaterial(FX.smoke.colors[i % FX.smoke.colors.length]),
+          x + Math.cos(yaw) * reach,
+          height + size * (0.15 + Math.random() * 0.8),
+          y + Math.sin(yaw) * reach,
+          size * (0.35 + Math.random() * 0.5),
+          FX.smoke.life * (0.8 + Math.random() * 0.6),
+          FX.fire.life * 0.5 + Math.random() * 0.14,
+          Math.cos(yaw) * size * 1.3,
+          size * (0.6 + Math.random() * 0.9),
+          Math.sin(yaw) * size * 1.3,
+          0.16,
+          0.35,
+          2.2,
+        )
+      }
+      spray(x, height + size * 0.3, y, 0, 0, { count: Math.round(28 + size * 10), speed: 9 + size * 3, life: 0.55, color: FX.sparks.blast, spread: 1, lift: 0.5, width: FX.sparks.width * 1.3 })
     },
     update(dt) {
       for (let i = active.length - 1; i >= 0; i--) {
@@ -83,6 +291,58 @@ export function createEffects(scene: THREE.Scene): Effects {
         active.splice(i, 1)
         idle.push(item)
       }
+      for (let i = blobs.length - 1; i >= 0; i--) {
+        const item = blobs[i]
+        item.age += dt
+        if (item.age >= item.life) {
+          item.mesh.visible = false
+          spare.push(item.mesh)
+          blobs.splice(i, 1)
+          continue
+        }
+        if (item.age <= 0) continue
+        const slow = Math.exp(-item.drag * dt)
+        item.vx *= slow
+        item.vy *= slow
+        item.vz *= slow
+        item.mesh.position.x += item.vx * dt
+        item.mesh.position.y += item.vy * dt
+        item.mesh.position.z += item.vz * dt
+        item.mesh.visible = true
+        item.mesh.scale.setScalar(Math.max(0.0001, item.size * blobScale(item.age, item.life, item.grow, item.fade)))
+      }
+      let shown = 0
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const item = sparks[i]
+        item.age += dt
+        if (item.age >= item.life) {
+          sparks.splice(i, 1)
+          continue
+        }
+        item.vy -= FX.sparks.gravity * dt
+        const slow = Math.exp(-FX.sparks.drag * dt)
+        item.vx *= slow
+        item.vy *= slow
+        item.vz *= slow
+        item.x += item.vx * dt
+        item.y += item.vy * dt
+        item.z += item.vz * dt
+      }
+      for (const item of sparks) {
+        const speed = Math.hypot(item.vx, item.vy, item.vz)
+        if (speed < 1e-4) continue
+        const left = 1 - item.age / item.life
+        heading.set(item.vx / speed, item.vy / speed, item.vz / speed)
+        turn.setFromUnitVectors(FORWARD, heading)
+        position.set(item.x, item.y, item.z)
+        scale.set(item.width * left, item.width * left, Math.max(item.width, speed * item.stretch))
+        sparkMesh.setMatrixAt(shown, matrix.compose(position, turn, scale))
+        sparkMesh.setColorAt(shown, tint.copy(item.color).multiplyScalar(0.35 + left * 0.65))
+        shown++
+      }
+      sparkMesh.count = shown
+      sparkMesh.instanceMatrix.needsUpdate = true
+      if (sparkMesh.instanceColor) sparkMesh.instanceColor.needsUpdate = true
     },
     clear() {
       for (const item of active) {
@@ -90,6 +350,13 @@ export function createEffects(scene: THREE.Scene): Effects {
         idle.push(item)
       }
       active.length = 0
+      for (const item of blobs) {
+        item.mesh.visible = false
+        spare.push(item.mesh)
+      }
+      blobs.length = 0
+      sparks.length = 0
+      sparkMesh.count = 0
     },
   }
 }

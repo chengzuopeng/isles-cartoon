@@ -2,13 +2,15 @@ import * as THREE from 'three'
 
 export const INK_UNIFORMS = {
   inkShadowTint: { value: new THREE.Color('#5a5f8a') },
-  inkTintAmount: { value: 0.6 },
+  inkLitTint: { value: new THREE.Color('#ffffff') },
+  inkTintAmount: { value: 0.82 },
+  inkShadowDesat: { value: 0.45 },
   inkShadeLow: { value: 0.42 },
-  inkShadeHigh: { value: 0.8 },
+  inkShadeHigh: { value: 0.62 },
   inkMidLevel: { value: 0.86 },
-  inkShadowLevel: { value: 0.6 },
-  inkDotCell: { value: 6 },
-  inkDotDarken: { value: 0.68 },
+  inkShadowLevel: { value: 0.62 },
+  inkDotCell: { value: 8 },
+  inkDotDarken: { value: 0.6 },
   inkDots: { value: 1 },
   inkSurfaceDots: { value: 0 },
   inkSpecular: { value: 0.16 },
@@ -19,7 +21,9 @@ export const INK_COLOR = new THREE.Color('#1d1714')
 
 const INK_HEAD = /* glsl */ `
 uniform vec3 inkShadowTint;
+uniform vec3 inkLitTint;
 uniform float inkTintAmount;
+uniform float inkShadowDesat;
 uniform float inkShadeLow;
 uniform float inkShadeHigh;
 uniform float inkMidLevel;
@@ -58,8 +62,9 @@ float inkLit = dot(inkLight, vec3(0.299, 0.587, 0.114)) / inkAlbedo;
 float inkEdge = max(fwidth(inkLit) * 0.75, 0.012);
 float inkShade = 1.0 - smoothstep(inkShadeLow - inkEdge, inkShadeLow + inkEdge, inkLit);
 float inkMid = 1.0 - smoothstep(inkShadeHigh - inkEdge, inkShadeHigh + inkEdge, inkLit);
-vec3 inkLitColor = diffuseColor.rgb * mix(1.0, inkMidLevel, inkMid);
-vec3 inkShadowColor = diffuseColor.rgb * mix(vec3(1.0), inkShadowTint * 1.35, inkTintAmount) * inkShadowLevel;
+vec3 inkLitColor = diffuseColor.rgb * inkLitTint * mix(1.0, inkMidLevel, inkMid);
+vec3 inkShadowBase = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114))), inkShadowDesat);
+vec3 inkShadowColor = inkShadowBase * mix(vec3(1.0), inkShadowTint * 2.2, inkTintAmount) * inkShadowLevel;
 vec3 inkColor = mix(inkLitColor, inkShadowColor, inkShade);
 float inkDarkness = inkShade * clamp(1.0 - inkLit / max(inkShadeLow, 0.001), 0.3, 1.0);
 float inkScreenDots = inkHalftone(gl_FragCoord.xy / inkDotCell, inkDarkness);

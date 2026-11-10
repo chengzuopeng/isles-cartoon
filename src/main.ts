@@ -34,7 +34,7 @@ import { RESIDENT_MODEL_IDS, VIEWMODEL_MODEL_IDS, type ModelId } from './render/
 import { createEffects } from './render/effects'
 import { createEntityViews, type EntityViews, type ViewFlags } from './render/entity-views'
 import { createFpsLevelView, type FpsLevelView } from './render/fps-level-view'
-import { createFpsStage, type ViewMode } from './render/fps-stage'
+import { SUN_DIRECTION, createFpsStage, type ViewMode } from './render/fps-stage'
 import { gltfSource } from './render/gltf-source'
 import { levelsToKeep, modelsFor, nextLevel } from './render/level-models'
 import { createModelLibrary } from './render/model-library'
@@ -216,6 +216,7 @@ let crouch = 0
 let hitRoll = 0
 let hitRollVelocity = 0
 let fovKick = 0
+let rush = 0
 let lastStatus = world.status
 const lookDelta = { x: 0, y: 0 }
 let meleeBatch = false
@@ -329,7 +330,7 @@ let viewsReady = false
 const viewmodel = createViewmodel(models)
 const rings = createRingViews(stage.scene)
 stage.setOverlay((renderer) => viewmodel.draw(renderer))
-const sunDirection = new THREE.Vector3(-7, 22, 8).normalize()
+const sunDirection = SUN_DIRECTION
 
 const booted = (async () => {
   await models.ensure([...RESIDENT_MODEL_IDS, ...VIEWMODEL_MODELS])
@@ -890,6 +891,7 @@ function dispatch(event: GameEvent): void {
       viewmodel.melee()
       if (event.hits > 0) {
         stage.addTrauma(0.25)
+        rush = Math.max(rush, 0.8)
         wordAt('kuang', event.x + Math.cos(event.angle) * 1.3, event.y + Math.sin(event.angle) * 1.3, world.player.z + 1.2, 1.1)
       }
       break
@@ -923,6 +925,7 @@ function dispatch(event: GameEvent): void {
       break
     case 'dashed':
       fovKick = 1
+      rush = 1
       break
     case 'weaponChanged':
       viewmodel.switched()
@@ -996,6 +999,8 @@ function placeEye(alpha: number, dt: number): void {
   const height = player.alive ? lerp(look.eyeHeight, GRASS_EYE_HEIGHT, crouch) : 0.45
   stage.setEye(x, y, eyeBase + height + eyeDip + bob)
   fovKick = Math.max(0, fovKick - dt * 3.2)
+  rush = Math.max(0, rush - dt * 3.4)
+  stage.setRush(rush)
   stage.setFovBoost(fovKick * 5)
   hitRollVelocity += (-hitRoll * HIT_ROLL.stiffness - hitRollVelocity * HIT_ROLL.damping) * dt
   hitRoll = Math.max(-HIT_ROLL.max, Math.min(HIT_ROLL.max, hitRoll + hitRollVelocity * dt))

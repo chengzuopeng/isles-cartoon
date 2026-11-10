@@ -50,7 +50,7 @@ function pose(mesh: THREE.InstancedMesh, index: number): { position: THREE.Vecto
 }
 
 function spyEffects(): Effects & { puff: ReturnType<typeof vi.fn> } {
-  return { puff: vi.fn(), burst: vi.fn(), update: vi.fn(), clear: vi.fn() } as unknown as Effects & { puff: ReturnType<typeof vi.fn> }
+  return { puff: vi.fn(), burst: vi.fn(), sparks: vi.fn(), smoke: vi.fn(), explosion: vi.fn(), update: vi.fn(), clear: vi.fn() } as unknown as Effects & { puff: ReturnType<typeof vi.fn> }
 }
 
 function named<T extends THREE.Object3D>(object: T, name: string, parent: THREE.Object3D): T {

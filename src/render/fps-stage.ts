@@ -7,6 +7,7 @@ import { createInkPipeline, type InkPipeline, type InkTimings, type StyleToggles
 import { applyShadowQuality, pixelRatioFor } from './quality'
 import { createSky, type Sky } from './sky'
 import { castProxies, settleState, type ProgramSettle, type RenderInfo, type ScreenPoint, type Stage } from './stage'
+import { CHAPTER_1_LOOK } from './chapter-look'
 import { INK_UNIFORMS } from './toon'
 import { UPLOAD_PACING } from './themes'
 import { createUploadPacer, textureBytes } from './upload-pacing'
@@ -31,6 +32,7 @@ export interface FpsStage extends Stage {
   look(yaw: number, pitch: number): void
   setFov(horizontalDegrees: number): void
   setFovBoost(degrees: number): void
+  setRush(amount: number): void
   setRoll(radians: number): void
   setOverlay(draw: ((renderer: THREE.WebGLRenderer) => void) | null): void
   setLevel(grid: Grid): void
@@ -41,7 +43,8 @@ export interface FpsStage extends Stage {
   pitch(): number
 }
 
-const SUN_DIRECTION = new THREE.Vector3(-7, 22, 8).normalize()
+const LOOK = CHAPTER_1_LOOK
+export const SUN_DIRECTION = LOOK.sunDirection
 const SHADOW_HALF = 34
 const SHADOW_DEPTH = 160
 const TOP_PITCH = THREE.MathUtils.degToRad(58)
@@ -79,21 +82,22 @@ export function createFpsStage({ container, grid, quality, fov }: FpsStageOption
   const scene = new THREE.Scene()
   const center = new THREE.Vector3(grid.columns / 2, 0, grid.rows / 2)
   const sky = createSky({
-    texture: `${import.meta.env.BASE_URL}assets/scenes/sky-ch1.jpg`,
-    repeats: 2,
-    zenith: '#1f86de',
-    horizon: '#f3e4c4',
-    sea: '#fbf3e2',
-    seaShadow: '#b9b6d8',
+    colors: LOOK.sky,
+    sunDirection: SUN_DIRECTION,
+    sea: LOOK.sea,
+    seaShadow: LOOK.seaShadow,
     seaHeight: -42,
     center,
     north: new THREE.Vector3(0, 0, -1),
   })
   scene.add(sky.group, sky.far)
 
-  const hemisphere = new THREE.HemisphereLight('#d9ebff', '#9a8a68', 1.25)
+  INK_UNIFORMS.inkLitTint.value.set(LOOK.litTint)
+  INK_UNIFORMS.inkShadowTint.value.set(LOOK.shadowTint)
+  pipeline.look.haze.set(LOOK.haze)
+  const hemisphere = new THREE.HemisphereLight(LOOK.skyLight, LOOK.groundLight, LOOK.ambient)
   scene.add(hemisphere)
-  const sun = new THREE.DirectionalLight('#fff0d4', 2.5)
+  const sun = new THREE.DirectionalLight(LOOK.sunColor, LOOK.sunIntensity)
   sun.castShadow = true
   applyShadowQuality(sun, shadows)
   sun.shadow.mapSize.set(2048, 2048)
@@ -303,6 +307,9 @@ export function createFpsStage({ container, grid, quality, fov }: FpsStageOption
     setFov(degrees) {
       horizontalFov = degrees
     },
+    setRush(amount) {
+      pipeline.look.rush = Math.max(0, Math.min(1, amount))
+    },
     setFovBoost(degrees) {
       fovBoost = degrees
     },
@@ -338,6 +345,7 @@ export function createFpsStage({ container, grid, quality, fov }: FpsStageOption
         shakeTime += dt
         trauma = Math.max(0, trauma - SHAKE_DECAY * dt)
       }
+      pipeline.look.pulse = Math.min(1, trauma * trauma * 1.4)
       placeCamera()
       sky.update(camera, dt)
       if (shadows !== 'off') aimSun()

@@ -7,7 +7,7 @@ import { MODEL_IDS, RESIDENT_MODEL_IDS, type ModelId } from './asset-urls'
 import { normalBelts } from './belt-cargo'
 import { BLADE_MODEL } from './blade-views'
 import { LADDER_MODEL } from './ladder'
-import { PROP_MODELS, bridgeAt, propModel, variantIds, type PropKind } from './scene-models'
+import { BACKDROP_THEMES, PROP_MODELS, bridgeAt, propModel, variantIds, type PropKind } from './scene-models'
 import { BELT_CARGO } from './themes'
 
 const KNOWN = new Set<string>(MODEL_IDS)
@@ -53,6 +53,9 @@ export function levelModelIds(level: BuiltLevel): ModelId[] {
     for (const id of variantIds(base, count)) add(id)
   }
   const { grid } = level
+  for (const area of level.areas) {
+    if (BACKDROP_THEMES.has(area.theme)) family(propModel('tree', area.theme), PROP_MODELS.tree.variants)
+  }
   for (let row = 0; row < grid.rows; row++) {
     const theme = level.areas[level.areaOfRow[row]].theme
     for (let column = 0; column < grid.columns; column++) {

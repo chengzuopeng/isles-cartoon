@@ -32,6 +32,8 @@ export interface InkLook {
   grain: number
   saturation: number
   warmth: number
+  pulse: number
+  rush: number
 }
 
 export interface InkTimings {
@@ -53,13 +55,13 @@ export interface InkPipeline {
 }
 
 export const DEFAULT_LOOK: InkLook = {
-  lineWidth: 2.2,
-  creaseWidth: 1.1,
+  lineWidth: 3.4,
+  creaseWidth: 1.6,
   depthThreshold: 0.035,
   normalThreshold: 0.22,
-  lineFadeStart: 30,
-  lineFadeEnd: 90,
-  creaseEnd: 60,
+  lineFadeStart: 45,
+  lineFadeEnd: 220,
+  creaseEnd: 110,
   hazeStart: 60,
   hazeEnd: 900,
   hazeMax: 0.5,
@@ -67,11 +69,13 @@ export const DEFAULT_LOOK: InkLook = {
   bloomStrength: 0.75,
   bloomRadius: 0.35,
   bloomThreshold: 1.02,
-  vignette: 0.22,
-  aberration: 1.1,
+  vignette: 0.3,
+  aberration: 2.2,
   grain: 0.05,
-  saturation: 1.06,
+  saturation: 1.08,
   warmth: 0.03,
+  pulse: 0,
+  rush: 0,
 }
 
 const QUAD_VERTEX = /* glsl */ `
@@ -169,6 +173,9 @@ uniform float grain;
 uniform float saturation;
 uniform float warmth;
 uniform float grade;
+uniform float pulse;
+uniform float rush;
+uniform float beat;
 varying vec2 vUv;
 
 float hash(vec2 p) {
@@ -199,7 +206,7 @@ void main() {
   float radius = length(offset * vec2(resolution.x / resolution.y, 1.0));
   vec3 color;
   if (grade > 0.5) {
-    vec2 shift = offset * aberration * radius / resolution * 2.0;
+    vec2 shift = offset * aberration * (1.0 + pulse * 7.0) * radius / resolution * 2.0;
     color.r = texture2D(tColor, vUv + shift).r;
     color.g = texture2D(tColor, vUv).g;
     color.b = texture2D(tColor, vUv - shift).b;
@@ -209,6 +216,11 @@ void main() {
     vec3 over = max(color - 0.82, 0.0);
     color = min(color, 0.82) + over / (1.0 + over * 2.6);
     color *= 1.0 - vignette * smoothstep(0.45, 1.05, radius);
+    float wedge = floor((atan(offset.y, offset.x) + 3.14159) * 22.0);
+    float ray = hash(vec2(wedge, beat));
+    float reach = 0.34 + hash(vec2(wedge + 7.0, beat)) * 0.3;
+    float streak = step(0.7, ray) * smoothstep(reach, reach + 0.05, radius) * rush;
+    color = mix(color, vec3(1.0, 0.99, 0.94), streak * 0.9);
     vec2 paper = gl_FragCoord.xy;
     float fiber = valueNoise(paper * vec2(0.9, 0.35)) * 0.6 + valueNoise(paper * 0.08) * 0.4;
     float speck = hash(floor(paper / 1.5));
@@ -290,6 +302,9 @@ export function createInkPipeline(renderer: THREE.WebGLRenderer, look: InkLook =
       saturation: { value: look.saturation },
       warmth: { value: look.warmth },
       grade: { value: 1 },
+      pulse: { value: 0 },
+      rush: { value: 0 },
+      beat: { value: 0 },
     },
   })
   const inkQuad = new FullScreenQuad(inkMaterial)
@@ -357,6 +372,9 @@ export function createInkPipeline(renderer: THREE.WebGLRenderer, look: InkLook =
     g.grain.value = look.grain
     g.saturation.value = look.saturation
     g.warmth.value = look.warmth
+    g.pulse.value = look.pulse
+    g.rush.value = look.rush
+    g.beat.value = Math.floor(performance.now() / 45) % 997
     g.grade.value = toggles.grade ? 1 : 0
     bloom.strength = look.bloomStrength
     bloom.radius = look.bloomRadius

@@ -14,6 +14,7 @@ import { STALK_STYLES, createStalkMaterial, stalkGeometry, stalkMatrices } from 
 import { flowerBatches, flowerHeadGeometry, flowerStemGeometry, pebbleBatches, pebbleGeometry, spikeBatches, spikeGeometry, type DetailBatch, type WallEdge } from './ground-details'
 import { bakeNode, type NodePart } from './node-parts'
 import {
+  BACKDROP_THEMES,
   PROP_MODELS,
   bridgeAt,
   cellHash,
@@ -241,6 +242,7 @@ export function tuftGeometry(): THREE.BufferGeometry {
 }
 
 const TUFT_THEMES: ReadonlySet<Theme> = new Set(['farm', 'meadow', 'arena', 'forest'])
+const BACKDROP = { every: 5, scale: 2.8, out: 0.6 } as const
 
 export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): FpsLevelView {
   const { grid } = level
@@ -336,6 +338,12 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       const x = column + 0.5
       const z = row + 0.5
       const border = isBorder(grid, column, row)
+      if (tile === Tile.Wall && border && BACKDROP_THEMES.has(theme) && (column === 0 || column === grid.columns - 1) && (row + (column === 0 ? 0 : 1)) % BACKDROP.every === 0) {
+        const id = variantModel(has, propModel('tree', theme), PROP_MODELS.tree.variants, column, row)
+        const tall = BACKDROP.scale * (0.85 + cellHash(column, row, 7) * 0.4)
+        const wide = BACKDROP.scale * (0.8 + cellHash(column, row, 8) * 0.25)
+        if (id) place(id, models.parts(id as ModelId), x + (column === 0 ? -BACKDROP.out : BACKDROP.out), floor - 0.3, z, propYaw('tree', column, row), wide, tall, wide, true)
+      }
       if (tile === Tile.Fence || (tile === Tile.Wall && border)) {
         place('fence-post', fenceParts.post, x, floor, z, 0, 1.15, fenceScale, 1.15, false)
         const links = linksOf(grid, column, row, border ? borderJoins(column, row) : fenceJoins)
@@ -467,7 +475,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   }
   if (tuftSpots.size > 0) {
     const tuftGeo = tuftGeometry()
-    const tuftMaterial = toonMaterial({ vertexColors: true, side: THREE.DoubleSide })
+    const tuftMaterial = toonMaterial({ vertexColors: true, side: THREE.DoubleSide, depthWrite: false })
     disposables.push(tuftGeo, tuftMaterial)
     for (const [index, spots] of tuftSpots) {
       const tufts = new THREE.InstancedMesh(tuftGeo, tuftMaterial, spots.length)
@@ -477,6 +485,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       tufts.receiveShadow = true
       tufts.name = 'tufts'
       tufts.userData.noInk = true
+      tufts.renderOrder = 1
       group.add(tufts)
       culled.push({ object: tufts, ...bandRange(index) })
     }

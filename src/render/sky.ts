@@ -2,11 +2,19 @@ import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { toonMaterial } from './toon'
 
-export interface SkyOptions {
-  texture: string
-  repeats: number
-  zenith: string
+export interface SkyColors {
+  base: string
+  high: string
+  cloud: string
+  cloudShade: string
   horizon: string
+  sun: string
+  sunHalo: string
+}
+
+export interface SkyOptions {
+  colors: SkyColors
+  sunDirection: THREE.Vector3
   sea: string
   seaShadow: string
   seaHeight: number
@@ -24,6 +32,75 @@ export interface Sky {
 const RADIUS = 1400
 const BOTTOM = -0.12
 const TOP = 1.02
+
+const DOME_VERTEX = /* glsl */ `
+varying vec3 vDir;
+void main() {
+  vec4 world = modelMatrix * vec4(position, 1.0);
+  vDir = world.xyz - cameraPosition;
+  gl_Position = projectionMatrix * viewMatrix * world;
+}
+`
+
+const DOME_FRAGMENT = /* glsl */ `
+uniform vec3 skyBase;
+uniform vec3 skyHigh;
+uniform vec3 cloudColor;
+uniform vec3 cloudShade;
+uniform vec3 horizonColor;
+uniform vec3 sunColor;
+uniform vec3 sunHalo;
+uniform vec3 inkColor;
+uniform vec3 sunDir;
+uniform float time;
+varying vec3 vDir;
+
+float hash(vec2 p) {
+  p = fract(p * vec2(234.34, 435.345));
+  p += dot(p, p + 34.23);
+  return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+float billow(vec2 p) {
+  return noise(p) * 0.56 + noise(p * 2.3 + 11.0) * 0.3 + noise(p * 5.1 + 3.0) * 0.14;
+}
+
+void main() {
+  vec3 dir = normalize(vDir);
+  float up = dir.y;
+  float bearing = atan(dir.z, dir.x);
+  float wave = noise(vec2(bearing * 2.2, 3.0)) * 0.08 + noise(vec2(bearing * 6.0, 9.0)) * 0.03;
+  vec3 color = mix(skyBase, skyHigh, step(0.4 + wave, up));
+  float sunAngle = acos(clamp(dot(dir, sunDir), -1.0, 1.0));
+  color = mix(color, sunHalo, step(sunAngle, 0.2));
+  vec2 drift = vec2(time * 0.006, time * 0.002);
+  vec2 p = dir.xz / (max(up, 0.0) + 0.3) * 2.4 + drift;
+  vec2 below = dir.xz / (max(up - 0.035, 0.0) + 0.3) * 2.4 + drift;
+  float shape = billow(p);
+  float lower = billow(below);
+  float level = 0.585;
+  float cover = step(level, shape);
+  float under = step(lower, level);
+  vec3 cloud = mix(cloudColor, cloudShade, under);
+  float width = max(fwidth(shape), 0.0005);
+  float rim = 1.0 - smoothstep(width * 1.1, width * 2.2, abs(shape - level));
+  float inner = 0.0;
+  float present = smoothstep(0.05, 0.12, up);
+  color = mix(color, cloud, cover * present);
+  color = mix(color, inkColor, max(rim, inner) * present * 0.85);
+  color = mix(color, sunColor * 1.25, step(sunAngle, 0.085));
+  float band = step(up, 0.045 + wave * 0.5);
+  color = mix(color, horizonColor, band);
+  gl_FragColor = vec4(color, 1.0);
+}
+`
 
 const SEA_VERTEX = /* glsl */ `
 varying vec3 vWorld;
@@ -185,18 +262,30 @@ export function createSky(options: SkyOptions): Sky {
   group.name = 'sky'
   const far = new THREE.Group()
   far.name = 'far'
-  const texture = new THREE.TextureLoader().load(options.texture)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.wrapS = THREE.RepeatWrapping
-  texture.wrapT = THREE.ClampToEdgeWrapping
-  texture.repeat.set(options.repeats, 1)
-  texture.anisotropy = 4
+  const colors = options.colors
+  const domeMaterial = new THREE.ShaderMaterial({
+    vertexShader: DOME_VERTEX,
+    fragmentShader: DOME_FRAGMENT,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    depthTest: false,
+    fog: false,
+    uniforms: {
+      skyBase: { value: new THREE.Color(colors.base) },
+      skyHigh: { value: new THREE.Color(colors.high) },
+      cloudColor: { value: new THREE.Color(colors.cloud) },
+      cloudShade: { value: new THREE.Color(colors.cloudShade) },
+      horizonColor: { value: new THREE.Color(colors.horizon) },
+      sunColor: { value: new THREE.Color(colors.sun) },
+      sunHalo: { value: new THREE.Color(colors.sunHalo) },
+      inkColor: { value: new THREE.Color('#1d1714') },
+      sunDir: { value: options.sunDirection.clone().normalize() },
+      time: { value: 0 },
+    },
+  })
 
   const height = (TOP - BOTTOM) * RADIUS
-  const wall = new THREE.Mesh(
-    new THREE.CylinderGeometry(RADIUS, RADIUS, height, 96, 1, true),
-    new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false }),
-  )
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(RADIUS, RADIUS, height, 96, 1, true), domeMaterial)
   wall.position.y = (BOTTOM + TOP) * 0.5 * RADIUS
   wall.renderOrder = -1000
   wall.userData.noInk = true
@@ -204,15 +293,14 @@ export function createSky(options: SkyOptions): Sky {
 
   const capGeometry = new THREE.CircleGeometry(RADIUS, 96)
   capGeometry.rotateX(Math.PI / 2)
-  const zenith = new THREE.Color(options.zenith)
-  const cap = new THREE.Mesh(capGeometry, new THREE.MeshBasicMaterial({ color: zenith, side: THREE.DoubleSide, depthWrite: false, depthTest: false, fog: false }))
+  const cap = new THREE.Mesh(capGeometry, domeMaterial)
   cap.position.y = TOP * RADIUS - 0.5
   cap.renderOrder = -1000
   cap.userData.noInk = true
   group.add(cap)
 
   const lowGeometry = new THREE.CylinderGeometry(RADIUS, RADIUS, RADIUS, 48, 1, true)
-  const low = new THREE.Mesh(lowGeometry, new THREE.MeshBasicMaterial({ color: options.horizon, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false }))
+  const low = new THREE.Mesh(lowGeometry, domeMaterial)
   low.position.y = BOTTOM * RADIUS - RADIUS / 2
   low.renderOrder = -1001
   low.userData.noInk = true
@@ -224,7 +312,7 @@ export function createSky(options: SkyOptions): Sky {
     uniforms: {
       seaColor: { value: new THREE.Color(options.sea) },
       shadowColor: { value: new THREE.Color(options.seaShadow) },
-      horizonColor: { value: new THREE.Color(options.horizon) },
+      horizonColor: { value: new THREE.Color(colors.horizon) },
       inkColor: { value: new THREE.Color('#1d1714') },
       eye: { value: new THREE.Vector3() },
       time: { value: 0 },
@@ -275,17 +363,15 @@ export function createSky(options: SkyOptions): Sky {
       time += dt
       group.position.set(camera.position.x, camera.position.y, camera.position.z)
       seaMaterial.uniforms.time.value = time
+      domeMaterial.uniforms.time.value = time
       seaMaterial.uniforms.eye.value.copy(camera.position)
       if (towerStar) towerStar.rotation.y = time * 0.6
     },
     dispose() {
-      texture.dispose()
+      domeMaterial.dispose()
       group.traverse((object) => {
         const mesh = object as THREE.Mesh
-        if (mesh.isMesh) {
-          mesh.geometry.dispose()
-          ;(mesh.material as THREE.Material).dispose()
-        }
+        if (mesh.isMesh) mesh.geometry.dispose()
       })
       far.traverse((object) => {
         const mesh = object as THREE.Mesh
