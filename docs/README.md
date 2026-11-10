@@ -22,6 +22,7 @@
 - 设计
   - [愿景](design/vision.md)
   - [第一人称玩法](design/gameplay.md)
+  - [战斗节奏：为什么显得呆，怎么改](design/combat-pacing.md)（建议稿，等用户定）
   - [画风：会动的漫画](design/art-direction.md)
   - [样机关卡：1-1 出发](design/prototype-1-1.md)（M1 缩减版）
   - [关卡 1-1 出发（第一人称完整版）](design/levels/1-1.md)
