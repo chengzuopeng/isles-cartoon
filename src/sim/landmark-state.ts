@@ -16,7 +16,7 @@ export interface Tally {
 export function createLandmarkStates(level: BuiltLevel): LandmarkState[] {
   return level.landmarks.map((placement) => {
     const hp = LANDMARKS[placement.id].breaks?.hp ?? 0
-    return { hp, maxHp: hp, broken: false, open: false, crashes: 0 }
+    return { hp, maxHp: hp, broken: false, open: false, crashes: 0, shaking: false }
   })
 }
 
@@ -68,11 +68,39 @@ export function blastLandmarks(world: World, blast: Blast): void {
 }
 
 function blastReaches(blast: Blast, cell: number, columns: number): boolean {
+  return circleReaches(blast.x, blast.y, blast.radius, cell, columns)
+}
+
+function circleReaches(x: number, y: number, radius: number, cell: number, columns: number): boolean {
   const column = cell % columns
   const row = (cell - column) / columns
-  const dx = blast.x - clamp(blast.x, column, column + 1)
-  const dy = blast.y - clamp(blast.y, row, row + 1)
-  return dx * dx + dy * dy <= blast.radius * blast.radius
+  const dx = x - clamp(x, column, column + 1)
+  const dy = y - clamp(y, row, row + 1)
+  return dx * dx + dy * dy <= radius * radius
+}
+
+export function landmarkThreatened(world: World, index: number): boolean {
+  const placement = world.level.landmarks[index]
+  const { columns } = world.grid
+  const reached = (x: number, y: number, radius: number) => placement.cells.some((cell) => circleReaches(x, y, radius, cell, columns))
+  if (world.blasts.some((blast) => blast.delay > 0 && reached(blast.x, blast.y, blast.radius))) return true
+  return world.lobs.some((lob) => lob.lands === 'blast' && lob.radius > 0 && reached(lob.to.x, lob.to.y, lob.radius))
+}
+
+export function updateShaking(world: World): void {
+  world.level.landmarks.forEach((placement, index) => {
+    const state = world.landmarks[index]
+    if (LANDMARKS[placement.id].breaks?.rule !== 'blasts' || state.broken) {
+      state.shaking = false
+      return
+    }
+    const threatened = landmarkThreatened(world, index)
+    if (threatened && !state.shaking) {
+      const center = landmarkCenter(placement)
+      world.events.push({ type: 'landmarkShaking', index, x: center.x, y: center.y })
+    }
+    state.shaking = threatened
+  })
 }
 
 export function breakLandmark(world: World, index: number): void {

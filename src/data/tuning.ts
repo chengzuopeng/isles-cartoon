@@ -59,6 +59,7 @@ export type BomberTuning = {
   maxHp: number
   sight: number
   triggerRange: number
+  ignite: number
 }
 
 export type TurretTuning = {
@@ -262,6 +263,7 @@ export function createDefaultTuning(): Tuning {
       maxHp: 200,
       sight: 10.4,
       triggerRange: 1.4,
+      ignite: 0.5,
     },
     turret: {
       radius: 0.55,

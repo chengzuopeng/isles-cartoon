@@ -16,6 +16,10 @@ export const bomber: EnemyBehavior = {
 function act(world: World, enemy: Enemy): Vec2 {
   const { player } = world
   const config = world.tuning.bomber
+  if (enemy.state === 'ignite') {
+    if (enemy.stateTime >= config.ignite) setState(enemy, 'chase')
+    return still()
+  }
   if (enemy.state === 'arming' || !player.alive) return still()
   const distance = Math.hypot(player.pos.x - enemy.pos.x, player.pos.y - enemy.pos.y)
   if (distance <= config.triggerRange && enemy.cooldown === 0) {

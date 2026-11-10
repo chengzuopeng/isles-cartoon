@@ -107,6 +107,10 @@ describe('sheep views', () => {
     const swingOf = (mesh: THREE.InstancedMesh) =>
       new THREE.Euler().setFromQuaternion(placed(mesh, 0).rotation.clone().premultiply(placed(all[0], 0).rotation.clone().invert())).z
     const area = world.level.landmarks[world.sheep[0].pen].area
+    world.enemies = world.enemies.filter((enemy) => enemy.area !== area)
+    world.level.rushes.forEach((rush, index) => {
+      if (rush.area === area) world.rushed[index] = true
+    })
     openPens(world, area)
     for (const event of world.events.splice(0)) views.handle(event)
     expect(fx.puff).toHaveBeenCalled()

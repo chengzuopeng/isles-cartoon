@@ -76,6 +76,7 @@ interface EnemyView {
   marks: THREE.MeshStandardMaterial[] | null
   eyes: { material: THREE.MeshStandardMaterial; color: THREE.Color; intensity: number }[] | null
   crumbleSmoke: number
+  fuseSparks: number
   beam: THREE.Mesh | null
   eliteRing: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | null
   triple: TripleLanes | null
@@ -139,6 +140,7 @@ const SHIELD_BLOCK_REACH = 1.5
 const CANNON_LANE_MARGIN = 0.3
 const STAR_HEIGHT = 1.35
 const MOUNTED_SPARK = 0.6
+const BOMBER_IGNITE = { flare: 0.7, every: 0.04, count: 5, speed: 4.2, life: 0.38, lift: 3.2 } as const
 const ELITE_COLOR = '#ffd34d'
 const TELEGRAPH_COLOR = '#ff3b30'
 const MARKER_COLOR = '#ff6a3d'
@@ -248,6 +250,7 @@ export const EYE_FACE_SIZES: Readonly<Partial<Record<EnemyKind, number>>> = {
 }
 
 const faceAt = new THREE.Vector3()
+const sparkAt = new THREE.Vector3()
 
 export const GRASS_LAMP = {
   kinds: ['grunt', 'bomber'] as readonly EnemyKind[],
@@ -483,6 +486,7 @@ export function createEntityViews(
       marks: null,
       eyes: null,
       crumbleSmoke: 0,
+      fuseSparks: 0,
       beam: null,
       eliteRing: null,
       triple: null,
@@ -958,7 +962,17 @@ export function createEntityViews(
           view.danger.getObjectByName('curtain')?.scale.set(1, CURTAIN_HEIGHT / Math.max(0.01, fuse.radius), 1)
         }
         if (!view.model) view.body.scale.multiplyScalar(arming ? 1 + progress(enemy.stateTime, fuse.windup) * 0.35 : 1)
-        if (view.spark) view.spark.scale.setScalar((view.model ? MOUNTED_SPARK : 1) * (1 + Math.abs(Math.sin(clock * (arming ? 30 : 8))) * 0.8))
+        const lighting = enemy.state === 'ignite'
+        const flare = lighting ? 1 + BOMBER_IGNITE.flare * progress(enemy.stateTime, tuning.bomber.ignite) : 1
+        if (view.spark) view.spark.scale.setScalar((view.model ? MOUNTED_SPARK : 1) * (1 + Math.abs(Math.sin(clock * (arming || lighting ? 30 : 8))) * 0.8) * flare)
+        if (lighting && view.spark) {
+          view.fuseSparks -= dt
+          if (view.fuseSparks <= 0) {
+            view.fuseSparks = BOMBER_IGNITE.every
+            view.spark.getWorldPosition(sparkAt)
+            effects.sparks(sparkAt.x, sparkAt.y, sparkAt.z, 0, 0, { count: BOMBER_IGNITE.count, speed: BOMBER_IGNITE.speed, life: BOMBER_IGNITE.life, color: FX.sparks.hit, spread: 0.5, lift: BOMBER_IGNITE.lift })
+          }
+        }
         const blink = lampLit(bomberLampCycles(enemy, world.time, fuse.windup))
         for (const lamp of view.lamps) lamp.visible = blink
         if (arming) {

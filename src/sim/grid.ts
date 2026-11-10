@@ -260,6 +260,10 @@ export function climbable(tile: Tile): boolean {
   return CLIMBABLE.has(tile)
 }
 
+export function supportsStanding(tile: Tile): boolean {
+  return tile !== Tile.Fence
+}
+
 export function standHeight(grid: Grid, column: number, row: number): number {
   if (!insideGrid(grid, column, row)) return Infinity
   const tile = tileAt(grid, column, row)

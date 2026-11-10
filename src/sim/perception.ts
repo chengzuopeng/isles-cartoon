@@ -81,8 +81,9 @@ export function aggro(world: World, enemy: Enemy, hops = world.tuning.ai.alertHo
   enemy.lastSeen.x = world.player.pos.x
   enemy.lastSeen.y = world.player.pos.y
   if (enemy.state === 'idle') {
-    enemy.state = 'chase'
+    enemy.state = enemy.kind === 'bomber' ? 'ignite' : 'chase'
     enemy.stateTime = 0
+    if (enemy.state === 'ignite') world.events.push({ type: 'bomberIgnite', id: enemy.id, x: enemy.pos.x, y: enemy.pos.y })
   }
   world.events.push({ type: 'enemyAlerted', id: enemy.id, x: enemy.pos.x, y: enemy.pos.y })
   claimRunner(world, enemy)

@@ -1,5 +1,5 @@
 import { STEP_HEIGHT } from '../data/heights'
-import { blocksBullets, blocksMovement, cellFloor, solidHeight, standHeight, tileAt, type Grid, type Tile } from './grid'
+import { blocksBullets, blocksMovement, cellFloor, solidHeight, standHeight, supportsStanding, tileAt, type Grid, type Tile } from './grid'
 import { clamp, type Vec2, type Vec3 } from './math'
 
 export type TileTest = (tile: Tile) => boolean
@@ -51,6 +51,7 @@ export function supportHeight(grid: Grid, pos: Vec2, radius: number, reach: numb
       const dx = pos.x - clamp(pos.x, column, column + 1)
       const dy = pos.y - clamp(pos.y, row, row + 1)
       if (dx * dx + dy * dy > radiusSq) continue
+      if (!supportsStanding(tileAt(grid, column, row))) continue
       const height = standHeight(grid, column, row)
       if (height <= reach + HEIGHT_SLACK && height > best) best = height
     }

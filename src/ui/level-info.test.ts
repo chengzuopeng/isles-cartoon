@@ -13,7 +13,7 @@ import { stepWorld } from '../sim/step'
 import { runTallies } from '../sim/tallies'
 import type { PlayerCommand } from '../sim/types'
 import { createWorld, type World } from '../sim/world'
-import { alarmLabel, showsTargetBar, tallyLines, tallyText, targetLabel, targetName } from './level-info'
+import { alarmLabel, showsTargetBar, tallyLines, tallyText, targetGlyph, targetHpText, targetLabel, targetName } from './level-info'
 
 const YARD = 2
 
@@ -35,6 +35,10 @@ describe('level info for the HUD and the results screen', () => {
     const run = world()
     expect(targetName('ch1-hay-cart')).toBe('运粮车')
     expect(targetName('ch1-hay-pillar')).toBe('草垛柱子')
+    expect(targetGlyph('ch1-hay-cart')).toBe('车')
+    expect(targetGlyph('ch1-hay-pillar')).toBe('★')
+    expect(targetHpText(1536.2, 2400)).toBe('1537 / 2400')
+    expect(targetHpText(-3, 2400)).toBe('0 / 2400')
     expect(targetLabel(run, YARD)).toBe('运粮车 0 / 3')
     expect(targetLabel(run, 0)).toBeNull()
     damageLandmark(run, carts(run)[0], 99999)

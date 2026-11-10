@@ -809,3 +809,56 @@
   background: var(--paper-dark);
   box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.6);
 }
+
+.target-mark,
+.target-label {
+  display: none;
+}
+
+.fps-mode .target-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: #ffd34d;
+  color: var(--ink);
+  font: 900 18px/1 var(--comic-font);
+  box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.6);
+}
+
+.fps-mode .target-mark::after {
+  content: '';
+  position: absolute;
+  margin-top: 40px;
+  border: 7px solid transparent;
+  border-top: 9px solid var(--ink);
+}
+
+.fps-mode .target-bar .hp-bar {
+  width: 76px;
+  height: 11px;
+  margin-top: 10px;
+  border: 2.5px solid var(--ink);
+  border-radius: 3px;
+  background: #5a4a40;
+}
+
+.fps-mode .target-bar .hp-fill {
+  background: repeating-linear-gradient(-45deg, #ffb238 0 7px, #f29a2e 7px 11px);
+}
+
+.fps-mode .target-bar.aimed .target-label {
+  display: block;
+  color: var(--paper);
+  font: 900 15px/1 var(--comic-font);
+  -webkit-text-stroke: 3.5px var(--ink);
+  paint-order: stroke fill;
+  white-space: nowrap;
+}
+
+.fps-mode .target-bar.aimed .target-mark {
+  background: #ff5a3c;
+  color: var(--paper);
+}

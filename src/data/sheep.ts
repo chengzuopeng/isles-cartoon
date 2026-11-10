@@ -9,4 +9,8 @@ export const SHEEP = {
   grazeGiveUp: 6,
   arrive: 0.3,
   jitter: 0.25,
+  bleat: '咩……',
+  bleatEvery: 3.2,
+  bleatSeconds: 1.6,
+  releaseGap: 0.45,
 } as const

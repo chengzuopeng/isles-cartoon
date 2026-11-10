@@ -304,6 +304,15 @@ export function createSfx(): Sfx {
       case 'enemyAlerted':
         tone({ type: 'sine', from: 1300, to: 1650, duration: 0.07, gain: 0.05 })
         break
+      case 'bomberIgnite':
+        hiss({ filter: 'bandpass', from: 4200, to: 6800, duration: 0.5, gain: 0.2, q: 1.4 })
+        tone({ type: 'square', from: 900, to: 1400, duration: 0.08, gain: 0.04, delay: 0.42 })
+        break
+      case 'landmarkShaking':
+        tone({ type: 'sawtooth', from: 190, to: 120, duration: 0.42, gain: 0.07, attack: 0.06 })
+        tone({ type: 'sawtooth', from: 240, to: 150, duration: 0.36, gain: 0.05, attack: 0.05, delay: 0.3 })
+        hiss({ filter: 'lowpass', from: 900, to: 300, duration: 0.5, gain: 0.08 })
+        break
       case 'enemyWindup':
         tone({ type: 'sine', from: 320, to: 520, duration: 0.14, gain: 0.04 })
         break
@@ -607,6 +616,8 @@ const WHIZ = { radius: 1.5, band: 1.2, height: 1.4 } as const
 const AMBIENCE = { wind: 0.05, water: 0.07, waterRange: 12, creak: 0.06, creakRange: 26 } as const
 
 const POSITIONED: ReadonlySet<GameEvent['type']> = new Set<GameEvent['type']>([
+  'bomberIgnite',
+  'landmarkShaking',
   'enemyShot',
   'bulletHitWall',
   'enemyAlerted',

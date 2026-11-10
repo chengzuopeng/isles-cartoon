@@ -27,7 +27,7 @@
   - [画面复盘：为什么还不够好看，怎么改](design/visual-review.md)（12 项已落地，其余 9 项待做）
   - [样机关卡：1-1 出发](design/prototype-1-1.md)（M1 缩减版）
   - [关卡 1-1 出发（第一人称完整版）](design/levels/1-1.md)
-  - [关卡 1-2 牧场（第一人称版）](design/levels/1-2.md)（设计稿）
+  - [关卡 1-2 牧场（第一人称版）](design/levels/1-2.md)（灰盒和新机制做完）
   - [设定摘要](design/setting.md)
 - 技术
   - [技术架构](tech/architecture.md)

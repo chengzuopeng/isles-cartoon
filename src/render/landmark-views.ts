@@ -54,6 +54,7 @@ import {
   LANDMARK_FALLBACK,
   LANDMARK_FX,
   LANDMARK_HIT,
+  LANDMARK_SHAKE,
   LANDMARK_OPEN,
   PALETTES,
   SCENE_CHUNK,
@@ -121,6 +122,8 @@ interface PlacedModel {
   broken: boolean
   hp: number
   jolt: number
+  shake: number
+  rest: { x: number; z: number } | null
   puffAt: number
   crashes: number
   crashAt: number
@@ -607,6 +610,8 @@ function* landmarkSteps(level: BuiltLevel, models: ModelLibrary, effects: Effect
         broken: false,
         hp: def.breaks?.hp ?? 0,
         jolt: 0,
+        shake: 0,
+        rest: null,
         puffAt: -Infinity,
         crashes: 0,
         crashAt: -Infinity,
@@ -1042,6 +1047,22 @@ function* landmarkSteps(level: BuiltLevel, models: ModelLibrary, effects: Effect
         if (item.jolt > 0) item.jolt = Math.max(0, item.jolt - dt / LANDMARK_HIT.seconds)
         const squash = LANDMARK_HIT.squash * item.jolt
         item.model.root.scale.set(1 + squash, 1 - squash, 1 + squash)
+        const shaking = !broken && (state?.shaking ?? false)
+        item.shake = fresh ? (shaking ? 1 : 0) : item.shake + ((shaking ? 1 : 0) - item.shake) * Math.min(1, dt * LANDMARK_SHAKE.ease)
+        if (item.shake > 1e-3) {
+          const tilt = LANDMARK_SHAKE.tilt * item.shake
+          const rest = (item.rest ??= { x: item.model.root.rotation.x, z: item.model.root.rotation.z })
+          item.model.root.rotation.x = rest.x + Math.sin(clock * LANDMARK_SHAKE.rate) * tilt
+          item.model.root.rotation.z = rest.z + Math.cos(clock * LANDMARK_SHAKE.rate * 0.83) * tilt * LANDMARK_SHAKE.sway
+          if (shaking && clock - item.puffAt >= LANDMARK_SHAKE.puffGap) {
+            item.puffAt = clock
+            effects?.puff(item.center.x + scatter(0.8), LANDMARK_HIT.puffHeight + 0.9 + scatter(0.4), item.center.z + scatter(0.8), LANDMARK_HIT.straw, 0.12, 0.4, 0.4, -0.6)
+          }
+        } else if (item.rest) {
+          item.model.root.rotation.x = item.rest.x
+          item.model.root.rotation.z = item.rest.z
+          item.rest = null
+        }
         syncCrash(item, world, fresh)
         for (const spinner of item.spinners) rotateFromRest(spinner.node, spinner.axis, motionAngle(spinner.motion, clock))
         if (item.glow) {

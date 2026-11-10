@@ -1,6 +1,6 @@
 import { AUTOPILOT } from '../data/autopilot'
 import { STEP_HEIGHT } from '../data/heights'
-import { Tile, cellFloor, insideGrid, solidHeight, standHeight, tileAt, type Grid } from './grid'
+import { Tile, cellFloor, insideGrid, solidHeight, standHeight, supportsStanding, tileAt, type Grid } from './grid'
 import { clamp, type Vec2, type Vec3 } from './math'
 import type { World } from './world'
 
@@ -58,12 +58,14 @@ export function pilotField(grid: Grid, sources: readonly number[], rise: number,
       const column = cell % grid.columns
       const row = (cell - column) / grid.columns
       const height = footing(grid, column, row, openGates)
+      const perch = !supportsStanding(tileAt(grid, column, row))
       for (const [dc, dr] of SIDES) {
         const nc = column + dc
         const nr = row + dr
         if (!insideGrid(grid, nc, nr)) continue
         const next = nr * grid.columns + nc
         if (allowed && allowed[next] !== 1) continue
+        if (perch && !supportsStanding(tileAt(grid, nc, nr))) continue
         const from = footing(grid, nc, nr, openGates)
         const cost = Number.isFinite(height) ? stepCost(from, height, rise) : Number.isFinite(from) ? 1 : 0
         if (cost === 0) continue
@@ -132,12 +134,20 @@ export function stride(world: World, field: Float32Array): Stride | null {
   const from = standingHeight(world)
   const next = pilotStep(grid, field, column, row, from, jumpRise(world))
   if (!next) return null
-  const dx = next.column + 0.5 - player.pos.x
-  const dy = next.row + 0.5 - player.pos.y
+  const aim = landingBeyond(grid, column, row, next) ?? next
+  const dx = aim.column + 0.5 - player.pos.x
+  const dy = aim.row + 0.5 - player.pos.y
   const length = Math.hypot(dx, dy)
   if (length < 1e-6) return null
   const up = footing(grid, next.column, next.row) - player.z
   return { x: dx / length, y: dy / length, column: next.column, row: next.row, jump: next.jump && up > STEP_HEIGHT + SLACK }
+}
+
+export function landingBeyond(grid: Grid, column: number, row: number, next: { column: number; row: number }): { column: number; row: number } | null {
+  if (!insideGrid(grid, next.column, next.row) || supportsStanding(tileAt(grid, next.column, next.row))) return null
+  const landing = { column: next.column * 2 - column, row: next.row * 2 - row }
+  if (!insideGrid(grid, landing.column, landing.row) || !supportsStanding(tileAt(grid, landing.column, landing.row))) return null
+  return Number.isFinite(footing(grid, landing.column, landing.row)) ? landing : null
 }
 
 export function gapToCell(pos: Vec2, column: number, row: number): number {

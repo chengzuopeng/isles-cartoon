@@ -24,7 +24,7 @@ import type { GameEvent, MinionKind } from '../sim/types'
 import type { World, WorldStatus } from '../sim/world'
 import { icon, preload } from './assets'
 import { createBarks } from './barks'
-import { alarmLabel, showsTargetBar, targetLabel } from './level-info'
+import { alarmLabel, showsTargetBar, targetGlyph, targetHpText, targetLabel } from './level-info'
 import { createDeathReport } from './death-report'
 import { button, element } from './dom'
 import { syncStyle, syncText } from './dom-sync'
@@ -33,6 +33,12 @@ import './hud-extras.css'
 interface UnitBar {
   root: HTMLDivElement
   fill: HTMLDivElement
+}
+
+interface TargetBar extends UnitBar {
+  mark: HTMLDivElement
+  label: HTMLDivElement
+  shown: string
 }
 
 interface EnemyBar extends UnitBar {
@@ -129,6 +135,7 @@ const BOSS_PORTRAITS: Readonly<Record<string, PortraitId>> = {
 }
 const KAI_FACES: readonly PortraitId[] = ['kai-normal', 'kai-happy', 'kai-angry', 'kai-surprised']
 const TARGET_BAR_LIFT = 0.9
+const TARGET_AIM = { share: 1.6, minPixels: 28, scale: 0.9 } as const
 const TOAST_MS = 3200
 const BELL_ICON =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a1.6 1.6 0 0 1 1.6 1.6v.6c3 .8 4.9 3.4 4.9 6.6v3.6l2 2.5v1.1h-17v-1.1l2-2.5v-3.6c0-3.2 1.9-5.8 4.9-6.6v-.6A1.6 1.6 0 0 1 12 2.5Z"/><circle cx="12" cy="20.6" r="2.1"/></svg>'
@@ -231,8 +238,10 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
 
   const playerBar = createPlayerBar(bars)
   const barks = createBarks(root, stage)
-  const targetBars = new Map<number, UnitBar>()
-  const spareTargets: UnitBar[] = []
+  const targetBars = new Map<number, TargetBar>()
+  const spareTargets: TargetBar[] = []
+  const aimAt: ScreenPoint = { x: 0, y: 0, visible: true }
+  const aimTop: ScreenPoint = { x: 0, y: 0, visible: true }
   const enemyBars = new Map<number, EnemyBar>()
   const spareBars: EnemyBar[] = []
   const seen = new Set<number>()
@@ -262,7 +271,7 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
     spareBars.push(bar)
   }
 
-  const releaseTarget = (index: number, bar: UnitBar) => {
+  const releaseTarget = (index: number, bar: TargetBar) => {
     syncStyle(bar.root, 'display', 'none')
     targetBars.delete(index)
     spareTargets.push(bar)
@@ -284,8 +293,23 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
       const state = world.landmarks[index]
       const cx = placement.column + placement.width / 2
       const cy = placement.row + placement.depth / 2
-      place(bar, cx, cy, floorAt(world.grid, cx, cy) + LANDMARKS[placement.id].height + TARGET_BAR_LIFT, barScale(world, cx, cy))
+      const floor = floorAt(world.grid, cx, cy)
+      const height = LANDMARKS[placement.id].height
+      stage.project(cx, floor + height / 2, cy, aimAt)
+      stage.project(cx, floor + height, cy, aimTop)
+      const reach = Math.max(TARGET_AIM.minPixels, Math.abs(aimAt.y - aimTop.y) * TARGET_AIM.share)
+      const aimed = aimAt.visible && Math.hypot(aimAt.x - stage.width / 2, aimAt.y - stage.height / 2) <= reach
+      const scale = barScale(world, cx, cy)
+      place(bar, cx, cy, floor + height + TARGET_BAR_LIFT, aimed ? Math.max(scale, TARGET_AIM.scale) : scale)
       syncStyle(bar.fill, 'transform', `scaleX(${Math.max(0, state.hp / state.maxHp).toFixed(4)})`)
+      const glyph = targetGlyph(placement.id)
+      if (bar.mark.textContent !== glyph) bar.mark.textContent = glyph
+      const text = aimed ? targetHpText(state.hp, state.maxHp) : ''
+      if (text !== bar.shown) {
+        bar.shown = text
+        bar.label.textContent = text
+        bar.root.classList.toggle('aimed', aimed)
+      }
     })
   }
 
@@ -725,12 +749,14 @@ function createPlayerBar(parent: HTMLElement): PlayerBar {
   return { root, fill, text, tag, buffs, chips: new Map(), shield, shieldFill, ammo, cells: [] }
 }
 
-function createTargetBar(parent: HTMLElement): UnitBar {
+function createTargetBar(parent: HTMLElement): TargetBar {
   const root = element('div', 'unit-bar target-bar', parent)
   const inner = element('div', 'unit-bar-inner', root)
+  const label = element('div', 'target-label', inner)
+  const mark = element('div', 'target-mark', inner)
   const track = element('div', 'hp-bar', inner)
   const fill = element('div', 'hp-fill', track)
-  return { root, fill }
+  return { root, fill, mark, label, shown: '' }
 }
 
 function createEnemyBar(parent: HTMLElement): EnemyBar {

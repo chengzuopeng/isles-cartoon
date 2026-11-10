@@ -24,6 +24,16 @@ const ALARM_WORDS: Readonly<Record<AlarmStatus, string>> = {
 
 const TARGET_NAMES: Readonly<Partial<Record<LandmarkId, string>>> = { 'ch1-hay-cart': '运粮车' }
 
+const TARGET_GLYPHS: Readonly<Partial<Record<LandmarkId, string>>> = { 'ch1-hay-cart': '车' }
+
+export function targetGlyph(id: LandmarkId): string {
+  return TARGET_GLYPHS[id] ?? '★'
+}
+
+export function targetHpText(hp: number, maxHp: number): string {
+  return `${Math.max(0, Math.ceil(hp))} / ${maxHp}`
+}
+
 export function targetName(id: LandmarkId): string {
   return TARGET_NAMES[id] ?? LANDMARKS[id].name
 }

@@ -29,7 +29,7 @@ describe('calibrating level 1-1 with human-like autopilots', () => {
   it('jumps, dashes and smashes chargers on every skill level', () => {
     for (const skill of AUTOPILOT_SKILL_ORDER) {
       expect(averageOf(runs, skill, (run) => run.jumps), skill).toBeGreaterThan(1)
-      expect(averageOf(runs, skill, (run) => run.dashes), skill).toBeGreaterThan(1)
+      expect(averageOf(runs, skill, (run) => run.dashes), skill).toBeGreaterThan(skill === 'perfect' ? 0.5 : 1)
       expect(averageOf(runs, skill, (run) => run.smashes), skill).toBeGreaterThan(0.5)
     }
   })

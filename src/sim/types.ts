@@ -16,7 +16,7 @@ export type Team = 'player' | 'enemy'
 
 export type EnemyKind = MinionKind | 'boss'
 
-export type EnemyState = 'idle' | 'chase' | 'windup' | 'recover' | 'aim' | 'arming' | 'charge' | 'dash'
+export type EnemyState = 'idle' | 'chase' | 'windup' | 'recover' | 'aim' | 'arming' | 'charge' | 'dash' | 'ignite'
 
 export type BossPhase = 'dormant' | 'intro' | 'walk' | 'telegraph' | 'active' | 'recover' | 'stunned' | 'shift'
 
@@ -365,6 +365,7 @@ export interface LandmarkState {
   broken: boolean
   open: boolean
   crashes: number
+  shaking: boolean
 }
 
 export type BladePhase = 'rest' | 'warning' | 'sweep'
@@ -390,7 +391,7 @@ export interface AlarmState {
   runners: number
 }
 
-export type SheepState = 'penned' | 'leaving' | 'grazing'
+export type SheepState = 'penned' | 'waiting' | 'leaving' | 'grazing'
 
 export interface Sheep {
   id: number
@@ -474,6 +475,8 @@ export type GameEvent =
   | { type: 'melee'; x: number; y: number; angle: number; hits: number }
   | { type: 'smashed'; id: number; kind: EnemyKind; x: number; y: number; z: number }
   | { type: 'enemyBumped'; id: number; x: number; y: number; z: number }
+  | { type: 'bomberIgnite'; id: number; x: number; y: number }
+  | { type: 'landmarkShaking'; index: number; x: number; y: number }
   | { type: 'rush'; area: number; count: number }
   | { type: 'jumped' }
   | { type: 'landed'; fall: number }

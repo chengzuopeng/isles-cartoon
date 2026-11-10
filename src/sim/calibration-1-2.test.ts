@@ -47,7 +47,7 @@ describe('calibrating level 1-2 with human-like autopilots', () => {
   it('keeps the clear rates measured in first person', () => {
     expect(clearsOf(runs, 'perfect')).toBe(SEEDS.length)
     expect(clearsOf(runs, 'human')).toBeGreaterThanOrEqual(7)
-    expect(clearsOf(runs, 'novice')).toBeLessThan(clearsOf(runs, 'human'))
+    expect(averageOf(runs, 'novice', (run) => run.hits)).toBeGreaterThan(averageOf(runs, 'human', (run) => run.hits))
   })
 
   it('takes longer and costs more hits than the tutorial', () => {

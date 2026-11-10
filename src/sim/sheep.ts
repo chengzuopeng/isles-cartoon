@@ -49,11 +49,41 @@ export function openPen(world: World, index: number): void {
 }
 
 export function updateSheep(world: World, dt: number): void {
+  let released = 0
   for (const sheep of world.sheep) {
     sheep.moving = false
-    if (sheep.state === 'leaving') leave(world, sheep, dt)
+    if (sheep.state === 'waiting') released = wait(world, sheep, dt, released)
+    else if (sheep.state === 'leaving') leave(world, sheep, dt)
     else if (sheep.state === 'grazing') graze(world, sheep, dt)
   }
+}
+
+export function areaQuiet(world: World, area: number): boolean {
+  if (world.enemies.some((enemy) => enemy.area === area && enemy.hp > 0)) return false
+  if (world.spawns.some((marker) => marker.area === area)) return false
+  return world.level.rushes.every((rush, index) => rush.area !== area || world.rushed[index])
+}
+
+function penArea(world: World, sheep: Sheep): number {
+  return world.level.landmarks[sheep.pen]?.area ?? -1
+}
+
+function wait(world: World, sheep: Sheep, dt: number, released: number): number {
+  if (areaQuiet(world, penArea(world, sheep))) {
+    sheep.state = 'leaving'
+    sheep.wait = SHEEP.leaveDelay + released * SHEEP.releaseGap
+    return released + 1
+  }
+  sheep.wait -= dt
+  if (sheep.wait <= 0) {
+    sheep.wait = SHEEP.bleatEvery
+    bleat(world, sheep)
+  }
+  return released
+}
+
+function bleat(world: World, sheep: Sheep): void {
+  world.events.push({ type: 'bark', id: `sheep-${sheep.id}`, speaker: null, text: SHEEP.bleat, display: 'bubble', enemy: null, x: sheep.pos.x, y: sheep.pos.y, seconds: SHEEP.bleatSeconds })
 }
 
 function pastureOf(world: World, sheep: Sheep): { index: number; region: RegionPlacement } | null {
@@ -65,6 +95,11 @@ function pastureOf(world: World, sheep: Sheep): { index: number; region: RegionP
 function leave(world: World, sheep: Sheep, dt: number): void {
   if (sheep.wait > 0) {
     sheep.wait = Math.max(0, sheep.wait - dt)
+    return
+  }
+  if (!areaQuiet(world, penArea(world, sheep))) {
+    sheep.state = 'waiting'
+    sheep.wait = 0
     return
   }
   const pasture = pastureOf(world, sheep)

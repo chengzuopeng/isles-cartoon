@@ -856,6 +856,14 @@ export const LANDMARK_HIT = {
   straw: '#e8c860',
 } as const
 
+export const LANDMARK_SHAKE = {
+  tilt: 0.07,
+  rate: 16,
+  sway: 0.6,
+  ease: 10,
+  puffGap: 0.16,
+} as const
+
 export const LANDMARK_BREAK = {
   debris: 160,
   dust: '#c8b48a',

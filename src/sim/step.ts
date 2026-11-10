@@ -5,6 +5,7 @@ import { updateBlades } from './blades'
 import { updateBoss } from './boss'
 import { updateBuffs } from './buffs'
 import { updateClues } from './clues'
+import { updateShaking } from './landmark-state'
 import { updateLobs } from './lobs'
 import { updateBlasts } from './combat'
 import { updateConveyors } from './conveyors'
@@ -57,6 +58,7 @@ export function stepWorld(world: World, command: PlayerCommand, dt: number): voi
   updateBlades(world, simDt)
   updateBlasts(world, simDt)
   updateMines(world, simDt)
+  updateShaking(world)
   updateAlarms(world)
   updateRushes(world)
   updateSpawns(world, simDt)
