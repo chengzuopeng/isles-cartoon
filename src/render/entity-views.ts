@@ -82,6 +82,8 @@ interface EnemyView {
   lamp: THREE.Group | null
   face: { sprite: THREE.Sprite; current: EyeFace; sorryUntil: number } | null
   wreck: WreckSource | null
+  crouch: number
+  casts: boolean
 }
 
 interface Veil {
@@ -101,6 +103,7 @@ interface TripleLanes {
 }
 
 export const ENTITY_CULL = { distance: 72 } as const
+export const AMBUSH_CROUCH = { height: 0.85, rate: 9 } as const
 
 export interface EntityViews {
   sync(world: World, alpha: number, dt: number): void
@@ -481,6 +484,8 @@ export function createEntityViews(
       lamp: null,
       face: null,
       wreck: null,
+      crouch: 0,
+      casts: false,
     }
   }
 
@@ -668,8 +673,10 @@ export function createEntityViews(
         view.root.add(lamp)
         view.lamp = lamp
       }
+      view.casts = Boolean(model) && !foggy
+      const solid = view.casts ? view.wreck?.objects : undefined
       view.root.traverse((object) => {
-        object.castShadow = false
+        object.castShadow = Boolean(solid?.has(object)) && (object as THREE.Mesh).isMesh === true
       })
       collectVeil(view, model ? model.materials : view.materials)
     }
@@ -892,7 +899,11 @@ export function createEntityViews(
     const stretch = 1 / Math.sqrt(squash)
     view.body.scale.set(stretch, squash, stretch)
     const moving = Math.hypot(enemy.pos.x - enemy.prev.x, enemy.pos.y - enemy.prev.y) > 0.001
-    view.body.position.y = moving && enemy.kind !== 'boss' ? Math.abs(Math.sin(clock * 12 + enemy.id)) * 0.06 : 0
+    const hiding = enemy.idleMode === 'ambush' && !enemy.aggro
+    view.crouch += ((hiding ? 1 : 0) - view.crouch) * Math.min(1, dt * AMBUSH_CROUCH.rate)
+    const duck = view.crouch * Math.max(0, (BODY_HEIGHTS[enemy.kind] ?? 1) - AMBUSH_CROUCH.height)
+    view.body.position.y = (moving && enemy.kind !== 'boss' ? Math.abs(Math.sin(clock * 12 + enemy.id)) * 0.06 : 0) - duck
+    if (view.lamp) view.lamp.position.y = (BODY_HEIGHTS[enemy.kind] ?? 1) - 0.05 - duck
     const frozen = status.frozen > 0
     const off = disabled(enemy)
     if (!frozen) view.posed = off ? 0 : view.pose.pose(enemy, tuning)
@@ -1221,7 +1232,7 @@ export function createEntityViews(
         view.lamp.visible = inGrass
         if (inGrass) view.lamp.getObjectByName('bulb')?.scale.setScalar(1 + 0.35 * Math.max(0, Math.sin(clock * (enemy.aggro ? GRASS_LAMP.angry : GRASS_LAMP.calm) + enemy.id)))
       }
-      if (enemy.kind !== 'boss') blobs.add(view.root.position.x, view.root.position.z, enemy.radius, 1 - Math.max(0, view.veil.amount))
+      if (enemy.kind !== 'boss' && !view.casts) blobs.add(view.root.position.x, view.root.position.z, enemy.radius, 1 - Math.max(0, view.veil.amount))
     }
     blobs.end()
     for (const [id, view] of enemyViews) {

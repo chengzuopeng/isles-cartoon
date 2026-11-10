@@ -109,7 +109,7 @@ describe('blob shadow placement', () => {
 })
 
 describe('minion shadows', () => {
-  it('stop minions from casting and give each one a blob under its feet', () => {
+  it('let minions with models cast real shadows where there is no fog, with no blob under them', () => {
     const restore = stubImages()
     try {
       const tuning = createDefaultTuning()
@@ -122,15 +122,14 @@ describe('minion shadows', () => {
         world.enemies.push(createEnemy(world, kind, { x: world.player.pos.x + index - 2.5, y: world.player.pos.y - 2 }, 0, { affixes: index === 0 ? ['tough'] : [] }))
       })
       views.sync(world, 1, 1 / 60)
-      expect(casters(scene)).toBe(before)
-      const blobs = blobsIn(scene)
-      expect(blobs.count).toBe(KINDS.length)
-      const centre = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(blobs.instanceMatrix.array, 0))
-      expect(Math.hypot(centre.x - world.enemies[0].pos.x, centre.z - world.enemies[0].pos.y)).toBeLessThan(world.enemies[0].radius)
+      const standing = casters(scene)
+      expect(standing).toBeGreaterThan(before)
+      expect(blobsIn(scene).count).toBe(0)
       world.enemies[1].hp = 0
       views.sync(world, 1, 1 / 60)
-      expect(blobsIn(scene).count).toBe(KINDS.length - 1)
+      expect(casters(scene)).toBeLessThan(standing)
       views.reset()
+      expect(casters(scene)).toBe(before)
       expect(blobsIn(scene).visible).toBe(false)
     } finally {
       restore()

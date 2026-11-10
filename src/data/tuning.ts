@@ -224,7 +224,7 @@ export function createDefaultTuning(): Tuning {
     },
     grunt: {
       speed: 4.3,
-      radius: 0.38,
+      radius: 0.45,
       maxHp: 600,
       sight: 11.2,
       rushMin: 4.2,
@@ -237,7 +237,7 @@ export function createDefaultTuning(): Tuning {
     },
     gunner: {
       speed: 3.5,
-      radius: 0.36,
+      radius: 0.4,
       maxHp: 480,
       sight: 16,
       keepMin: 7.2,
@@ -249,19 +249,19 @@ export function createDefaultTuning(): Tuning {
     },
     bomber: {
       speed: 5.6,
-      radius: 0.34,
+      radius: 0.42,
       maxHp: 200,
       sight: 10.4,
       triggerRange: 1.4,
     },
     turret: {
-      radius: 0.48,
+      radius: 0.55,
       maxHp: 900,
       sight: 13.6,
     },
     shield: {
       speed: 2.9,
-      radius: 0.45,
+      radius: 0.47,
       maxHp: 560,
       sight: 11.2,
       turnRate: 1,
@@ -269,7 +269,7 @@ export function createDefaultTuning(): Tuning {
     },
     thrower: {
       speed: 3.2,
-      radius: 0.36,
+      radius: 0.4,
       maxHp: 360,
       sight: 12.8,
       keepMin: 7.2,

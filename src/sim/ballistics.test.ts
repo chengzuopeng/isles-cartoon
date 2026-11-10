@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EYE_CRIT, eyeHeightOf } from '../data/heights'
+import { EYE_CRIT, bodyHeightOf, eyeHeightOf } from '../data/heights'
 import { createDefaultTuning } from '../data/tuning'
 import { fireEnemyWeapon } from './arsenal'
 import { lineClear } from './collision'
@@ -73,7 +73,7 @@ describe('bullets in 2.5D', () => {
   it('only hit an enemy inside the height of its body', () => {
     const world = scene(LANE)
     const grunt = add(world, 'grunt', 6.5, 1.5)
-    spawnBullet(world, 'player', 1.5, 1.5, 0, 0, 'blaster', { z: EYE })
+    spawnBullet(world, 'player', 1.5, 1.5, 0, 0, 'blaster', { z: bodyHeightOf('grunt') + 0.3 })
     fly(world, 0.5)
     expect(grunt.hp).toBe(grunt.maxHp)
     spawnBullet(world, 'player', 1.5, 1.5, 0, 0, 'blaster', { z: 0.4 })

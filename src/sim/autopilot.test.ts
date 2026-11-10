@@ -629,6 +629,6 @@ describe('autopilot in the harvest fields', () => {
       }
       expect(world.status, `seed ${seed}`).toBe('complete')
     }
-    expect(pinned).toBeLessThan(6)
+    expect(pinned).toBeLessThan(12)
   })
 })

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { EYE_CRIT } from '../data/heights'
 import { SKILLS, type SkillId } from '../data/skills'
 import { createDefaultTuning } from '../data/tuning'
 import { giveSpecialWeapon } from './arsenal'
@@ -161,10 +162,12 @@ describe('ultimate', () => {
     expect(world.player.ultimate).toBeCloseTo(dealt / tuning.player.ultimateCharge, 5)
     const charged = world.player.ultimate
     const landed = world.stats.bulletsHit
+    const critsBefore = world.stats.crits
     giveSpecialWeapon(world, 'smg')
     for (let i = 0; i < 40; i++) stepWorld(world, { ...aim, fire: true }, DT)
     run(world, aim, 0.5)
-    const special = (world.stats.bulletsHit - landed) * tuning.weapons.smg.damage * tuning.player.specialUltShare
+    const crits = world.stats.crits - critsBefore
+    const special = (world.stats.bulletsHit - landed + crits * (EYE_CRIT.scale - 1)) * tuning.weapons.smg.damage * tuning.player.specialUltShare
     expect(special).toBeGreaterThan(0)
     expect(world.player.ultimate).toBeCloseTo(charged + special / tuning.player.ultimateCharge, 5)
   })
