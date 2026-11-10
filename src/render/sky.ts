@@ -50,7 +50,6 @@ uniform vec3 cloudShade;
 uniform vec3 horizonColor;
 uniform vec3 sunColor;
 uniform vec3 sunHalo;
-uniform vec3 inkColor;
 uniform vec3 sunDir;
 uniform float time;
 varying vec3 vDir;
@@ -68,35 +67,51 @@ float noise(vec2 p) {
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
-float billow(vec2 p) {
-  return noise(p) * 0.56 + noise(p * 2.3 + 11.0) * 0.3 + noise(p * 5.1 + 3.0) * 0.14;
+float ring(float bearing, float scale, float seed) {
+  return noise(vec2(cos(bearing), sin(bearing)) * scale + seed);
+}
+
+float bumps(float bearing, float k, float seed) {
+  return abs(sin(bearing * k + seed)) * 0.5 + abs(sin(bearing * (k * 2.0 + 1.0) + seed * 1.7)) * 0.32 + abs(sin(bearing * (k * 5.0 + 2.0) + seed * 2.9)) * 0.18;
+}
+
+vec3 cloudLayer(float bearing, float up, float base, float thick, float k, float seed, float cover, float speed) {
+  float b = bearing + time * speed;
+  float envelope = smoothstep(cover, cover + 0.18, ring(b, k * 0.6, seed));
+  float top = base + thick * envelope * (0.3 + 0.7 * bumps(b, k, seed));
+  float inside = step(base, up) * step(up, top) * step(0.03, envelope);
+  float shade = step(up, base + (top - base) * 0.36);
+  float edge = min(abs(up - top), abs(up - base)) + (1.0 - step(0.03, envelope));
+  return vec3(inside, shade, edge);
 }
 
 void main() {
   vec3 dir = normalize(vDir);
   float up = dir.y;
   float bearing = atan(dir.z, dir.x);
-  float wave = noise(vec2(bearing * 2.2, 3.0)) * 0.08 + noise(vec2(bearing * 6.0, 9.0)) * 0.03;
-  vec3 color = mix(skyBase, skyHigh, step(0.4 + wave, up));
+  float wave = (ring(bearing, 2.2, 3.0) - 0.5) * 0.07 + (ring(bearing, 6.0, 9.0) - 0.5) * 0.03;
+  vec3 skyMid = mix(skyBase, skyHigh, 0.5);
+  vec3 color = skyBase;
+  color = mix(color, skyMid, step(0.16 + wave, up));
+  color = mix(color, skyHigh, step(0.34 + wave * 1.4, up));
   float sunAngle = acos(clamp(dot(dir, sunDir), -1.0, 1.0));
-  color = mix(color, sunHalo, step(sunAngle, 0.2));
-  vec2 drift = vec2(time * 0.006, time * 0.002);
-  vec2 p = dir.xz / (max(up, 0.0) + 0.3) * 2.4 + drift;
-  vec2 below = dir.xz / (max(up - 0.035, 0.0) + 0.3) * 2.4 + drift;
-  float shape = billow(p);
-  float lower = billow(below);
-  float level = 0.585;
-  float cover = step(level, shape);
-  float under = step(lower, level);
-  vec3 cloud = mix(cloudColor, cloudShade, under);
-  float width = max(fwidth(shape), 0.0005);
-  float rim = 1.0 - smoothstep(width * 1.1, width * 2.2, abs(shape - level));
-  float inner = 0.0;
-  float present = smoothstep(0.05, 0.12, up);
-  color = mix(color, cloud, cover * present);
-  color = mix(color, inkColor, max(rim, inner) * present * 0.85);
-  color = mix(color, sunColor * 1.25, step(sunAngle, 0.085));
-  float band = step(up, 0.045 + wave * 0.5);
+  color = mix(color, sunHalo, step(sunAngle, 0.08));
+  float line = max(fwidth(up), 0.0004) * 1.6;
+  vec3 rimColor = cloudShade * 0.6;
+  vec3 l4 = cloudLayer(bearing, up, 0.62, 0.16, 2.0, 5.1, 0.54, 0.004);
+  vec3 l3 = cloudLayer(bearing, up, 0.36, 0.17, 3.0, 1.7, 0.5, 0.003);
+  vec3 l2 = cloudLayer(bearing, up, 0.2, 0.1, 5.0, 8.3, 0.46, 0.002);
+  vec3 l1 = cloudLayer(bearing, up, 0.095, 0.055, 8.0, 3.9, 0.44, 0.0012);
+  color = mix(color, mix(cloudColor, cloudShade, l4.y), l4.x);
+  color = mix(color, rimColor, (1.0 - smoothstep(line, line * 2.0, l4.z)) * 0.9);
+  color = mix(color, mix(cloudColor, cloudShade, l3.y), l3.x);
+  color = mix(color, rimColor, (1.0 - smoothstep(line, line * 2.0, l3.z)) * 0.9);
+  color = mix(color, sunColor, step(sunAngle, 0.042));
+  color = mix(color, mix(mix(cloudColor, cloudShade, l2.y), horizonColor, 0.2), l2.x);
+  color = mix(color, rimColor, (1.0 - smoothstep(line, line * 2.0, l2.z)) * 0.8);
+  color = mix(color, mix(mix(cloudColor, cloudShade, l1.y), horizonColor, 0.45), l1.x);
+  color = mix(color, mix(rimColor, horizonColor, 0.4), (1.0 - smoothstep(line, line * 2.0, l1.z)) * 0.7);
+  float band = step(up, 0.04 + wave * 0.4);
   color = mix(color, horizonColor, band);
   gl_FragColor = vec4(color, 1.0);
 }
@@ -278,7 +293,6 @@ export function createSky(options: SkyOptions): Sky {
       horizonColor: { value: new THREE.Color(colors.horizon) },
       sunColor: { value: new THREE.Color(colors.sun) },
       sunHalo: { value: new THREE.Color(colors.sunHalo) },
-      inkColor: { value: new THREE.Color('#1d1714') },
       sunDir: { value: options.sunDirection.clone().normalize() },
       time: { value: 0 },
     },

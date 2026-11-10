@@ -22,8 +22,9 @@
 - 设计
   - [愿景](design/vision.md)
   - [第一人称玩法](design/gameplay.md)
-  - [战斗节奏：为什么显得呆，怎么改](design/combat-pacing.md)（建议稿，等用户定）
+  - [战斗节奏：为什么显得呆，怎么改](design/combat-pacing.md)（前四条已做，后六条待做）
   - [画风：会动的漫画](design/art-direction.md)
+  - [画面复盘：为什么还不够好看，怎么改](design/visual-review.md)（12 项已落地，其余 9 项待做）
   - [样机关卡：1-1 出发](design/prototype-1-1.md)（M1 缩减版）
   - [关卡 1-1 出发（第一人称完整版）](design/levels/1-1.md)
   - [关卡 1-2 牧场（第一人称版）](design/levels/1-2.md)（设计稿）

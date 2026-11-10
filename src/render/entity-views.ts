@@ -27,7 +27,7 @@ import { EMPTY_LIBRARY, socketWorld, type ModelLibrary } from './model-library'
 import { createPlayerView } from './player-view'
 import { createSheepViews } from './sheep-views'
 import type { Stage } from './stage'
-import { BUFF_COLORS, CHEST_COLORS, CLUE_GLOW, ELITE_CROWN, FOG_LAYER, FOG_VEIL, FX, HEAL_COLOR } from './themes'
+import { BUFF_COLORS, CHEST_COLORS, CLUE_GLOW, ELITE_CROWN, ENEMY_LOOK, FOG_LAYER, FOG_VEIL, FX, HEAL_COLOR } from './themes'
 import { BULLET_HEIGHT, GEAR_COLOR, flat, part, standard, type Disposable } from './view-helpers'
 import { BODY_HEIGHTS, CHEST_HEIGHT, eyeHeightOf, muzzleHeightOf } from '../data/heights'
 import { bossExposed } from '../sim/boss'
@@ -561,6 +561,7 @@ export function createEntityViews(
     const model = kind !== 'boss' && models.has(kind) ? models.instance(kind, ENEMY_JOINTS[kind]) : null
     if (model && kind !== 'boss') {
       ;(kind === 'turret' ? view.body : view.pivot).add(model.root)
+      for (const tint of model.tintable) tint.color.multiplyScalar(ENEMY_LOOK.brighten)
       view.materials.push(...model.tintable)
       view.owned.push(model)
       view.model = createEnemyRig(kind, view.pose, { model, models, effects })
@@ -1402,7 +1403,7 @@ export function createEntityViews(
             view.flash = 1
             view.flinch = Math.max(view.flinch, event.crit ? HIT_FLINCH.crit : 1)
           }
-          effects.puff(event.x, event.z, event.y, '#ffffff', 0.3, 0.8, 0.1)
+          effects.puff(event.x, event.z, event.y, '#ffe9a8', 0.16, 0.45, 0.09)
           effects.sparks(event.x, event.z, event.y, awayX(event.x), awayY(event.y), {
             count: event.crit ? 26 : 14,
             speed: event.crit ? 9.5 : 7.5,
@@ -1419,7 +1420,7 @@ export function createEntityViews(
             const base = view ? view.root.position.y : 0
             if (event.kind === 'boss') effects.burst(event.x, event.y, KILL_COLORS[event.kind], 2.2)
             else {
-              effects.puff(event.x, base + 0.7, event.y, KILL_COLORS[event.kind], 0.5, 1.5, 0.14)
+              effects.puff(event.x, base + 0.7, event.y, KILL_COLORS[event.kind], 0.4, 1.05, 0.12)
               effects.smoke(event.x, base + 0.5, event.y, 0.6, 5)
               effects.sparks(event.x, base + 0.7, event.y, event.dirX, event.dirY, { count: 30, speed: 9, life: 0.45, color: FX.sparks.kill, spread: 0.85, lift: 0.5 })
             }

@@ -17,9 +17,12 @@ export interface InkLook {
   creaseWidth: number
   depthThreshold: number
   normalThreshold: number
-  lineFadeStart: number
-  lineFadeEnd: number
+  lineNear: number
+  lineMin: number
+  creaseStart: number
   creaseEnd: number
+  detailNear: number
+  detailFar: number
   hazeStart: number
   hazeEnd: number
   hazeMax: number
@@ -59,18 +62,21 @@ export const DEFAULT_LOOK: InkLook = {
   creaseWidth: 1.6,
   depthThreshold: 0.035,
   normalThreshold: 0.22,
-  lineFadeStart: 45,
-  lineFadeEnd: 220,
+  lineNear: 14,
+  lineMin: 1.3,
+  creaseStart: 45,
   creaseEnd: 110,
-  hazeStart: 60,
-  hazeEnd: 900,
-  hazeMax: 0.5,
+  detailNear: 6,
+  detailFar: 14,
+  hazeStart: 18,
+  hazeEnd: 170,
+  hazeMax: 0.6,
   haze: new THREE.Color('#e9dcc0'),
-  bloomStrength: 0.75,
+  bloomStrength: 0.5,
   bloomRadius: 0.35,
   bloomThreshold: 1.02,
   vignette: 0.3,
-  aberration: 2.2,
+  aberration: 0.9,
   grain: 0.05,
   saturation: 1.08,
   warmth: 0.03,
@@ -98,8 +104,9 @@ uniform float lineWidth;
 uniform float creaseWidth;
 uniform float depthThreshold;
 uniform float normalThreshold;
-uniform float lineFadeStart;
-uniform float lineFadeEnd;
+uniform float lineNear;
+uniform float lineMin;
+uniform float creaseStart;
 uniform float creaseEnd;
 uniform float hazeStart;
 uniform float hazeEnd;
@@ -142,19 +149,20 @@ void main() {
   float center = 1.0 / max(distance, 0.0001);
   vec2 pixel = 1.0 / resolution;
   float scale = resolution.y / 1080.0;
-  float width = mix(lineWidth, 1.0, smoothstep(lineFadeStart, lineFadeEnd, distance)) * scale;
+  float width = max(max(lineMin, lineWidth * min(1.0, lineNear / distance)) * scale, 1.0);
   vec2 h = vec2(pixel.x * width, 0.0);
   vec2 v = vec2(0.0, pixel.y * width);
   vec2 d1 = vec2(pixel.x, pixel.y) * width * 0.7071;
   vec2 d2 = vec2(pixel.x, -pixel.y) * width * 0.7071;
   float silhouette = max(max(ridge(vUv, h, center), ridge(vUv, v, center)), max(ridge(vUv, d1, center), ridge(vUv, d2, center)));
   float edge = smoothstep(depthThreshold, depthThreshold * 1.8, silhouette);
-  vec3 normal = texture2D(tNormal, vUv).xyz * 2.0 - 1.0;
+  vec4 surface = texture2D(tNormal, vUv);
+  vec3 normal = surface.xyz * 2.0 - 1.0;
   float cw = creaseWidth * scale;
   vec2 ch = vec2(pixel.x * cw, 0.0);
   vec2 cv = vec2(0.0, pixel.y * cw);
   float bend = max(max(crease(vUv, ch, normal, center), crease(vUv, -ch, normal, center)), max(crease(vUv, cv, normal, center), crease(vUv, -cv, normal, center)));
-  float fold = smoothstep(normalThreshold, normalThreshold + 0.12, bend) * (1.0 - smoothstep(lineFadeStart, creaseEnd, distance));
+  float fold = smoothstep(normalThreshold, normalThreshold + 0.12, bend) * (1.0 - smoothstep(creaseStart, creaseEnd, distance)) * surface.a;
   float line = max(edge, fold) * outlines;
   float mist = smoothstep(hazeStart, hazeEnd, distance) * hazeMax;
   color = mix(color, hazeColor, mist);
@@ -239,6 +247,13 @@ interface Swapped {
   visible: boolean
 }
 
+export function detailGain(distance: number, radius: number, near: number, far: number): number {
+  const start = radius * near
+  const end = Math.max(start + 0.001, radius * far)
+  const t = Math.min(1, Math.max(0, (distance - start) / (end - start)))
+  return 1 - t * t * (3 - 2 * t)
+}
+
 function hiddenFromNormals(object: THREE.Object3D, material: THREE.Material | undefined): boolean {
   if (object.userData.noInk === true || !material) return true
   if (material.transparent) return true
@@ -277,8 +292,9 @@ export function createInkPipeline(renderer: THREE.WebGLRenderer, look: InkLook =
       creaseWidth: { value: look.creaseWidth },
       depthThreshold: { value: look.depthThreshold },
       normalThreshold: { value: look.normalThreshold },
-      lineFadeStart: { value: look.lineFadeStart },
-      lineFadeEnd: { value: look.lineFadeEnd },
+      lineNear: { value: look.lineNear },
+      lineMin: { value: look.lineMin },
+      creaseStart: { value: look.creaseStart },
       creaseEnd: { value: look.creaseEnd },
       hazeStart: { value: look.hazeStart },
       hazeEnd: { value: look.hazeEnd },
@@ -359,8 +375,9 @@ export function createInkPipeline(renderer: THREE.WebGLRenderer, look: InkLook =
     u.creaseWidth.value = look.creaseWidth
     u.depthThreshold.value = look.depthThreshold
     u.normalThreshold.value = look.normalThreshold
-    u.lineFadeStart.value = look.lineFadeStart
-    u.lineFadeEnd.value = look.lineFadeEnd
+    u.lineNear.value = look.lineNear
+    u.lineMin.value = look.lineMin
+    u.creaseStart.value = look.creaseStart
     u.creaseEnd.value = look.creaseEnd
     u.hazeStart.value = look.hazeStart
     u.hazeEnd.value = look.hazeEnd
@@ -382,21 +399,23 @@ export function createInkPipeline(renderer: THREE.WebGLRenderer, look: InkLook =
   }
 
   const sphere = new THREE.Sphere()
-  const tooFar = (object: THREE.Object3D, eye: THREE.Vector3): boolean => {
+  const bounds = (object: THREE.Object3D): boolean => {
     const instanced = object as THREE.InstancedMesh
     if (instanced.isInstancedMesh) {
       if (!instanced.boundingSphere) instanced.computeBoundingSphere()
       if (!instanced.boundingSphere) return false
       sphere.copy(instanced.boundingSphere).applyMatrix4(object.matrixWorld)
-      return eye.distanceTo(sphere.center) - sphere.radius > look.creaseEnd
+      return true
     }
     const geometry = (object as THREE.Mesh).geometry
     if (!geometry) return false
     if (!geometry.boundingSphere) geometry.computeBoundingSphere()
     if (!geometry.boundingSphere) return false
     sphere.copy(geometry.boundingSphere).applyMatrix4(object.matrixWorld)
-    return eye.distanceTo(sphere.center) - sphere.radius > look.creaseEnd
+    return true
   }
+  const tooFar = (object: THREE.Object3D, eye: THREE.Vector3): boolean => bounds(object) && eye.distanceTo(sphere.center) - sphere.radius > look.creaseEnd
+  const detail = (object: THREE.Object3D, eye: THREE.Vector3): number => (bounds(object) ? detailGain(eye.distanceTo(sphere.center), sphere.radius, look.detailNear, look.detailFar) : 1)
   const swapToNormals = (scene: THREE.Scene, eye: THREE.Vector3) => {
     scene.traverseVisible((object) => {
       const drawn = object as THREE.Object3D & { material?: THREE.Material | THREE.Material[]; isMesh?: boolean; isPoints?: boolean; isLine?: boolean; isSprite?: boolean }
@@ -408,7 +427,18 @@ export function createInkPipeline(renderer: THREE.WebGLRenderer, look: InkLook =
         drawn.visible = false
         return
       }
-      drawn.material = first instanceof RigidStandardMaterial ? rigidNormalFor(first) : first?.side === THREE.DoubleSide ? normalDouble : first?.side === THREE.BackSide ? normalBack : normalFront
+      if (first instanceof RigidStandardMaterial) {
+        const gain = detail(drawn, eye)
+        if (gain <= 0) {
+          drawn.visible = false
+          return
+        }
+        const normal = rigidNormalFor(first)
+        normal.rigidCrease.value = gain
+        drawn.material = normal
+        return
+      }
+      drawn.material = first?.side === THREE.DoubleSide ? normalDouble : first?.side === THREE.BackSide ? normalBack : normalFront
     })
   }
   const restore = () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Tile, type Grid } from '../sim/grid'
 import type { BuiltLevel } from '../sim/level'
-import { VISUAL_HEIGHTS, buildWalls, isBorder } from './fps-level-view'
+import { VISUAL_HEIGHTS, buildWalls, isBorder, tuftGeometry } from './fps-level-view'
 
 function grid(rows: string[], floors?: number[][]): Grid {
   const tiles: Record<string, Tile> = { '.': Tile.Floor, '#': Tile.Wall, '~': Tile.Water }
@@ -64,5 +64,27 @@ describe('fps level view', () => {
     expect(walls.size).toBe(0)
     const pair = buildWalls(level(grid(['.....', '.##..', '.....'])))
     expect(quads(pair.get('farm')!.getAttribute('position').count)).toBe(2 + 6)
+  })
+})
+
+describe('grass tufts', () => {
+  it('light every blade like the ground so none turn into dark spikes', () => {
+    const normals = tuftGeometry().getAttribute('normal')
+    for (let i = 0; i < normals.count; i++) {
+      expect(normals.getX(i)).toBe(0)
+      expect(normals.getY(i)).toBe(1)
+      expect(normals.getZ(i)).toBe(0)
+    }
+  })
+
+  it('draws each blade from both sides without a double-sided material', () => {
+    const geometry = tuftGeometry()
+    const positions = geometry.getAttribute('position')
+    expect(positions.count % 6).toBe(0)
+    for (let blade = 0; blade < positions.count; blade += 6) {
+      expect(positions.getX(blade)).toBeCloseTo(positions.getX(blade + 4), 6)
+      expect(positions.getZ(blade)).toBeCloseTo(positions.getZ(blade + 4), 6)
+      expect(positions.getY(blade + 2)).toBeCloseTo(positions.getY(blade + 5), 6)
+    }
   })
 })

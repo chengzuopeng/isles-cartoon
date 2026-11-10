@@ -34,7 +34,7 @@ import { RESIDENT_MODEL_IDS, VIEWMODEL_MODEL_IDS, type ModelId } from './render/
 import { createEffects } from './render/effects'
 import { createEntityViews, type EntityViews, type ViewFlags } from './render/entity-views'
 import { createFpsLevelView, type FpsLevelView } from './render/fps-level-view'
-import { SUN_DIRECTION, createFpsStage, type ViewMode } from './render/fps-stage'
+import { createFpsStage, type ViewMode } from './render/fps-stage'
 import { gltfSource } from './render/gltf-source'
 import { levelsToKeep, modelsFor, nextLevel } from './render/level-models'
 import { createModelLibrary } from './render/model-library'
@@ -330,7 +330,6 @@ let viewsReady = false
 const viewmodel = createViewmodel(models)
 const rings = createRingViews(stage.scene)
 stage.setOverlay((renderer) => viewmodel.draw(renderer))
-const sunDirection = SUN_DIRECTION
 
 const booted = (async () => {
   await models.ensure([...RESIDENT_MODEL_IDS, ...VIEWMODEL_MODELS])
@@ -1053,8 +1052,6 @@ function frame(now: number): void {
         supporting: player.ultShots > 0,
         alive: player.alive && stage.view === 'fps' && screen === 'play' && !dialogue.isOpen(),
       },
-      stage.camera,
-      sunDirection,
     )
     viewmodel.resize(stage.width * stage.renderer.getPixelRatio(), stage.height * stage.renderer.getPixelRatio())
     views.setPlayerVisible(stage.view !== 'fps')

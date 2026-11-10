@@ -90,6 +90,7 @@ interface Batch {
   parts: readonly NodePart[]
   matrices: THREE.Matrix4[]
   shadow: boolean
+  ink: boolean
 }
 
 interface GateView {
@@ -219,12 +220,13 @@ export function wallEdges(level: BuiltLevel): WallEdge[] {
 export function tuftGeometry(): THREE.BufferGeometry {
   const positions: number[] = []
   const colors: number[] = []
-  const base = new THREE.Color('#4f7f3a')
-  const tip = new THREE.Color('#b9d97a')
+  const base = new THREE.Color(TUFT.base, TUFT.base, TUFT.base)
+  const tip = new THREE.Color(TUFT.tip, TUFT.tip, TUFT.tip)
   const blades = [
-    { angle: 0, lean: 0.22, height: 1, width: 0.26 },
-    { angle: 2.1, lean: 0.3, height: 0.8, width: 0.24 },
-    { angle: 4.2, lean: 0.26, height: 0.9, width: 0.24 },
+    { angle: 0, lean: 0.2, height: 1, width: 0.13 },
+    { angle: 1.6, lean: 0.34, height: 0.72, width: 0.12 },
+    { angle: 3.1, lean: 0.28, height: 0.86, width: 0.12 },
+    { angle: 4.6, lean: 0.36, height: 0.66, width: 0.11 },
   ]
   for (const blade of blades) {
     const dx = Math.cos(blade.angle)
@@ -233,16 +235,25 @@ export function tuftGeometry(): THREE.BufferGeometry {
     const sz = dx * blade.width
     positions.push(-sx, 0, -sz, sx, 0, sz, dx * blade.lean, blade.height, dz * blade.lean)
     colors.push(base.r, base.g, base.b, base.r, base.g, base.b, tip.r, tip.g, tip.b)
+    positions.push(sx, 0, sz, -sx, 0, -sz, dx * blade.lean, blade.height, dz * blade.lean)
+    colors.push(base.r, base.g, base.b, base.r, base.g, base.b, tip.r, tip.g, tip.b)
   }
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
-  geometry.computeVertexNormals()
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(positions.map((_, index) => (index % 3 === 1 ? 1 : 0)), 3))
   return geometry
 }
 
 const TUFT_THEMES: ReadonlySet<Theme> = new Set(['farm', 'meadow', 'arena', 'forest'])
-const BACKDROP = { every: 5, scale: 2.8, out: 0.6 } as const
+const BACKDROP = {
+  scale: 2.8,
+  rows: [
+    { every: 2, shift: 0, out: 0.6, spread: 0.6, drift: 0.8, sink: 0.3, tall: 0.8, tallSpread: 0.5, wide: 0.85, wideSpread: 0.3, shadow: true, ink: true },
+    { every: 3, shift: 1, out: 2.6, spread: 0.8, drift: 1, sink: 0.6, tall: 1.35, tallSpread: 0.5, wide: 1.15, wideSpread: 0.35, shadow: false, ink: false },
+  ],
+} as const
+const TUFT = { base: 0.74, tip: 1.12, tint: 0.92, tintSpread: 0.2, denseShare: 0.35, dense: 3, sparse: 2 } as const
 
 export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): FpsLevelView {
   const { grid } = level
@@ -304,12 +315,12 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     if (!node) return models.parts(id as ModelId)
     return bakeNode(models.shared(id as ModelId).root, node)
   }
-  const place = (name: string, parts: readonly NodePart[] | null, x: number, y: number, z: number, yaw: number, sx: number, sy: number, sz: number, shadow: boolean) => {
+  const place = (name: string, parts: readonly NodePart[] | null, x: number, y: number, z: number, yaw: number, sx: number, sy: number, sz: number, shadow: boolean, ink = true) => {
     if (!parts) return
-    const key = `${name}#${band(Math.floor(z))}`
+    const key = `${name}#${band(Math.floor(z))}#${shadow ? 'cast' : 'flat'}#${ink ? 'ink' : 'plain'}`
     let batch = batches.get(key)
     if (!batch) {
-      batch = { name, band: band(Math.floor(z)), parts, matrices: [], shadow }
+      batch = { name, band: band(Math.floor(z)), parts, matrices: [], shadow, ink }
       batches.set(key, batch)
     }
     position.set(x, y, z)
@@ -338,11 +349,19 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       const x = column + 0.5
       const z = row + 0.5
       const border = isBorder(grid, column, row)
-      if (tile === Tile.Wall && border && BACKDROP_THEMES.has(theme) && (column === 0 || column === grid.columns - 1) && (row + (column === 0 ? 0 : 1)) % BACKDROP.every === 0) {
-        const id = variantModel(has, propModel('tree', theme), PROP_MODELS.tree.variants, column, row)
-        const tall = BACKDROP.scale * (0.85 + cellHash(column, row, 7) * 0.4)
-        const wide = BACKDROP.scale * (0.8 + cellHash(column, row, 8) * 0.25)
-        if (id) place(id, models.parts(id as ModelId), x + (column === 0 ? -BACKDROP.out : BACKDROP.out), floor - 0.3, z, propYaw('tree', column, row), wide, tall, wide, true)
+      if (tile === Tile.Wall && border && BACKDROP_THEMES.has(theme) && (column === 0 || column === grid.columns - 1)) {
+        const side = column === 0 ? -1 : 1
+        BACKDROP.rows.forEach((ring, index) => {
+          if ((row + (column === 0 ? ring.shift : 1 - ring.shift)) % ring.every !== 0) return
+          const id = variantModel(has, propModel('tree', theme), PROP_MODELS.tree.variants, column + index * 3, row + index * 5)
+          if (!id) return
+          const salt = index * 10
+          const tall = BACKDROP.scale * (ring.tall + cellHash(column, row, 7 + salt) * ring.tallSpread)
+          const wide = BACKDROP.scale * (ring.wide + cellHash(column, row, 8 + salt) * ring.wideSpread)
+          const out = ring.out + cellHash(column, row, 9 + salt) * ring.spread
+          const along = (cellHash(column, row, 10 + salt) - 0.5) * ring.drift
+          place(id, models.parts(id as ModelId), x + side * out, floor - ring.sink, z + along, propYaw('tree', column + index, row), wide, tall, wide, ring.shadow, ring.ink)
+        })
       }
       if (tile === Tile.Fence || (tile === Tile.Wall && border)) {
         place('fence-post', fenceParts.post, x, floor, z, 0, 1.15, fenceScale, 1.15, false)
@@ -426,6 +445,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       mesh.castShadow = batch.shadow
       mesh.receiveShadow = true
       mesh.name = batch.name
+      if (!batch.ink) mesh.userData.noInk = true
       group.add(mesh)
       culled.push({ object: mesh, ...bandRange(batch.band) })
     }
@@ -455,11 +475,12 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   }
 
   const tuftSpots = new Map<number, THREE.Matrix4[]>()
+  const tuftTints = new Map<number, THREE.Color[]>()
   for (let row = 0; row < grid.rows; row++) {
     if (!TUFT_THEMES.has(themeOf(level, row))) continue
     for (let column = 0; column < grid.columns; column++) {
       if (tileAt(grid, column, row) !== Tile.Floor || isBorder(grid, column, row)) continue
-      const count = cellHash(column, row, 11) < 0.35 ? 3 : 1
+      const count = cellHash(column, row, 11) < TUFT.denseShare ? TUFT.dense : TUFT.sparse
       for (let k = 0; k < count; k++) {
         const tx = column + 0.15 + cellHash(column, row, 20 + k) * 0.7
         const tz = row + 0.15 + cellHash(column, row, 40 + k) * 0.7
@@ -470,16 +491,20 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
         const spots = tuftSpots.get(band(row)) ?? []
         spots.push(new THREE.Matrix4().compose(position, quaternion, scale))
         tuftSpots.set(band(row), spots)
+        const tints = tuftTints.get(band(row)) ?? []
+        tints.push(new THREE.Color(PALETTES[themeOf(level, row)].floorA).multiplyScalar(TUFT.tint + cellHash(column, row, 70 + k) * TUFT.tintSpread))
+        tuftTints.set(band(row), tints)
       }
     }
   }
   if (tuftSpots.size > 0) {
     const tuftGeo = tuftGeometry()
-    const tuftMaterial = toonMaterial({ vertexColors: true, side: THREE.DoubleSide, depthWrite: false })
+    const tuftMaterial = toonMaterial({ vertexColors: true, depthWrite: false })
     disposables.push(tuftGeo, tuftMaterial)
     for (const [index, spots] of tuftSpots) {
       const tufts = new THREE.InstancedMesh(tuftGeo, tuftMaterial, spots.length)
       spots.forEach((m, at) => tufts.setMatrixAt(at, m))
+      tuftTints.get(index)?.forEach((tint, at) => tufts.setColorAt(at, tint))
       tufts.instanceMatrix.needsUpdate = true
       tufts.computeBoundingSphere()
       tufts.receiveShadow = true

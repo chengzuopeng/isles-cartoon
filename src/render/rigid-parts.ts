@@ -67,9 +67,12 @@ export class RigidDepthMaterial extends THREE.MeshDepthMaterial {
 
 export class RigidNormalMaterial extends THREE.MeshNormalMaterial {
   rigidJoints: JointValues = { value: new Float32Array(16) }
+  rigidCrease = { value: 1 }
 
   override onBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms): void {
     patch(shader, this.rigidJoints)
+    shader.uniforms.rigidCrease = this.rigidCrease
+    shader.fragmentShader = shader.fragmentShader.replace('uniform float opacity;', 'uniform float opacity;\nuniform float rigidCrease;').replace('gl_FragColor.a = 1.0;', 'gl_FragColor.a = rigidCrease;')
   }
 
   override customProgramCacheKey(): string {

@@ -24,7 +24,7 @@ export interface ViewmodelState {
 export interface Viewmodel {
   readonly scene: THREE.Scene
   readonly camera: THREE.PerspectiveCamera
-  update(state: ViewmodelState, worldCamera: THREE.Camera, sun: THREE.Vector3): void
+  update(state: ViewmodelState): void
   shot(): void
   melee(): void
   switched(): void
@@ -63,6 +63,8 @@ const GUN_SCALE = 0.62
 const RAISE = { drop: 0.22, tilt: 0.7, rate: 7 }
 const TRIGGER_PULL = 0.28
 const LEFT_GRIP = { pivot: new THREE.Vector3(0.22, 0.065, 0), swing: -0.7, show: 0.35, rate: 14 }
+const KEY_LIGHT = new THREE.Vector3(-2.4, 3.4, 2.8)
+const MUZZLE_FLASH = { color: '#d6fbff', glow: 1.5 }
 const COIL_LIT = new THREE.Color('#5ff0ff')
 const COIL_DIM = new THREE.Color('#1c3c48')
 const COIL_GLOW = { lit: 0.85, dim: 0.12, charge: 0.6, core: 0.2, shade: 0.4 }
@@ -291,6 +293,7 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
   const camera = new THREE.PerspectiveCamera(50, 1, 0.02, 10)
   const hemisphere = new THREE.HemisphereLight('#d9ebff', '#9a8a68', 1.25)
   const sun = new THREE.DirectionalLight('#fff0d4', 2.5)
+  sun.position.copy(KEY_LIGHT)
   scene.add(hemisphere, sun, sun.target)
   const hull = new THREE.ShaderMaterial({
     vertexShader: HULL_VERTEX,
@@ -311,7 +314,7 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
   holder.scale.setScalar(GUN_SCALE)
   rig.add(holder)
 
-  const flashMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#d6fbff').multiplyScalar(3), transparent: true, depthWrite: false, side: THREE.DoubleSide })
+  const flashMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(MUZZLE_FLASH.color).multiplyScalar(MUZZLE_FLASH.glow), transparent: true, depthWrite: false, side: THREE.DoubleSide })
   const flash = new THREE.Mesh(starGeometry(0.16, 0.05, 0.001), flashMaterial)
   flash.visible = false
   flash.userData.noHull = true
@@ -336,8 +339,6 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
   let petals = 0
   let flashTime = 0
   let visible = true
-  const sunView = new THREE.Vector3()
-  const inverse = new THREE.Matrix4()
 
   const equip = (id: string) => {
     if (current?.id === id) return
@@ -363,7 +364,7 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
   return {
     scene,
     camera,
-    update(state, worldCamera, sunDirection) {
+    update(state) {
       const { dt } = state
       equip(state.weapon)
       if (!arms) {
@@ -376,10 +377,6 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
       trigger = damp(trigger, 0, 18, dt)
       support = damp(support, state.supporting ? 1 : 0, LEFT_GRIP.rate, dt)
       rig.visible = visible && state.alive
-      inverse.copy(worldCamera.matrixWorld).invert()
-      sunView.copy(sunDirection).transformDirection(inverse)
-      sun.position.copy(sunView).multiplyScalar(5)
-      sun.target.position.set(0, 0, 0)
 
       swayX = damp(swayX, THREE.MathUtils.clamp(-state.lookX * 0.0006, -0.04, 0.04), 9, dt)
       swayY = damp(swayY, THREE.MathUtils.clamp(state.lookY * 0.0006, -0.035, 0.035), 9, dt)

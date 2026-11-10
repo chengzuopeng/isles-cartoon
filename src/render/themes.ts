@@ -15,18 +15,18 @@ export interface Palette {
 
 export const PALETTES: Record<Theme, Palette> = {
   farm: {
-    floorA: '#a8c86a',
-    floorB: '#9fbf62',
-    path: '#cfae72',
+    floorA: '#a9a552',
+    floorB: '#a09c4b',
+    path: '#c49a60',
     wall: '#b48a5e',
     bush: '#dcc257',
     water: '#4aa6dc',
     canopy: '#4f9a3c',
   },
   meadow: {
-    floorA: '#8fcf6a',
-    floorB: '#84c460',
-    path: '#d2b37c',
+    floorA: '#9aa856',
+    floorB: '#919f4f',
+    path: '#c7a064',
     wall: '#b9b2a5',
     bush: '#3f9a3a',
     water: '#3aa0d8',
@@ -158,6 +158,8 @@ export const GROUND_WEAPON = {
 export const CRATE_TINT = { base: 0.86, spread: 0.14, warmth: 0.05 } as const
 
 export const SCENE_TINT = { base: 0.9, spread: 0.1 } as const
+
+export const ENEMY_LOOK = { brighten: 1.35 } as const
 
 export const ROCK_FALLBACK_COLORS: Readonly<Record<string, string>> = {
   'ch1-rock': '#9b968b',

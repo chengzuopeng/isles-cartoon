@@ -547,3 +547,96 @@
 .fps-mode .player-bar {
   display: none !important;
 }
+
+.fps-mode .hud-info {
+  gap: 5px;
+  text-shadow: none;
+  align-items: flex-start;
+}
+
+.fps-mode .hud-title {
+  padding: 3px 12px 4px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 900 18px/1.2 var(--comic-font);
+  letter-spacing: 2px;
+  border-radius: 3px;
+  transform: rotate(-1.5deg);
+  box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.35);
+}
+
+.fps-mode .hud-objective {
+  padding: 4px 10px 5px;
+  max-width: 300px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 2.5px solid var(--ink);
+  border-radius: 3px;
+  font: 800 13px/1.35 var(--comic-font);
+  box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.35);
+}
+
+.fps-mode .hud-area,
+.fps-mode .hud-stats {
+  color: var(--paper);
+  font: 900 14px/1.2 var(--comic-font);
+  -webkit-text-stroke: 3.5px var(--ink);
+  paint-order: stroke fill;
+  opacity: 1;
+  padding-left: 2px;
+}
+
+.fps-mode .hud-stats {
+  font-size: 12px;
+}
+
+.fps-mode .hud-banner {
+  text-shadow: none;
+  gap: 2px;
+}
+
+.fps-mode .hud-banner-title {
+  font: 900 56px/1.1 var(--comic-font);
+  color: var(--paper);
+  -webkit-text-stroke: 9px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 5px 6px 0 var(--ink);
+  transform: rotate(-3deg);
+  letter-spacing: 6px;
+}
+
+.fps-mode .hud-banner-sub {
+  padding: 4px 18px 5px;
+  background: #d5392e;
+  color: var(--paper);
+  border: 2.5px solid var(--ink);
+  font: 800 16px/1.2 var(--comic-font);
+  transform: rotate(-3deg) translateX(18px);
+  box-shadow: 3px 4px 0 var(--ink);
+  opacity: 1;
+}
+
+.fps-mode .skill-slot {
+  border-radius: 6px;
+  border: 2.5px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.4);
+}
+
+.fps-mode .skill-slot.empty {
+  opacity: 0.55;
+  background: var(--paper-dark);
+}
+
+.fps-mode .skill-slot.ready {
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.4), 0 0 0 3px var(--player);
+}
+
+.fps-mode .skill-slot .skill-key {
+  color: var(--ink);
+}
+
+.fps-mode .skill-slot.empty .skill-name {
+  color: var(--ink);
+}
