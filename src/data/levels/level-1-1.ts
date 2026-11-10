@@ -79,6 +79,7 @@ export const LEVEL_1_1: LevelDef = {
         [34, 20],
       ],
       landmarks: [{ id: 'ch1-town-gate', at: [16, 31] }],
+      rushes: [{ at: [[11, 0], [13, 0], [15, 0], [9, 1]], enemies: [{ kind: 'grunt', count: 5 }], left: 3 }],
       heights: [
         '0000000000011111100000000000000000000000',
         '0000000000000011111100000000000000000000',
@@ -165,6 +166,7 @@ export const LEVEL_1_1: LevelDef = {
         { id: 'ch1-star-altar', at: [1, 1], facing: 270 },
       ],
       clues: [{ id: 'star-altar', at: [3, 2] }],
+      rushes: [{ at: [[15, 0], [17, 0], [19, 0], [20, 1]], enemies: [{ kind: 'grunt', count: 6 }], left: 6 }],
       secrets: [{ from: [3, 2], to: [4, 3] }],
       heights: [
         '4444444444444444444444444445555555555555',
@@ -233,6 +235,10 @@ export const LEVEL_1_1: LevelDef = {
         [22, 3],
       ],
       landmarks: [{ id: 'ch1-barn', at: [3, 11] }],
+      rushes: [
+        { at: [[15, 0], [17, 0], [19, 0]], enemies: [{ kind: 'grunt', count: 4 }], left: 6 },
+        { at: [[37, 6], [37, 9], [36, 12]], enemies: [{ kind: 'grunt', count: 4 }], left: 2 },
+      ],
       heights: [
         '4444444444444444444444444444444444444444',
         '4444444444444444444444444444444444444444',

@@ -5,7 +5,7 @@ import { LEVEL_1_2 } from '../data/levels/level-1-2'
 import { LEVEL_1_3 } from '../data/levels/level-1-3'
 import { LEVEL_1_4 } from '../data/levels/level-1-4'
 import { LEVEL_1_5 } from '../data/levels/level-1-5'
-import { LEVEL_CAP } from '../data/progression'
+import { KILL_XP, LEVEL_CAP } from '../data/progression'
 import { createDefaultTuning } from '../data/tuning'
 import { killEnemy } from './combat'
 import {
@@ -338,7 +338,7 @@ describe('run rewards', () => {
     const enemy = createEnemy(world, 'gunner', { x: 4.5, y: 1.5 }, 0)
     world.enemies.push(enemy)
     killEnemy(world, enemy, true)
-    expect(world.rewards.kills).toBe(14)
+    expect(world.rewards.kills).toBe(KILL_XP.gunner * 2)
   })
 
   it('pays kills, the boss, the clear and the first three stars', () => {

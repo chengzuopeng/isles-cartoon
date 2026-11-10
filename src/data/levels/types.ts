@@ -62,6 +62,12 @@ export interface ReinforceDef {
   left: number
 }
 
+export interface RushDef {
+  at: readonly GridPoint[]
+  enemies: readonly BossSummon[]
+  left: number
+}
+
 export interface BladeDef {
   from: GridPoint
   to: GridPoint
@@ -93,6 +99,7 @@ export interface AreaDef {
   loot?: readonly ChestLootDef[]
   alarm?: AlarmDef
   reinforce?: ReinforceDef
+  rushes?: readonly RushDef[]
   fog?: FogDef
   perches?: readonly PerchDef[]
   blades?: readonly BladeDef[]

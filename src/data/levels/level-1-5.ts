@@ -40,7 +40,7 @@ export const LEVEL_1_5: LevelDef = {
   objective: '穿过收割场，阻止巨型收割机',
   chapter: 1,
   bossId: 'harvester',
-  bossTuning: { maxHp: 22000, damage: 0.5 },
+  bossTuning: { maxHp: 44000, damage: 0.5 },
   parSeconds: 720,
   maxHits: 18,
   unlockAfter: '1-4',

@@ -153,6 +153,13 @@ export type FeelTuning = {
   staggerPerKnock: number
   staggerMax: number
   staggerSpeed: number
+  reelShare: number
+  reelWindow: number
+  reelSeconds: number
+  reelCooldown: number
+  bumpSpeed: number
+  bumpShare: number
+  bumpDaze: number
   blastKnockback: number
   shakeShot: number
   shakeHit: number
@@ -207,7 +214,7 @@ export function createDefaultTuning(): Tuning {
       regenPerSecond: 30,
       regenSafeRadius: 19.2,
       legacyRegen: 0,
-      idleRegen: 1,
+      idleRegen: 0,
       ultimateCharge: 2500,
       specialUltShare: 0.5,
       jumpHeight: JUMP_HEIGHT,
@@ -218,14 +225,14 @@ export function createDefaultTuning(): Tuning {
       meleeRange: 2,
       meleeArcDeg: 80,
       meleeDamage: 150,
-      meleeKnockback: 1.5,
+      meleeKnockback: 3.5,
       meleeCooldown: 0.6,
       crumbleAt: 0.3,
     },
     grunt: {
       speed: 4.3,
       radius: 0.45,
-      maxHp: 600,
+      maxHp: 300,
       sight: 11.2,
       rushMin: 4.2,
       rushMax: 9.6,
@@ -238,7 +245,7 @@ export function createDefaultTuning(): Tuning {
     gunner: {
       speed: 3.5,
       radius: 0.4,
-      maxHp: 480,
+      maxHp: 320,
       sight: 16,
       keepMin: 7.2,
       keepMax: 12.8,
@@ -256,13 +263,13 @@ export function createDefaultTuning(): Tuning {
     },
     turret: {
       radius: 0.55,
-      maxHp: 900,
+      maxHp: 700,
       sight: 13.6,
     },
     shield: {
       speed: 2.9,
       radius: 0.47,
-      maxHp: 560,
+      maxHp: 420,
       sight: 11.2,
       turnRate: 1,
       guardArcDeg: 120,
@@ -270,7 +277,7 @@ export function createDefaultTuning(): Tuning {
     thrower: {
       speed: 3.2,
       radius: 0.4,
-      maxHp: 360,
+      maxHp: 280,
       sight: 12.8,
       keepMin: 7.2,
       keepMax: 12.8,
@@ -341,6 +348,13 @@ export function createDefaultTuning(): Tuning {
       staggerPerKnock: 0.03,
       staggerMax: 0.45,
       staggerSpeed: 0.55,
+      reelShare: 0.5,
+      reelWindow: 1,
+      reelSeconds: 1.5,
+      reelCooldown: 4,
+      bumpSpeed: 6,
+      bumpShare: 0.6,
+      bumpDaze: 1,
       blastKnockback: 8,
       shakeShot: 0.04,
       shakeHit: 0.08,

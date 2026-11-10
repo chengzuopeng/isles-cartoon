@@ -131,8 +131,16 @@ describe('attributes', () => {
 })
 
 describe('regeneration', () => {
-  it('waits out of combat before healing slowly', () => {
+  it('does not heal by itself on normal difficulty', () => {
     const { world, tuning } = setup()
+    world.player.hp = 500
+    run(world, idle(), tuning.player.regenDelay + 3)
+    expect(world.player.hp).toBe(500)
+  })
+
+  it('waits out of combat before healing slowly where idle healing is on', () => {
+    const { world, tuning } = setup()
+    tuning.player.idleRegen = 1
     world.player.hp = 500
     run(world, idle(), tuning.player.regenDelay - 0.1)
     expect(world.player.hp).toBe(500)
@@ -144,6 +152,7 @@ describe('regeneration', () => {
   it('stops while an alerted enemy is close and resumes once it is far away', () => {
     const tuning = createDefaultTuning()
     tuning.grunt.speed = 0
+    tuning.player.idleRegen = 1
     const rows = ['##################################', '#P...............................#', '##################################']
     const world = createWorld(singleArea(rows), tuning)
     const enemy = createEnemy(world, 'grunt', { x: 13.5, y: 1.5 }, 0)
@@ -161,6 +170,7 @@ describe('regeneration', () => {
   it('can switch back to the old rule for comparison', () => {
     const { world, tuning } = setup()
     tuning.player.legacyRegen = 1
+    tuning.player.idleRegen = 1
     tuning.grunt.speed = 0
     const enemy = createEnemy(world, 'grunt', { x: 18.5, y: 2.5 }, 0)
     enemy.aggro = true

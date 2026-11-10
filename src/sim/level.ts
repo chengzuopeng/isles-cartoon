@@ -91,6 +91,14 @@ export interface AlarmPlacement {
   post: Vec2
 }
 
+export interface RushPlacement {
+  area: number
+  points: Vec2[]
+  enemies: BossSummon[]
+  left: number
+  standing: number
+}
+
 export interface ReinforcePlacement {
   area: number
   points: Vec2[]
@@ -146,6 +154,7 @@ export interface BuiltLevel {
   secrets: SecretPlacement[]
   alarms: AlarmPlacement[]
   reinforcements: ReinforcePlacement[]
+  rushes: RushPlacement[]
   lamps: LampPlacement[]
   waypoints: (Vec2 | null)[]
   ring: RingPlacement | null
@@ -287,6 +296,7 @@ export function buildLevel(def: LevelDef): BuiltLevel {
   const secrets: SecretPlacement[] = []
   const alarms: AlarmPlacement[] = []
   const reinforcements: ReinforcePlacement[] = []
+  const rushes: RushPlacement[] = []
   const lamps: LampPlacement[] = []
   const blades: BladeLane[] = []
   landmarks.forEach((placement, index) => {
@@ -352,6 +362,15 @@ export function buildLevel(def: LevelDef): BuiltLevel {
         left: area.reinforce.left,
       })
     }
+    for (const rush of area.rushes ?? []) {
+      rushes.push({
+        area: index,
+        points: rush.at.map(local),
+        enemies: rush.enemies.map((squad) => ({ ...squad })),
+        left: rush.left,
+        standing: enemies.filter((enemy) => enemy.area === index).length,
+      })
+    }
     for (const blade of area.blades ?? []) blades.push(laneOf(blade, index, top, area.name))
     const sweep = area.fog?.clearedBy
     if (sweep) {
@@ -383,6 +402,7 @@ export function buildLevel(def: LevelDef): BuiltLevel {
     secrets,
     alarms,
     reinforcements,
+    rushes,
     lamps,
     waypoints: waypointsOf(grid, areas, exits),
     ring: ringOf(def, grid, areas, boss),
@@ -600,6 +620,17 @@ export function validateLevel(level: BuiltLevel): string[] {
       const row = Math.floor(point.y)
       if (level.areaOfRow[row] !== squad.area) problems.push(`reinforcement point at ${column},${row} is outside area "${area.name}"`)
       if (reachable[row * grid.columns + column] !== 1) problems.push(`reinforcement point at ${column},${row} is unreachable`)
+    }
+  }
+  for (const rush of level.rushes) {
+    const area = level.areas[rush.area]
+    if (rush.points.length === 0) problems.push(`area "${area.name}" has a rush without spawn points`)
+    if (rush.enemies.every((squad) => squad.count <= 0)) problems.push(`area "${area.name}" has a rush without enemies`)
+    for (const point of rush.points) {
+      const column = Math.floor(point.x)
+      const row = Math.floor(point.y)
+      if (level.areaOfRow[row] !== rush.area) problems.push(`rush point at ${column},${row} is outside area "${area.name}"`)
+      if (reachable[row * grid.columns + column] !== 1) problems.push(`rush point at ${column},${row} is unreachable`)
     }
   }
   for (const secret of level.secrets) {

@@ -12,7 +12,7 @@ import { blastLandmarks } from './landmark-state'
 import { aggro, witnessDeath } from './perception'
 import { rollEnemyDrop, rollItem, spawnPickup } from './pickups'
 import { barrierBurstKnockback, pushEnemies } from './skills'
-import { stunEnemy } from './status'
+import { feelPain, stunEnemy } from './status'
 import type { Vec2 } from './math'
 import { bodyHeight } from './terrain'
 import { chargeUltimate, ultShareOf } from './ultimate'
@@ -155,6 +155,7 @@ export function damageEnemy(
   })
   aggro(world, enemy)
   if (enemy.hp <= 0) killEnemy(world, enemy, true, true, true, dirX, dirY)
+  else if (knockback > 0 || hit.z !== undefined) feelPain(world, enemy, damage)
 }
 
 export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain = true, drop = true, dirX = 0, dirY = 0): void {

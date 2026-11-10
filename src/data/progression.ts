@@ -42,12 +42,12 @@ export const XP_BASE = 200
 export const XP_STEP = 100
 
 export const KILL_XP: Readonly<Record<MinionKind, number>> = {
-  grunt: 5,
-  gunner: 7,
-  bomber: 5,
-  turret: 10,
-  shield: 10,
-  thrower: 7,
+  grunt: 3,
+  gunner: 5,
+  bomber: 3,
+  turret: 8,
+  shield: 8,
+  thrower: 5,
 }
 
 export const ELITE_XP = 25

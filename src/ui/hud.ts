@@ -594,6 +594,9 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
         case 'alarmRaised':
           showBanner('钟响了！', '整片麦田的机器人都被惊动了')
           break
+        case 'rush':
+          showBanner('又来一波！', `${event.count} 个机器人冲过来了`)
+          break
         case 'reinforcements':
           showBanner('援兵来了', `北门进来了 ${event.count} 个机器人，全部打倒才开门`)
           break

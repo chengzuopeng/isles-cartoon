@@ -69,6 +69,7 @@ export const LEVEL_1_2: LevelDef = {
         { id: 'ch1-wheat-ears', at: [20, 26] },
         { id: 'ch1-wheat-ears', at: [19, 31], variant: 2 },
       ],
+      rushes: [{ at: [[18, 1], [20, 1], [21, 2]], enemies: [{ kind: 'bomber', count: 4 }], left: 1 }],
       heights: [
         '2222222222222222222222222222222222222222',
         '2222222222222222222222222222222222222222',
@@ -164,6 +165,10 @@ export const LEVEL_1_2: LevelDef = {
         { id: 'ch1-feed-shed', at: [34, 2] },
       ],
       pasture: { from: [3, 21], to: [13, 29] },
+      rushes: [
+        { at: [[18, 0], [20, 0], [19, 1], [21, 1]], enemies: [{ kind: 'grunt', count: 3 }, { kind: 'bomber', count: 2 }], left: 4 },
+        { at: [[36, 10], [37, 11], [34, 10]], enemies: [{ kind: 'grunt', count: 3 }, { kind: 'bomber', count: 2 }], left: 1 },
+      ],
       heights: [
         '2222222222222222222222222222222222222222',
         '2222222222222222222222222222222222222222',
@@ -246,6 +251,10 @@ export const LEVEL_1_2: LevelDef = {
       ],
       loot: [{ at: [34, 11], weapon: 'shotgun' }],
       clues: [{ id: 'iou', dropBy: 'firstTarget' }],
+      rushes: [
+        { at: [[3, 28], [3, 31], [3, 34]], enemies: [{ kind: 'grunt', count: 5 }], left: 8 },
+        { at: [[18, 2], [21, 2], [19, 3], [20, 4]], enemies: [{ kind: 'grunt', count: 3 }, { kind: 'bomber', count: 3 }], left: 4 },
+      ],
       heights: [
         '2222222222222222222222222222222222222222',
         '2222222222222222222222222222222222222222',

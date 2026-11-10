@@ -903,6 +903,9 @@ function dispatch(event: GameEvent): void {
       overlay.hit('kill')
       wordAt('clatter', event.x, event.y, world.player.z + 1.1, event.kind === 'boss' ? 1.8 : 1)
       break
+    case 'enemyBumped':
+      wordAt('kuang', event.x, event.y, event.z + 1.3, 0.9)
+      break
     case 'blast':
       wordAt('hong', event.x, event.y, event.z + 1.2, Math.min(1.8, 0.8 + event.radius * 0.25))
       break

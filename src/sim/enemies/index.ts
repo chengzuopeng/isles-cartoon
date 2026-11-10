@@ -3,7 +3,7 @@ import { runForAlarm } from '../alarms'
 import { bossBlocks } from '../boss'
 import { decay, type Vec2 } from '../math'
 import { aggro, canSeePlayer, sightOf, watchPlayer } from '../perception'
-import { disabled, speedFactor, updateEnemyStatus } from '../status'
+import { disabled, reelEnemy, speedFactor, updateEnemyStatus } from '../status'
 import { settleWalker } from '../terrain'
 import type { AlertState, Enemy } from '../types'
 import type { World } from '../world'
@@ -113,6 +113,26 @@ function integrate(world: World, enemy: Enemy, move: Vec2, dt: number): void {
   const factor = speedFactor(enemy) * enemy.speedScale
   enemy.pos.x += (move.x * factor + enemy.knock.x) * dt
   enemy.pos.y += (move.y * factor + enemy.knock.y) * dt
+  bump(world, enemy)
   decay(enemy.knock, world.tuning.feel.knockbackDecay, dt)
   settleWalker(world, enemy)
+}
+
+function bump(world: World, enemy: Enemy): void {
+  const { feel } = world.tuning
+  const speed = Math.hypot(enemy.knock.x, enemy.knock.y)
+  if (speed < feel.bumpSpeed) return
+  for (const other of world.enemies) {
+    if (other === enemy || other.hp <= 0 || other.kind === 'boss' || other.kind === 'turret') continue
+    if (Math.hypot(other.knock.x, other.knock.y) >= feel.bumpSpeed) continue
+    const reach = enemy.radius + other.radius
+    if (Math.hypot(other.pos.x - enemy.pos.x, other.pos.y - enemy.pos.y) > reach || Math.abs(other.z - enemy.z) > 1) continue
+    other.knock.x += enemy.knock.x * feel.bumpShare
+    other.knock.y += enemy.knock.y * feel.bumpShare
+    enemy.knock.x *= 1 - feel.bumpShare
+    enemy.knock.y *= 1 - feel.bumpShare
+    reelEnemy(world, other, feel.bumpDaze)
+    world.events.push({ type: 'enemyBumped', id: other.id, x: other.pos.x, y: other.pos.y, z: other.z })
+    return
+  }
 }

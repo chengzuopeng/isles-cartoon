@@ -19,6 +19,8 @@ export type WeaponDef = {
   jitterDeg: number
   speed: number
   range: number
+  falloffStart: number
+  falloffMin: number
   radius: number
   damage: number
   enemyDamage: number
@@ -88,7 +90,7 @@ export const SPECIAL_WEAPONS: readonly PlayerWeaponId[] = [
 ]
 
 export const WEAPON_BLURBS: Readonly<Record<PlayerWeaponId, string>> = {
-  blaster: '三连发，打空后自动装填',
+  blaster: '三连发，按住连射，弹药自己回',
   shotgun: '近距离散射，贴脸伤害最高',
   smg: '射速极快，适合持续压制',
   sniper: '射程最远，单发高伤并能穿透',
@@ -117,6 +119,8 @@ const BASE: WeaponDef = {
   jitterDeg: 0,
   speed: 10,
   range: 8,
+  falloffStart: 0,
+  falloffMin: 1,
   radius: 0.15,
   damage: 100,
   enemyDamage: 0,
@@ -141,16 +145,18 @@ export function createWeapons(): Record<WeaponId, WeaponDef> {
       ...BASE,
       name: '能量枪',
       ammo: 'reload',
-      magazine: 3,
-      reloadSeconds: 1.1,
+      magazine: 6,
+      reloadSeconds: 0.5,
       cooldown: 0.3,
       burstCount: 3,
       burstInterval: 0.07,
-      speed: 24,
-      range: 12.8,
+      speed: 45,
+      range: 40,
+      falloffStart: 20,
+      falloffMin: 0.5,
       radius: 0.14,
       damage: 90,
-      knockback: 1.6,
+      knockback: 2.6,
     },
     shotgun: {
       ...BASE,

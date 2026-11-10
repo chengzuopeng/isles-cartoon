@@ -136,8 +136,9 @@ describe('world rules', () => {
     expect(world.time).toBeCloseTo(DT * tuning.feel.hitstopScale)
   })
 
-  it('regenerates health after a quiet period', () => {
+  it('regenerates health after a quiet period where idle healing is on', () => {
     const { world, tuning } = setup()
+    tuning.player.idleRegen = 1
     world.player.hp = 500
     run(world, idle(), tuning.player.regenDelay - 0.1)
     expect(world.player.hp).toBe(500)

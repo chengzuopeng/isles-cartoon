@@ -145,11 +145,12 @@ describe('bomber', () => {
     tuning.weapons.blaster.burstCount = 1
     const [bomber, grunt] = world.enemies
     bomber.hp = 10
+    grunt.hp = grunt.maxHp = 1000
     const pitch = pitchAt(world, bomber)
     stepWorld(world, { ...idle(8.5, 1.5), pitch, fire: true }, DT)
     run(world, { ...idle(8.5, 1.5), pitch }, 0.8)
     expect(count(world, 'blast')).toBe(1)
-    expect(grunt.hp).toBe(tuning.grunt.maxHp - tuning.weapons.fuse.enemyDamage)
+    expect(grunt.hp).toBe(1000 - tuning.weapons.fuse.enemyDamage)
   })
 })
 

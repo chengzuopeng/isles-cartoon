@@ -20,6 +20,7 @@ import {
   PICKUP_BODY,
   PICKUP_DELAY,
   PICKUP_LIFETIME,
+  PICKUP_MAGNET,
   PICKUP_RADIUS,
   PICKUP_REACH_UP,
   PICKUP_SCATTER_MAX,
@@ -126,7 +127,10 @@ export function updatePickups(world: World, command: PlayerCommand, dt: number):
     pickup.age += dt
     pickup.life -= dt
     if (pickup.life <= 0) continue
-    if (active && pickup.age >= PICKUP_DELAY && touching(world, pickup) && collect(world, pickup)) continue
+    if (active && pickup.age >= PICKUP_DELAY) {
+      attract(world, pickup, dt)
+      if (touching(world, pickup) && collect(world, pickup)) continue
+    }
     world.pickups[kept++] = pickup
   }
   world.pickups.length = kept
@@ -225,6 +229,27 @@ export function openChest(world: World, chest: Chest): void {
   }
   const from = chest.perch ? { x: chest.perch.x, y: chest.perch.y } : chest.pos
   for (const item of items) spawnPickup(world, item, chest.pos.x, chest.pos.y, { persistent: true, from })
+}
+
+export function wanted(world: World, pickup: Pickup): boolean {
+  const { player } = world
+  const { item } = pickup
+  if (item.type === 'heal') return player.hp < player.maxHp
+  if (item.type === 'buff') return true
+  if (item.type === 'ammo') return player.special !== null && player.specialAmmo < specialMagazine(world, player.special)
+  return false
+}
+
+function attract(world: World, pickup: Pickup, dt: number): void {
+  const { player } = world
+  const dx = player.pos.x - pickup.pos.x
+  const dy = player.pos.y - pickup.pos.y
+  const distance = Math.hypot(dx, dy)
+  if (distance > PICKUP_MAGNET.radius || distance < 1e-4 || !wanted(world, pickup)) return
+  if (Math.abs(player.z - floorAt(world.grid, pickup.pos.x, pickup.pos.y)) > PICKUP_REACH_UP + 1) return
+  const step = Math.min(distance, PICKUP_MAGNET.speed * dt)
+  pickup.pos.x += (dx / distance) * step
+  pickup.pos.y += (dy / distance) * step
 }
 
 function touching(world: World, pickup: Pickup): boolean {

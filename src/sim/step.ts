@@ -20,7 +20,7 @@ import { updateSecrets } from './secrets'
 import { updateSheep } from './sheep'
 import { updateSkills } from './skills'
 import { updatePlayerStatus } from './status'
-import { updateSpawns, updateWaves } from './spawns'
+import { updateRushes, updateSpawns, updateWaves } from './spawns'
 import { bodyHeight, heightsOverlap, resolvePlayer, settleWalker } from './terrain'
 import type { Body, Enemy, PlayerCommand } from './types'
 import { updateUltimate } from './ultimate'
@@ -58,6 +58,7 @@ export function stepWorld(world: World, command: PlayerCommand, dt: number): voi
   updateBlasts(world, simDt)
   updateMines(world, simDt)
   updateAlarms(world)
+  updateRushes(world)
   updateSpawns(world, simDt)
   if (world.level.def.waves && !world.debug.noWaves) updateWaves(world, simDt)
   updateSheep(world, simDt)

@@ -84,6 +84,7 @@ interface EnemyView {
   wreck: WreckSource | null
   crouch: number
   casts: boolean
+  flinch: number
 }
 
 interface Veil {
@@ -104,6 +105,7 @@ interface TripleLanes {
 
 export const ENTITY_CULL = { distance: 72 } as const
 export const AMBUSH_CROUCH = { height: 0.85, rate: 9 } as const
+export const HIT_FLINCH = { lean: 0.32, recover: 5, crit: 1.6 } as const
 
 export interface EntityViews {
   sync(world: World, alpha: number, dt: number): void
@@ -486,6 +488,7 @@ export function createEntityViews(
       wreck: null,
       crouch: 0,
       casts: false,
+      flinch: 0,
     }
   }
 
@@ -876,6 +879,8 @@ export function createEntityViews(
     const sway = enemy.aggro || enemy.kind === 'boss' ? 0 : Math.sin(clock * 0.8 + enemy.id) * 0.6
     const yaw = enemy.facing + sway
     view.pivot.rotation.y = -yaw
+    view.flinch = Math.max(0, view.flinch - dt * HIT_FLINCH.recover)
+    view.pivot.rotation.z = view.flinch * HIT_FLINCH.lean
     view.ground.rotation.y = -enemy.facing
     view.flash = Math.max(0, view.flash - dt / Math.max(0.01, tuning.feel.flashSeconds))
     const { status } = enemy
@@ -1393,7 +1398,10 @@ export function createEntityViews(
           break
         case 'enemyHit': {
           const view = enemyViews.get(event.id)
-          if (view) view.flash = 1
+          if (view) {
+            view.flash = 1
+            view.flinch = Math.max(view.flinch, event.crit ? HIT_FLINCH.crit : 1)
+          }
           effects.puff(event.x, event.z, event.y, '#ffffff', 0.3, 0.8, 0.1)
           effects.sparks(event.x, event.z, event.y, awayX(event.x), awayY(event.y), {
             count: event.crit ? 26 : 14,
@@ -1418,6 +1426,14 @@ export function createEntityViews(
           }
           stage.addTrauma(event.kind === 'boss' ? (claimed ? 0.45 : 1) : feel.shakeKill)
           if (view) shatter(view, event)
+          break
+        }
+        case 'enemyBumped': {
+          const view = enemyViews.get(event.id)
+          if (view) view.flinch = HIT_FLINCH.crit
+          effects.sparks(event.x, event.z + 0.9, event.y, 0, 0, { count: 16, speed: 6.5, life: 0.3, color: FX.sparks.wall, spread: 1 })
+          effects.smoke(event.x, event.z + 0.5, event.y, 0.45, 3, '#b9a98c')
+          stage.addTrauma(feel.shakeHit * 2)
           break
         }
         case 'enemySpawned':

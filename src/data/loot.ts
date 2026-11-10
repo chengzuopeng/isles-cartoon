@@ -96,7 +96,8 @@ export const SUPPLY_RADIUS = 0.9
 
 export const BOSS_HEAL = HEAL_LARGE
 
-export const FOOD_HEAL = 0.08
+export const FOOD_HEAL = 0.15
+export const PICKUP_MAGNET = { radius: 4, speed: 14 } as const
 
 export const FOOD_NAMES: Readonly<Record<FoodKind, string>> = {
   bread: '麦饼',

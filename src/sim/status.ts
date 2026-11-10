@@ -13,7 +13,7 @@ export interface StatusHit {
 }
 
 export function createStatus(): StatusState {
-  return { burn: 0, burnDps: 0, burnTick: 0, chill: 0, chillTime: 0, chillSlow: 0, frozen: 0, stunned: 0, dazed: 0 }
+  return { burn: 0, burnDps: 0, burnTick: 0, chill: 0, chillTime: 0, chillSlow: 0, frozen: 0, stunned: 0, dazed: 0, pain: 0, painRest: 0 }
 }
 
 export function clearStatus(status: StatusState): void {
@@ -57,11 +57,31 @@ export function stunEnemy(world: World, enemy: Enemy, seconds: number): void {
   world.events.push({ type: 'stunned', id: enemy.id, x: enemy.pos.x, y: enemy.pos.y })
 }
 
+export function reelEnemy(world: World, enemy: Enemy, seconds: number): void {
+  if (enemy.kind === 'boss' || enemy.hp <= 0 || seconds <= 0) return
+  stunEnemy(world, enemy, seconds)
+  enemy.status.dazed = Math.max(enemy.status.dazed, seconds)
+}
+
+export function feelPain(world: World, enemy: Enemy, damage: number): void {
+  if (enemy.kind === 'boss' || enemy.hp <= 0 || damage <= 0) return
+  const { feel } = world.tuning
+  const { status } = enemy
+  status.pain += damage
+  if (status.painRest > 0 || status.pain < enemy.maxHp * feel.reelShare) return
+  status.pain = 0
+  status.painRest = feel.reelCooldown
+  reelEnemy(world, enemy, feel.reelSeconds)
+}
+
 export function updateEnemyStatus(world: World, enemy: Enemy, dt: number): void {
   const { status } = enemy
+  const { feel } = world.tuning
   status.frozen = Math.max(0, status.frozen - dt)
   status.stunned = Math.max(0, status.stunned - dt)
   status.dazed = Math.min(status.stunned, Math.max(0, status.dazed - dt))
+  status.pain = Math.max(0, status.pain - ((enemy.maxHp * feel.reelShare) / Math.max(0.05, feel.reelWindow)) * dt)
+  status.painRest = Math.max(0, status.painRest - dt)
   if (status.chillTime > 0) {
     status.chillTime -= dt
     if (status.chillTime <= 0) {

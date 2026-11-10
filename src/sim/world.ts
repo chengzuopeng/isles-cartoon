@@ -117,6 +117,7 @@ export interface World {
   secrets: boolean[]
   alarms: AlarmState[]
   reinforced: boolean[]
+  rushed: boolean[]
   lamps: boolean[]
   mines: Mine[]
   blades: BladeState[]
@@ -202,6 +203,7 @@ export function createWorld(level: BuiltLevel, tuning: Tuning, options: WorldOpt
     secrets: level.secrets.map(() => false),
     alarms: createAlarmStates(level),
     reinforced: level.reinforcements.map(() => false),
+    rushed: level.rushes.map(() => false),
     lamps: level.lamps.map(() => false),
     mines: [],
     blades: createBladeStates(level),

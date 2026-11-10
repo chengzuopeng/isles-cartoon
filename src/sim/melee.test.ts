@@ -87,13 +87,28 @@ describe('melee', () => {
     expect(swing(world).filter((event) => event.type === 'melee')).toEqual([expect.objectContaining({ hits: 0 })])
   })
 
-  it('knocks a robot back about a metre and a half', () => {
+  it('sends a robot flying about three and a half metres', () => {
     const world = setup()
     const grunt = add(world, 'grunt', 7.2, 3.5)
     swing(world)
     run(world, 1)
-    expect(grunt.pos.x - 7.2).toBeGreaterThan(1.2)
-    expect(grunt.pos.x - 7.2).toBeLessThan(1.9)
+    expect(grunt.pos.x - 7.2).toBeGreaterThan(3)
+    expect(grunt.pos.x - 7.2).toBeLessThan(4.2)
+  })
+
+  it('knocks over a second robot the flying one runs into, leaving it open to a smash', () => {
+    const world = setup()
+    add(world, 'grunt', 7.2, 3.5)
+    const behind = add(world, 'grunt', 8.6, 3.5)
+    const events = swing(world)
+    for (let i = 0; i < 30; i++) {
+      stepWorld(world, command(world), DT)
+      events.push(...world.events)
+      world.events.length = 0
+    }
+    expect(events.some((event) => event.type === 'enemyBumped' && event.id === behind.id)).toBe(true)
+    expect(behind.pos.x).toBeGreaterThan(8.7)
+    expect(crumbling(world, behind)).toBe(true)
   })
 
   it('interrupts a charger winding up a claw and a gunner taking aim', () => {
@@ -119,7 +134,7 @@ describe('melee', () => {
 })
 
 describe('smashing', () => {
-  it('breaks a robot that is about to fall apart into food that heals eight percent', () => {
+  it('breaks a robot that is about to fall apart into food that flies to the hero and heals fifteen percent', () => {
     const world = setup()
     const { player } = world
     const grunt = add(world, 'grunt', 7.0, 3.5)
@@ -131,10 +146,10 @@ describe('smashing', () => {
     expect(world.stats.kills).toBe(1)
     expect(world.stats.smashes).toBe(1)
     expect(world.pickups.map((pickup) => pickup.item)).toEqual([{ type: 'heal', amount: FOOD_HEAL, food: foodOf(grunt) }])
+    expect(FOOD_HEAL).toBe(0.15)
     player.hp = 500
-    run(world, PICKUP_DELAY + 0.1)
-    player.pos = { ...world.pickups[0].pos }
-    run(world, DT)
+    run(world, PICKUP_DELAY + 0.5)
+    expect(world.pickups).toHaveLength(0)
     expect(player.hp).toBeCloseTo(500 + player.maxHp * FOOD_HEAL)
     expect(world.stats.foodHealed).toBeCloseTo(player.maxHp * FOOD_HEAL)
   })

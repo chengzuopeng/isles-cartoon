@@ -193,10 +193,17 @@ export function criticalHit(bullet: Bullet, target: Enemy): boolean {
   return bullet.dirX * Math.cos(target.facing) + bullet.dirY * Math.sin(target.facing) < EYE_CRIT.facing
 }
 
+export function falloffOf(world: World, bullet: Bullet): number {
+  const spec = world.tuning.weapons[bullet.weapon]
+  if (!spec || spec.falloffStart <= 0 || bullet.range <= spec.falloffStart) return 1
+  const reach = Math.min(1, Math.max(0, (bullet.traveled - spec.falloffStart) / (bullet.range - spec.falloffStart)))
+  return 1 - reach * (1 - spec.falloffMin)
+}
+
 function hitEnemy(world: World, bullet: Bullet, target: Enemy): void {
   const back = target.kind === 'boss' ? backScale(target, bullet.dirX, bullet.dirY) : 1
   const crit = criticalHit(bullet, target)
-  const damage = bullet.damage * back * (crit ? (target.boss ? WEAK_POINT_SCALE : EYE_CRIT.scale) : 1)
+  const damage = bullet.damage * back * falloffOf(world, bullet) * (crit ? (target.boss ? WEAK_POINT_SCALE : EYE_CRIT.scale) : 1)
   if (crit) world.stats.crits += 1
   damageEnemy(world, target, damage, bullet.dirX, bullet.dirY, bullet.knockback, { z: bullet.z, crit })
   if (back > 1) world.events.push({ type: 'bossBackHit', id: target.id, x: target.pos.x, y: target.pos.y, damage })

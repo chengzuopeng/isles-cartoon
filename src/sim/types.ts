@@ -50,6 +50,8 @@ export interface StatusState {
   frozen: number
   stunned: number
   dazed: number
+  pain: number
+  painRest: number
 }
 
 export interface SkillRuntime {
@@ -469,6 +471,8 @@ export type GameEvent =
   | { type: 'shockwave'; x: number; y: number; radius: number }
   | { type: 'melee'; x: number; y: number; angle: number; hits: number }
   | { type: 'smashed'; id: number; kind: EnemyKind; x: number; y: number; z: number }
+  | { type: 'enemyBumped'; id: number; x: number; y: number; z: number }
+  | { type: 'rush'; area: number; count: number }
   | { type: 'jumped' }
   | { type: 'landed'; fall: number }
   | { type: 'dashed'; x: number; y: number; angle: number }
