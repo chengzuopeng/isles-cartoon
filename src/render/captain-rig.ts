@@ -178,6 +178,7 @@ export function createCaptainRig(def: BossDef, view: BossBody, kit: CaptainKit):
       const index = view.materials.indexOf(material)
       if (index >= 0) view.materials.splice(index, 1)
       material.emissiveIntensity = 0
+      if (material.userData.baseColor instanceof THREE.Color) material.color.copy(material.userData.baseColor)
     }
   }
 

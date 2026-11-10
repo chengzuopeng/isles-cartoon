@@ -64,7 +64,17 @@ const RAISE = { drop: 0.22, tilt: 0.7, rate: 7 }
 const TRIGGER_PULL = 0.28
 const LEFT_GRIP = { pivot: new THREE.Vector3(0.22, 0.065, 0), swing: -0.7, show: 0.35, rate: 14 }
 const KEY_LIGHT = new THREE.Vector3(-2.4, 3.4, 2.8)
-const MUZZLE_FLASH = { color: '#d6fbff', glow: 1.5 }
+const MUZZLE_FLASH = {
+  energy: '#7ff6ff',
+  powder: '#ffd84a',
+  core: '#ffffff',
+  glow: 1,
+  coreGlow: 1.15,
+  ink: { outer: 0.1, inner: 0.04 },
+  color: { outer: 0.082, inner: 0.032 },
+  white: { outer: 0.04, inner: 0.018 },
+  seconds: 0.06,
+} as const
 const COIL_LIT = new THREE.Color('#5ff0ff')
 const COIL_DIM = new THREE.Color('#1c3c48')
 const COIL_GLOW = { lit: 0.85, dim: 0.12, charge: 0.6, core: 0.2, shade: 0.4 }
@@ -314,8 +324,18 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
   holder.scale.setScalar(GUN_SCALE)
   rig.add(holder)
 
-  const flashMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(MUZZLE_FLASH.color).multiplyScalar(MUZZLE_FLASH.glow), transparent: true, depthWrite: false, side: THREE.DoubleSide })
-  const flash = new THREE.Mesh(starGeometry(0.16, 0.05, 0.001), flashMaterial)
+  const flashLayer = (outer: number, inner: number, color: THREE.ColorRepresentation, order: number) => {
+    const material = new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide })
+    const mesh = new THREE.Mesh(starGeometry(outer, inner, 0.001), material)
+    mesh.renderOrder = order
+    mesh.userData.noHull = true
+    return mesh
+  }
+  const flashInk = flashLayer(MUZZLE_FLASH.ink.outer, MUZZLE_FLASH.ink.inner, INK_COLOR, 10)
+  const flashColor = flashLayer(MUZZLE_FLASH.color.outer, MUZZLE_FLASH.color.inner, new THREE.Color(MUZZLE_FLASH.energy).multiplyScalar(MUZZLE_FLASH.glow), 11)
+  const flashCore = flashLayer(MUZZLE_FLASH.white.outer, MUZZLE_FLASH.white.inner, new THREE.Color(MUZZLE_FLASH.core).multiplyScalar(MUZZLE_FLASH.coreGlow), 12)
+  const flash = new THREE.Group()
+  flash.add(flashInk, flashColor, flashCore)
   flash.visible = false
   flash.userData.noHull = true
 
@@ -447,7 +467,9 @@ export function createViewmodel(models: ModelLibrary): Viewmodel {
     },
     shot() {
       recoil = Math.min(1.4, recoil + 1)
-      flashTime = 0.06
+      flashTime = MUZZLE_FLASH.seconds
+      flash.rotation.z = Math.random() * Math.PI
+      flashColor.material.color.set(current?.id === 'blaster' ? MUZZLE_FLASH.energy : MUZZLE_FLASH.powder).multiplyScalar(MUZZLE_FLASH.glow)
       trigger = 1
     },
     melee() {

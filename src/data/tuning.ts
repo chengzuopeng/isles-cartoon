@@ -12,6 +12,7 @@ export type PlayerTuning = {
   idleRegen: number
   ultimateCharge: number
   specialUltShare: number
+  streak: { window: number; ultBonus: number; maxSteps: number }
   jumpHeight: number
   gravity: number
   dashDistance: number
@@ -217,6 +218,7 @@ export function createDefaultTuning(): Tuning {
       idleRegen: 0,
       ultimateCharge: 2500,
       specialUltShare: 0.5,
+      streak: { window: 3, ultBonus: 0.25, maxSteps: 4 },
       jumpHeight: JUMP_HEIGHT,
       gravity: 22,
       dashDistance: 5,

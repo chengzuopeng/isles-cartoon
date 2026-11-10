@@ -343,6 +343,8 @@ function createPlayer(spawn: Vec2, z: number, tuning: Tuning, loadout: Loadout):
     ultimate: 0,
     ultShots: 0,
     ultTimer: 0,
+    streak: 0,
+    streakAt: -1e9,
     status: createStatus(),
     alive: true,
   }

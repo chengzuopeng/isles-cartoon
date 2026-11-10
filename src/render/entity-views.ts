@@ -27,11 +27,12 @@ import { EMPTY_LIBRARY, socketWorld, type ModelLibrary } from './model-library'
 import { createPlayerView } from './player-view'
 import { createSheepViews } from './sheep-views'
 import type { Stage } from './stage'
-import { BUFF_COLORS, CHEST_COLORS, CLUE_GLOW, ELITE_CROWN, ENEMY_LOOK, FOG_LAYER, FOG_VEIL, FX, HEAL_COLOR } from './themes'
+import { BUFF_COLORS, CHEST_COLORS, CLUE_GLOW, ELITE_CROWN, ENEMY_IMPACT_COLOR, ENEMY_LOOK, ENEMY_MUZZLE_COLOR, FOG_LAYER, FOG_VEIL, FX, HEAL_COLOR, HIT_STARS, HIT_WHITEOUT } from './themes'
 import { BULLET_HEIGHT, GEAR_COLOR, flat, part, standard, type Disposable } from './view-helpers'
 import { BODY_HEIGHTS, CHEST_HEIGHT, eyeHeightOf, muzzleHeightOf } from '../data/heights'
 import { bossExposed } from '../sim/boss'
 import { crumbling } from '../sim/melee'
+import { advanceHatch, hatchedMaterial, TELEGRAPH_HATCH } from './telegraph-material'
 import { cloneInked, toonMaterial } from './toon'
 import { EYE_FACE_LOOK, eyeFaceOf, eyeFaceTexture, type EyeFace } from './eye-faces'
 
@@ -151,7 +152,8 @@ const EXPOSED_COLOR = new THREE.Color('#ffd34d')
 const BEAM_COLOR = new THREE.Color('#ff2a1a')
 const BEAM_UP = new THREE.Vector3(0, 1, 0)
 const beamDirection = new THREE.Vector3()
-const CURTAIN_HEIGHT = 1
+const CURTAIN_HEIGHT = 0.7
+const CURTAIN_FADE = { power: 2.2, peak: 0.5 } as const
 
 export const CRASH_MARK = {
   step: 0.25,
@@ -226,7 +228,7 @@ export function curtainGradient(): THREE.DataTexture {
     data[i * 4] = 255
     data[i * 4 + 1] = 255
     data[i * 4 + 2] = 255
-    data[i * 4 + 3] = Math.round(255 * Math.pow(1 - t, 1.6) * 0.75)
+    data[i * 4 + 3] = Math.round(255 * Math.pow(1 - t, CURTAIN_FADE.power) * CURTAIN_FADE.peak)
   }
   const texture = new THREE.DataTexture(data, 1, size, THREE.RGBAFormat)
   texture.needsUpdate = true
@@ -334,8 +336,10 @@ export function createEntityViews(
 ): EntityViews {
   const { scene } = stage
   const gearMaterial = new THREE.MeshStandardMaterial({ color: GEAR_COLOR })
-  const areaMaterial = new THREE.MeshBasicMaterial({ color: TELEGRAPH_COLOR, transparent: true, opacity: 0.28, depthWrite: false })
-  const fillMaterial = new THREE.MeshBasicMaterial({ color: TELEGRAPH_COLOR, transparent: true, opacity: 0.6, depthWrite: false })
+  const areaMaterial = hatchedMaterial({ color: TELEGRAPH_COLOR, ...TELEGRAPH_HATCH.area, edge: 'disc' })
+  const fillMaterial = hatchedMaterial({ color: TELEGRAPH_COLOR, ...TELEGRAPH_HATCH.fill, edge: 'disc' })
+  const laneAreaMaterial = hatchedMaterial({ color: TELEGRAPH_COLOR, ...TELEGRAPH_HATCH.area, edge: 'lane' })
+  const laneFillMaterial = hatchedMaterial({ color: TELEGRAPH_COLOR, ...TELEGRAPH_HATCH.fill, edge: 'lane' })
   const sightMaterial = new THREE.MeshBasicMaterial({ color: '#ffe066', transparent: true, opacity: 0.35, depthWrite: false })
   const curtainGeometry = new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0)
   const curtainMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(TELEGRAPH_COLOR).multiplyScalar(1.3), map: curtainGradient(), transparent: true, depthWrite: false, side: THREE.DoubleSide })
@@ -526,8 +530,8 @@ export function createEntityViews(
 
   function laneTelegraph(view: EnemyView, length: number, width: number): void {
     const lane = new THREE.Group()
-    const area = flat(new THREE.Mesh(laneGeometry, areaMaterial), 0.036)
-    const fill = flat(new THREE.Mesh(laneGeometry, fillMaterial), 0.046)
+    const area = flat(new THREE.Mesh(laneGeometry, laneAreaMaterial), 0.036)
+    const fill = flat(new THREE.Mesh(laneGeometry, laneFillMaterial), 0.046)
     area.scale.set(length, width, 1)
     fill.scale.set(0.01, width, 1)
     addCurtains(lane, length, width)
@@ -804,8 +808,8 @@ export function createEntityViews(
     const def = getBoss(enemy.boss?.id ?? 'scarecrow')
     view.boss = bossRigs.build(def, { body: view.body, pivot: view.pivot, material, materials: view.materials, owned: view.owned })
     const lane = new THREE.Group()
-    const area = flat(new THREE.Mesh(laneGeometry, areaMaterial), 0.035)
-    const fill = flat(new THREE.Mesh(laneGeometry, fillMaterial), 0.045)
+    const area = flat(new THREE.Mesh(laneGeometry, laneAreaMaterial), 0.035)
+    const fill = flat(new THREE.Mesh(laneGeometry, laneFillMaterial), 0.045)
     area.scale.set(def.charge.distance, def.radius * 2, 1)
     fill.scale.set(0.01, def.radius * 2, 1)
     lane.add(area, fill)
@@ -818,8 +822,8 @@ export function createEntityViews(
       const weapon = tuning.weapons[def.cannon.weapon]
       const width = weapon.radius * 2 + CANNON_LANE_MARGIN
       const cannonLane = new THREE.Group()
-      const cannonArea = flat(new THREE.Mesh(laneGeometry, areaMaterial), 0.036)
-      const cannonFill = flat(new THREE.Mesh(laneGeometry, fillMaterial), 0.046)
+      const cannonArea = flat(new THREE.Mesh(laneGeometry, laneAreaMaterial), 0.036)
+      const cannonFill = flat(new THREE.Mesh(laneGeometry, laneFillMaterial), 0.046)
       cannonArea.scale.set(weapon.range, width, 1)
       cannonFill.scale.set(0.01, width, 1)
       cannonLane.add(cannonArea, cannonFill)
@@ -852,8 +856,8 @@ export function createEntityViews(
     const group = new THREE.Group()
     const lanes = Array.from({ length: triple.barrels }, () => {
       const lane = new THREE.Group()
-      const area = flat(new THREE.Mesh(laneGeometry, areaMaterial), 0.037)
-      const fill = flat(new THREE.Mesh(laneGeometry, fillMaterial), 0.047)
+      const area = flat(new THREE.Mesh(laneGeometry, laneAreaMaterial), 0.037)
+      const fill = flat(new THREE.Mesh(laneGeometry, laneFillMaterial), 0.047)
       area.scale.set(weapon.range, width, 1)
       fill.scale.set(0.01, width, 1)
       lane.add(area, fill)
@@ -887,10 +891,13 @@ export function createEntityViews(
     const { status } = enemy
     const burning = status.burn > 0
     const tint = view.flash > 0 ? FLASH_COLOR : burning ? BURN_COLOR : status.chill > 0 || status.frozen > 0 ? CHILL_COLOR : FLASH_COLOR
-    const glow = view.flash > 0 ? view.flash * 1.4 : burning ? 0.35 + Math.abs(Math.sin(clock * 18 + enemy.id)) * 0.4 : status.frozen > 0 ? 0.8 : status.chill * 0.2
+    const glow = view.flash > 0 ? view.flash * HIT_WHITEOUT.glow : burning ? 0.35 + Math.abs(Math.sin(clock * 18 + enemy.id)) * 0.4 : status.frozen > 0 ? 0.8 : status.chill * 0.2
+    const shade = 1 - view.flash * HIT_WHITEOUT.dim
     for (const material of view.materials) {
       material.emissive.copy(tint)
       material.emissiveIntensity = glow
+      const base = (material.userData.baseColor ??= material.color.clone()) as THREE.Color
+      material.color.copy(base).multiplyScalar(shade)
     }
     if (burning) {
       view.smoke -= dt
@@ -1276,7 +1283,7 @@ export function createEntityViews(
     const geometry = ring
       ? new THREE.RingGeometry(blast.inner, blast.radius, 56, 1, blast.gapWidth / 2, Math.PI * 2 - blast.gapWidth)
       : new THREE.CircleGeometry(blast.radius, 40, -blast.arcWidth / 2, blast.arcWidth)
-    const fillMaterial = new THREE.MeshBasicMaterial({ color: TELEGRAPH_COLOR, transparent: true, opacity: 0.2, depthWrite: false })
+    const fillMaterial = hatchedMaterial({ color: TELEGRAPH_COLOR, opacity: 0.2, gap: TELEGRAPH_HATCH.fill.gap, edge: 'disc' })
     owned.push(geometry, fillMaterial)
     const group = new THREE.Group()
     const area = flat(new THREE.Mesh(geometry, areaMaterial), 0.05)
@@ -1353,6 +1360,7 @@ export function createEntityViews(
     },
     sync(world, alpha, dt) {
       clock += dt
+      advanceHatch(dt)
       current = world
       if (world.level !== foggyLevel) {
         foggyLevel = world.level
@@ -1379,7 +1387,7 @@ export function createEntityViews(
       switch (event.type) {
         case 'enemyShot': {
           const shooter = MUZZLE_KINDS[event.weapon] ?? RIGGED_SHOTS[event.weapon]
-          if (!shooter || !models.has(shooter)) effects.puff(event.x, 'z' in event ? event.z : BULLET_HEIGHT, event.y, '#ff8fb3', 0.22, 0.55, 0.08)
+          if (!shooter || !models.has(shooter)) effects.puff(event.x, 'z' in event ? event.z : BULLET_HEIGHT, event.y, ENEMY_MUZZLE_COLOR, 0.22, 0.55, 0.08)
           break
         }
         case 'clueFound':
@@ -1390,8 +1398,11 @@ export function createEntityViews(
           break
         case 'bulletHitWall': {
           const height = 'z' in event ? event.z : BULLET_HEIGHT
-          effects.puff(event.x, height, event.y, event.team === 'player' ? '#f3e2c4' : '#ffb3c8', 0.2, 0.6, 0.16)
-          if (event.team === 'player') effects.sparks(event.x, height, event.y, awayX(event.x), awayY(event.y), { count: 7, speed: 5.5, life: 0.26, color: FX.sparks.wall, spread: 0.8 })
+          effects.puff(event.x, height, event.y, event.team === 'player' ? '#f3e2c4' : ENEMY_IMPACT_COLOR, 0.2, 0.6, 0.16)
+          if (event.team === 'player') {
+            effects.star(event.x, height, event.y, HIT_STARS.wall, '#ffe2b0')
+            effects.sparks(event.x, height, event.y, awayX(event.x), awayY(event.y), { count: 7, speed: 5.5, life: 0.26, color: FX.sparks.wall, spread: 0.8 })
+          }
           break
         }
         case 'bulletExpired':
@@ -1403,7 +1414,7 @@ export function createEntityViews(
             view.flash = 1
             view.flinch = Math.max(view.flinch, event.crit ? HIT_FLINCH.crit : 1)
           }
-          effects.puff(event.x, event.z, event.y, '#ffe9a8', 0.16, 0.45, 0.09)
+          effects.star(event.x, event.z, event.y, event.crit ? HIT_STARS.crit : HIT_STARS.hit, event.crit ? '#ffffff' : '#fff1c4')
           effects.sparks(event.x, event.z, event.y, awayX(event.x), awayY(event.y), {
             count: event.crit ? 26 : 14,
             speed: event.crit ? 9.5 : 7.5,

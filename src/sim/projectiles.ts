@@ -208,7 +208,7 @@ function hitEnemy(world: World, bullet: Bullet, target: Enemy): void {
   damageEnemy(world, target, damage, bullet.dirX, bullet.dirY, bullet.knockback, { z: bullet.z, crit })
   if (back > 1) world.events.push({ type: 'bossBackHit', id: target.id, x: target.pos.x, y: target.pos.y, damage })
   onDamageDealt(world, damage)
-  chargeUltimate(world, damage * ultShareOf(world, bullet.weapon))
+  chargeUltimate(world, damage * ultShareOf(world, bullet.weapon), target)
   if (bullet.status !== 'none') applyStatusHit(world, target, bullet)
   if (bullet.chain > 0) chainFrom(world, bullet, target)
 }
@@ -259,7 +259,7 @@ function chainFrom(world: World, bullet: Bullet, first: Enemy): void {
     world.events.push({ type: 'chain', fromX: current.pos.x, fromY: current.pos.y, toX: next.pos.x, toY: next.pos.y })
     damageEnemy(world, next, damage, 0, 0, 0)
     onDamageDealt(world, damage)
-    chargeUltimate(world, damage * ultShareOf(world, bullet.weapon))
+    chargeUltimate(world, damage * ultShareOf(world, bullet.weapon), next)
     current = next
   }
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { HIT_STAR, starScale, starTexture } from './hit-star'
 import { FX } from './themes'
 import { toonMaterial } from './toon'
 
@@ -23,6 +24,12 @@ interface Blob {
   vy: number
   vz: number
   drag: number
+}
+
+interface Star {
+  sprite: THREE.Sprite
+  age: number
+  size: number
 }
 
 interface Spark {
@@ -64,6 +71,7 @@ export interface Effects {
   sparks(x: number, height: number, y: number, dirX: number, dirY: number, style: SparkStyle): void
   smoke(x: number, height: number, y: number, size: number, count?: number, color?: THREE.ColorRepresentation): void
   explosion(x: number, height: number, y: number, radius: number): void
+  star(x: number, height: number, y: number, size: number, color?: THREE.ColorRepresentation): void
   update(dt: number): void
   clear(): void
 }
@@ -113,6 +121,17 @@ export function createEffects(scene: THREE.Scene): Effects {
   sparkMesh.renderOrder = 3
   sparkMesh.setColorAt(0, new THREE.Color('#ffffff'))
   scene.add(sparkMesh)
+  const stars: Star[] = []
+  const starMaterials = new Map<string, THREE.SpriteMaterial>()
+  const starMaterial = (color: THREE.ColorRepresentation): THREE.SpriteMaterial => {
+    const key = new THREE.Color(color).getHexString()
+    let material = starMaterials.get(key)
+    if (!material) {
+      material = new THREE.SpriteMaterial({ map: starTexture(), color: new THREE.Color(color).multiplyScalar(HIT_STAR.glow), transparent: true, depthWrite: false })
+      starMaterials.set(key, material)
+    }
+    return material
+  }
   const matrix = new THREE.Matrix4()
   const position = new THREE.Vector3()
   const heading = new THREE.Vector3()
@@ -234,6 +253,26 @@ export function createEffects(scene: THREE.Scene): Effects {
     },
     sparks: spray,
     smoke,
+    star(x, height, y, size, color = '#ffffff') {
+      let item = stars.find((entry) => !entry.sprite.visible)
+      if (!item) {
+        if (stars.length >= HIT_STAR.pool) item = stars.reduce((oldest, entry) => (entry.age > oldest.age ? entry : oldest))
+        else {
+          const sprite = new THREE.Sprite(starMaterial(color))
+          sprite.renderOrder = 4
+          scene.add(sprite)
+          item = { sprite, age: 0, size }
+          stars.push(item)
+        }
+      }
+      item.sprite.material = starMaterial(color)
+      item.sprite.material.rotation = Math.random() * Math.PI
+      item.sprite.position.set(x, height, y)
+      item.sprite.visible = true
+      item.sprite.scale.setScalar(size * starScale(0))
+      item.age = 0
+      item.size = size
+    },
     explosion(x, height, y, radius) {
       const size = Math.max(0.8, radius)
       puff(x, height + size * 0.4, y, '#fffbe0', size * 0.6, size * 2.4, 0.12)
@@ -311,6 +350,13 @@ export function createEffects(scene: THREE.Scene): Effects {
         item.mesh.visible = true
         item.mesh.scale.setScalar(Math.max(0.0001, item.size * blobScale(item.age, item.life, item.grow, item.fade)))
       }
+      for (const item of stars) {
+        if (!item.sprite.visible) continue
+        item.age += dt
+        const grow = starScale(item.age)
+        item.sprite.visible = grow > 0
+        item.sprite.scale.setScalar(item.size * grow)
+      }
       let shown = 0
       for (let i = sparks.length - 1; i >= 0; i--) {
         const item = sparks[i]
@@ -355,6 +401,7 @@ export function createEffects(scene: THREE.Scene): Effects {
         spare.push(item.mesh)
       }
       blobs.length = 0
+      for (const item of stars) item.sprite.visible = false
       sparks.length = 0
       sparkMesh.count = 0
     },

@@ -121,6 +121,8 @@ export interface Player extends Body {
   ultimate: number
   ultShots: number
   ultTimer: number
+  streak: number
+  streakAt: number
   status: StatusState
   alive: boolean
 }
@@ -441,7 +443,7 @@ export type GameEvent =
   | { type: 'bulletHitWall'; x: number; y: number; z: number; team: Team }
   | { type: 'bulletExpired'; x: number; y: number; z: number; team: Team }
   | { type: 'enemyHit'; id: number; x: number; y: number; z: number; damage: number; crit: boolean }
-  | { type: 'enemyKilled'; id: number; kind: EnemyKind; x: number; y: number; dirX: number; dirY: number }
+  | { type: 'enemyKilled'; id: number; kind: EnemyKind; x: number; y: number; dirX: number; dirY: number; streak?: number }
   | { type: 'enemyWindup'; id: number }
   | { type: 'enemyCharge'; id: number; x: number; y: number; angle: number }
   | { type: 'enemyAlerted'; id: number; x: number; y: number }

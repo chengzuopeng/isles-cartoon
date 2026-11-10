@@ -552,7 +552,7 @@ export function createPlayerView(
             playerTurret.rotation.y = -event.angle
             socketWorld(weapon.muzzle, muzzlePoint)
             effects.puff(muzzlePoint.x, muzzlePoint.y, muzzlePoint.z, '#fff1a8', 0.22, 0.5, 0.07)
-          } else {
+          } else if (playerRoot.visible) {
             effects.puff(event.x, BULLET_HEIGHT, event.y, '#fff1a8', 0.22, 0.5, 0.07)
           }
           const fired = weapons.get(event.weapon as PlayerWeaponId)

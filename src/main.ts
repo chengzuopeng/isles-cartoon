@@ -101,7 +101,7 @@ import { createPrepScreen } from './ui/prep-screen'
 import { createResults } from './ui/results'
 import { appendRunLog, readRunLog, summarizeRun, type RunLogEntry, type RunResult } from './ui/run-log'
 import { createSettingsPanel } from './ui/settings-panel'
-import { createSfxWords, type SfxWord } from './ui/sfx-words'
+import { createSfxWords, streakLabel, streakStep, STREAK_WORDS, type SfxWord } from './ui/sfx-words'
 import { createTips } from './ui/tips'
 
 type Screen = 'prep' | 'play'
@@ -896,11 +896,27 @@ function dispatch(event: GameEvent): void {
       break
     case 'enemyHit':
       overlay.hit(event.crit ? 'crit' : 'hit')
-      if (!meleeBatch || Math.hypot(event.x - world.player.pos.x, event.y - world.player.pos.y) > 3) wordAt(event.crit ? 'ding' : 'pa', event.x, event.y, event.z, event.crit ? 1.05 : 0.8)
+      if (meleeBatch && Math.hypot(event.x - world.player.pos.x, event.y - world.player.pos.y) <= 3) break
+      if (event.crit) words.say('暴击！', 'crit', event.x, event.y, event.z + 0.2, 1)
+      else wordAt('pa', event.x, event.y, event.z, 0.8)
       break
-    case 'enemyKilled':
+    case 'enemyKilled': {
       overlay.hit('kill')
-      wordAt('clatter', event.x, event.y, world.player.z + 1.1, event.kind === 'boss' ? 1.8 : 1)
+      const step = streakStep(event.streak ?? 0)
+      const label = streakLabel(event.streak ?? 0)
+      const lift = step * STREAK_WORDS.lift
+      wordAt('clatter', event.x, event.y, world.player.z + 1.1 + lift, (event.kind === 'boss' ? 1.8 : 1) * (1 + step * STREAK_WORDS.grow))
+      if (label) words.say(label, 'streak', event.x, event.y, world.player.z + 1.75 + lift, 1 + step * STREAK_WORDS.grow)
+      break
+    }
+    case 'eliteShieldBroken':
+      words.say('破盾！', 'shield', event.x, event.y, world.player.z + 1.5, 1)
+      break
+    case 'bossShield':
+      if (!event.held) words.say('破盾！', 'shield', event.x, event.y, world.player.z + 2.2, 1.3)
+      break
+    case 'stunned':
+      words.say('打断！', 'stun', event.x, event.y, world.player.z + 1.6, 0.9)
       break
     case 'enemyBumped':
       wordAt('kuang', event.x, event.y, event.z + 1.3, 0.9)

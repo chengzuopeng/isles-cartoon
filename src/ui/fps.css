@@ -640,3 +640,172 @@
 .fps-mode .skill-slot.empty .skill-name {
   color: var(--ink);
 }
+
+.sfx-say {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  font-family: var(--comic-font);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--paper);
+  -webkit-text-stroke: 0.16em var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0.08em 0.1em 0 var(--ink);
+  will-change: transform, opacity;
+  user-select: none;
+}
+
+.sfx-say-crit {
+  color: #ffe14d;
+}
+
+.sfx-say-shield {
+  color: #9ff6ff;
+}
+
+.sfx-say-stun {
+  color: #ffb04a;
+}
+
+.sfx-say-streak {
+  color: var(--paper);
+  text-shadow: 0.07em 0.09em 0 #d5392e, 0.12em 0.15em 0 var(--ink);
+}
+
+.fps-mode .bark-bar {
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow: 4px 4px 0 rgba(29, 23, 20, 0.85);
+  color: var(--ink);
+}
+
+.fps-mode .bark-face {
+  border: 3px solid var(--ink);
+  background: var(--paper-dark);
+}
+
+.fps-mode .bark-name {
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--comic-font);
+}
+
+.fps-mode .bark-text {
+  color: var(--ink);
+  font-family: var(--comic-font);
+  font-weight: 800;
+  text-shadow: none;
+}
+
+.fps-mode .dialogue-box {
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow: 6px 6px 0 rgba(29, 23, 20, 0.85);
+  color: var(--ink);
+}
+
+.fps-mode .dialogue-box.narration {
+  border-color: var(--ink);
+  background: var(--paper-dark);
+}
+
+.fps-mode .dialogue-name {
+  border: 3px solid var(--ink);
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--comic-font);
+  transform: rotate(-2deg);
+}
+
+.fps-mode .dialogue-text {
+  color: var(--ink);
+  font-family: var(--comic-font);
+  font-weight: 800;
+  text-shadow: none;
+}
+
+.fps-mode .dialogue-hint {
+  color: var(--ink);
+}
+
+.fps-mode .ult-meter {
+  border: 2.5px solid var(--ink);
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.4);
+  color: var(--ink);
+}
+
+.fps-mode .ult-meter.ready {
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.4), 0 0 0 3px var(--player);
+}
+
+.fps-mode .ult-label {
+  font-family: var(--comic-font);
+  color: var(--ink);
+}
+
+.fps-mode .ult-track {
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  background: #5a4a40;
+}
+
+.fps-mode .ult-fill {
+  background: repeating-linear-gradient(-45deg, var(--player) 0 8px, #3fcde0 8px 12px);
+}
+
+.fps-mode .boss-bar {
+  text-shadow: none;
+}
+
+.fps-mode .boss-name {
+  padding: 2px 14px 3px;
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 900 17px/1.2 var(--comic-font);
+  letter-spacing: 3px;
+  transform: rotate(-1.5deg);
+  box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.35);
+}
+
+.fps-mode .boss-track {
+  height: 20px;
+  padding: 0;
+  border: 3px solid var(--ink);
+  border-radius: 4px;
+  background: #5a4a40;
+  box-shadow: 4px 4px 0 rgba(29, 23, 20, 0.6);
+  overflow: hidden;
+}
+
+.fps-mode .boss-fill {
+  border-radius: 0;
+  background: repeating-linear-gradient(-45deg, #ff5a3c 0 10px, #e8492f 10px 15px);
+}
+
+.fps-mode .boss-bar.stunned .boss-fill {
+  background: repeating-linear-gradient(-45deg, #ffd34d 0 10px, #f2c23a 10px 15px);
+}
+
+.fps-mode .boss-tick {
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--ink);
+}
+
+.fps-mode .boss-face {
+  border: 3px solid var(--ink);
+  background: var(--paper-dark);
+  box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.6);
+}

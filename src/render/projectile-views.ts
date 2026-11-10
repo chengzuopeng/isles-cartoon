@@ -36,6 +36,7 @@ import {
   type LaunchTrack,
   type LobPose,
 } from './projectile-motion'
+import { hatchedMaterial, TELEGRAPH_HATCH } from './telegraph-material'
 import { PROJECTILE_POOL_MODELS, PROJECTILE_SCALES } from './themes'
 
 interface BulletStyle {
@@ -44,6 +45,8 @@ interface BulletStyle {
   scale: number
   opacity: number
   grow: number
+  glow?: number
+  trail?: number
 }
 
 interface Flash {
@@ -104,11 +107,12 @@ export interface ProjectileViews {
 
 const BASE_RADIUS = 0.13
 export const PLAYER_BOLT_GROW = { start: 0.3, distance: 5 }
-const ENEMY_STYLE: BulletStyle = { color: '#ff4f8b', stretch: 1, scale: 1, opacity: 1, grow: 0 }
+const ENEMY_STYLE: BulletStyle = { color: '#ffb08c', stretch: 2.4, scale: 0.45, opacity: 1, grow: 0, glow: 1.9, trail: 1.6 }
 const ENEMY_STYLES: Partial<Record<WeaponId, BulletStyle>> = {
-  chiefCannon: { color: '#ff8a3d', stretch: 1.55, scale: 1.15, opacity: 1, grow: 0 },
-  tankShell: { color: '#ffa13d', stretch: 1.45, scale: 1.1, opacity: 1, grow: 0 },
+  chiefCannon: { color: '#ff8a3d', stretch: 1.55, scale: 1.15, opacity: 1, grow: 0, trail: 2.2 },
+  tankShell: { color: '#ffa13d', stretch: 1.45, scale: 1.1, opacity: 1, grow: 0, trail: 2.2 },
 }
+export const BULLET_TRAIL = { width: 0.8, color: '#ff3b30', glow: 1.5, opacity: 0.85, sides: 8 } as const
 const DEFAULT_STYLE: BulletStyle = { color: '#ffe38a', stretch: 2.4, scale: 1, opacity: 1, grow: 0 }
 const STYLES: Partial<Record<WeaponId, BulletStyle>> = {
   shotgun: { color: '#ffd27a', stretch: 1.6, scale: 1, opacity: 1, grow: 0 },
@@ -145,15 +149,21 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
   const materials = new Map<string, THREE.MeshBasicMaterial>()
   let foggy = false
   let foggyLevel: World['level'] | null = null
-  const material = (color: string, opacity: number) => {
-    const key = `${color}:${opacity}`
+  const material = (color: string, opacity: number, glow = 1) => {
+    const key = `${color}:${opacity}:${glow}`
     let item = materials.get(key)
     if (!item) {
-      item = new THREE.MeshBasicMaterial({ color, transparent: opacity < 1 || foggy, opacity, depthWrite: opacity >= 1 })
+      item = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(glow), transparent: opacity < 1 || foggy, opacity, depthWrite: opacity >= 1 })
       materials.set(key, item)
     }
     return item
   }
+  const streakGeometry = new THREE.CylinderGeometry(0, 1, 1, BULLET_TRAIL.sides, 1, true).rotateZ(Math.PI / 2).translate(-0.5, 0, 0)
+  const streakMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(BULLET_TRAIL.color).multiplyScalar(BULLET_TRAIL.glow), transparent: true, opacity: BULLET_TRAIL.opacity, depthWrite: false, blending: THREE.AdditiveBlending })
+  const streaks: THREE.Mesh[] = []
+  const heading = new THREE.Vector3()
+  const facing = new THREE.Quaternion()
+  const forward = new THREE.Vector3(1, 0, 0)
   const overFog = new Map<THREE.Material, THREE.Material>()
   const fogCopy = (source: THREE.Material) => {
     let copy = overFog.get(source)
@@ -355,6 +365,7 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
   function syncBullets(world: World, alpha: number): void {
     const rocketModel = models.has('rocket-shell')
     let spheres = 0
+    let tails = 0
     for (const bullet of world.bullets) {
       if (rocketModel && bullet.team === 'player' && bullet.weapon === 'rocket') {
         placeRocket(bullet, alpha)
@@ -371,13 +382,36 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
       const progress = bullet.range > 0 ? clamp(bullet.traveled / bullet.range, 0, 1) : 0
       const near = bullet.team === 'player' ? PLAYER_BOLT_GROW.start + (1 - PLAYER_BOLT_GROW.start) * clamp(bullet.traveled / PLAYER_BOLT_GROW.distance, 0, 1) : 1
       const size = (bullet.radius / BASE_RADIUS) * style.scale * (1 + style.grow * progress) * near
-      mesh.material = material(style.color, style.grow > 0 ? Math.max(0.15, style.opacity * (1 - progress)) : style.opacity)
+      mesh.material = material(style.color, style.grow > 0 ? Math.max(0.15, style.opacity * (1 - progress)) : style.opacity, style.glow)
       mesh.scale.set(size * style.stretch, size, size)
       mesh.visible = true
       mesh.position.copy(bulletPoint(bullet, alpha, bullet.radius * style.scale * style.stretch * near, place))
-      mesh.rotation.y = -Math.atan2(bullet.dirY, bullet.dirX)
+      if (!style.trail) {
+        mesh.rotation.set(0, -Math.atan2(bullet.dirY, bullet.dirX), 0)
+        continue
+      }
+      heading.set(bullet.dirX, bullet.vz / Math.max(bullet.speed, 0.001), bullet.dirY).normalize()
+      facing.setFromUnitVectors(forward, heading)
+      mesh.quaternion.copy(facing)
+      const length = Math.min(style.trail, bulletTraveled(bullet.traveled, bullet.prev, bullet.pos, alpha))
+      if (length <= 0.02) continue
+      let streak = streaks[tails]
+      if (!streak) {
+        streak = new THREE.Mesh(streakGeometry, streakMaterial)
+        streak.userData.noInk = true
+        streak.renderOrder = 3
+        scene.add(streak)
+        streaks.push(streak)
+      }
+      tails += 1
+      const width = BASE_RADIUS * size * BULLET_TRAIL.width
+      streak.visible = true
+      streak.position.copy(mesh.position)
+      streak.quaternion.copy(facing)
+      streak.scale.set(length, width, width)
     }
     for (let i = spheres; i < bullets.length; i++) bullets[i].visible = false
+    for (let i = tails; i < streaks.length; i++) streaks[i].visible = false
     for (const [id, trail] of trails) if (trail.frame !== frame) trails.delete(id)
     for (const [id, launch] of launches) if (launch.frame !== frame) launches.delete(id)
   }
@@ -407,7 +441,7 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
     let item = markers[index]
     if (!item) {
       const ring = flat(new THREE.Mesh(markerGeometry, playerMarker), 0.05)
-      const fill = flat(new THREE.Mesh(markerFill, new THREE.MeshBasicMaterial({ color: '#5ff0ff', transparent: true, opacity: 0.2, depthWrite: false })), 0.045)
+      const fill = flat(new THREE.Mesh(markerFill, hatchedMaterial({ color: '#5ff0ff', opacity: TELEGRAPH_HATCH.fill.opacity * 0.6, gap: TELEGRAPH_HATCH.fill.gap, edge: 'disc' })), 0.045)
       scene.add(ring, fill)
       item = { ring, fill }
       markers.push(item)

@@ -180,7 +180,7 @@ function instance(build: (root: THREE.Object3D) => void, lights: string[] = []):
 }
 
 function effects() {
-  return { puff: vi.fn<Effects['puff']>(), burst: vi.fn<Effects['burst']>(), sparks: vi.fn<Effects['sparks']>(), smoke: vi.fn<Effects['smoke']>(), explosion: vi.fn<Effects['explosion']>(), update: vi.fn<Effects['update']>(), clear: vi.fn<Effects['clear']>() }
+  return { puff: vi.fn<Effects['puff']>(), burst: vi.fn<Effects['burst']>(), sparks: vi.fn<Effects['sparks']>(), smoke: vi.fn<Effects['smoke']>(), explosion: vi.fn<Effects['explosion']>(), star: vi.fn<Effects['star']>(), update: vi.fn<Effects['update']>(), clear: vi.fn<Effects['clear']>() }
 }
 
 function setup(kind: MinionKind) {

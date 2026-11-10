@@ -158,11 +158,18 @@ export function damageEnemy(
   else if (knockback > 0 || hit.z !== undefined) feelPain(world, enemy, damage)
 }
 
+export function countStreak(world: World): void {
+  const { player, time } = world
+  player.streak = time - player.streakAt <= world.tuning.player.streak.window ? player.streak + 1 : 1
+  player.streakAt = time
+}
+
 export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain = true, drop = true, dirX = 0, dirY = 0): void {
   enemy.hp = 0
   if (enemy.elite && !enemy.summoned) world.stats.elites += 1
   if (byPlayer) {
     world.stats.kills += 1
+    countStreak(world)
     if (enemy.kind !== 'boss') {
       world.rewards.kills += (enemy.elite ? ELITE_XP : KILL_XP[enemy.kind]) * world.chapter
       if (drop && enemy.elite) spawnPickup(world, rollItem(world, ELITE_WEIGHTS), enemy.pos.x, enemy.pos.y, { from: enemy.pos })
@@ -171,7 +178,7 @@ export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain =
   }
   const { feel } = world.tuning
   world.hitstop = Math.max(world.hitstop, enemy.kind === 'boss' ? feel.hitstopBoss : feel.hitstopKill)
-  world.events.push({ type: 'enemyKilled', id: enemy.id, kind: enemy.kind, x: enemy.pos.x, y: enemy.pos.y, dirX, dirY })
+  world.events.push({ type: 'enemyKilled', id: enemy.id, kind: enemy.kind, x: enemy.pos.x, y: enemy.pos.y, dirX, dirY, streak: byPlayer ? world.player.streak : 0 })
   if (enemy.kind === 'bomber' && chain) detonateBomber(world, enemy)
   if (enemy.elite && chain) eliteDeath(world, enemy)
   if (enemy.boss) defeatBoss(world, enemy)
@@ -348,7 +355,7 @@ function detonate(world: World, blast: Blast): void {
       const length = distance > 1e-6 ? distance : 1
       damageEnemy(world, enemy, blast.enemyDamage, dx / length, dy / length, knockback)
       if (blast.stun > 0 && enemy.hp > 0) stunEnemy(world, enemy, blast.stun)
-      if (blast.source === 'player') chargeUltimate(world, blast.enemyDamage * ultShareOf(world, blast.weapon))
+      if (blast.source === 'player') chargeUltimate(world, blast.enemyDamage * ultShareOf(world, blast.weapon), enemy)
     }
   }
   if (blast.arcWidth <= 0 && blast.gapWidth <= 0 && blast.inner <= 0) {

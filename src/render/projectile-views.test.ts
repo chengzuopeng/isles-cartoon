@@ -42,7 +42,7 @@ function fakeModel(id: ModelId): THREE.Object3D {
 async function setup(ids: readonly ModelId[] = ['rocket-shell', 'grenade-shell', 'legion-bomb', 'wheat-bale', 'falling-blade']) {
   const models = await loadModels(ids, async (id) => fakeModel(id))
   const scene = new THREE.Scene()
-  const effects: Effects = { puff: vi.fn(), burst: vi.fn(), sparks: vi.fn(), smoke: vi.fn(), explosion: vi.fn(), update: vi.fn(), clear: vi.fn() }
+  const effects: Effects = { puff: vi.fn(), burst: vi.fn(), sparks: vi.fn(), smoke: vi.fn(), explosion: vi.fn(), star: vi.fn(), update: vi.fn(), clear: vi.fn() }
   const views = createProjectileViews(scene, models, effects)
   const world = createWorld(buildLevel(TRAINING), createDefaultTuning())
   return { scene, effects, views, world, models }

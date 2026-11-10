@@ -56,7 +56,7 @@ export function swingMelee(world: World): void {
     })
     const dealt = Math.max(0, before - Math.max(0, enemy.hp))
     onDamageDealt(world, dealt)
-    chargeUltimate(world, dealt)
+    chargeUltimate(world, dealt, enemy)
   }
   world.stats.melees += 1
   world.stats.meleeHits += targets.length
@@ -74,5 +74,5 @@ export function smash(world: World, enemy: Enemy): void {
   spawnPickup(world, { type: 'heal', amount: FOOD_HEAL, food: foodOf(enemy) }, x, y, { from: { x, y } })
   world.stats.smashes += 1
   onDamageDealt(world, left)
-  chargeUltimate(world, left)
+  chargeUltimate(world, left, enemy)
 }

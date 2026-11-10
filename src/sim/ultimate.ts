@@ -2,7 +2,7 @@ import { eyeHeightOf } from '../data/heights'
 import { SPECIAL_WEAPONS, type WeaponId } from '../data/weapons'
 import { firePattern, weaponOf } from './arsenal'
 import { playerDisabled } from './status'
-import type { PlayerCommand } from './types'
+import type { Enemy, PlayerCommand } from './types'
 import type { World } from './world'
 
 export const ULTIMATE_WEAPON = 'starVolley'
@@ -13,10 +13,18 @@ export function ultShareOf(world: World, weapon: WeaponId | null): number {
   return SPECIAL_WEAPONS.some((id) => id === weapon) ? world.tuning.player.specialUltShare : 0
 }
 
-export function chargeUltimate(world: World, damage: number): void {
+export function streakBoost(world: World): number {
+  const { player, time } = world
+  const rule = world.tuning.player.streak
+  if (player.streak < 2 || time - player.streakAt > rule.window) return 1
+  return 1 + rule.ultBonus * Math.min(player.streak - 1, rule.maxSteps)
+}
+
+export function chargeUltimate(world: World, damage: number, target: Enemy | null = null): void {
   const { player, tuning } = world
   if (player.ultimate >= 1 || player.ultShots > 0 || damage <= 0) return
-  player.ultimate = Math.min(1, player.ultimate + damage / Math.max(1, tuning.player.ultimateCharge))
+  const boost = target && target.kind !== 'boss' ? streakBoost(world) : 1
+  player.ultimate = Math.min(1, player.ultimate + (damage * boost) / Math.max(1, tuning.player.ultimateCharge))
   if (player.ultimate >= 1) world.events.push({ type: 'ultimateReady' })
 }
 

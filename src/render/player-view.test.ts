@@ -60,7 +60,7 @@ async function setup(rigged = true) {
   const kit = { buildKai: () => kai } as unknown as ModelKit
   const scene = new THREE.Scene()
   const stage = { scene, addTrauma: vi.fn() } as unknown as Stage
-  const effects: Effects = { puff: vi.fn(), burst: vi.fn(), sparks: vi.fn(), smoke: vi.fn(), explosion: vi.fn(), update: vi.fn(), clear: vi.fn() }
+  const effects: Effects = { puff: vi.fn(), burst: vi.fn(), sparks: vi.fn(), smoke: vi.fn(), explosion: vi.fn(), star: vi.fn(), update: vi.fn(), clear: vi.fn() }
   const tuning = createDefaultTuning()
   const view = createPlayerView(stage, tuning, effects, kit, library)
   const world = createWorld(buildLevel(TRAINING), tuning)
@@ -164,3 +164,21 @@ describe('player view', () => {
     expect(upright(kai.root)).toBeCloseTo(0)
   })
 })
+
+describe('player view in first person', () => {
+  it('puts no muzzle puff at the eye when the body is hidden', async () => {
+    const { view, world, effects } = await setup(false)
+    view.setVisible(false)
+    play(view, world, 0.05)
+    view.handle({ type: 'shot', x: world.player.pos.x, y: world.player.pos.y, z: 1, angle: 0, pitch: 0, weapon: 'blaster' })
+    expect(effects.puff).not.toHaveBeenCalled()
+  })
+
+  it('still puffs at the gun when the body is shown', async () => {
+    const { view, world, effects } = await setup(false)
+    play(view, world, 0.05)
+    view.handle({ type: 'shot', x: world.player.pos.x, y: world.player.pos.y, z: 1, angle: 0, pitch: 0, weapon: 'blaster' })
+    expect(effects.puff).toHaveBeenCalled()
+  })
+})
+

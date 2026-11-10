@@ -161,6 +161,10 @@ export const SCENE_TINT = { base: 0.9, spread: 0.1 } as const
 
 export const ENEMY_LOOK = { brighten: 1.35 } as const
 
+export const HIT_STARS = { hit: 0.55, crit: 0.85, wall: 0.32 } as const
+
+export const HIT_WHITEOUT = { glow: 0.92, dim: 0.9 } as const
+
 export const ROCK_FALLBACK_COLORS: Readonly<Record<string, string>> = {
   'ch1-rock': '#9b968b',
   'ch1-haystack': '#c9a14c',
@@ -188,7 +192,8 @@ export const CAMPFIRE_FLAME = {
   charred: 0.45,
 } as const
 
-export const ENEMY_MUZZLE_COLOR = '#ff8fb3'
+export const ENEMY_MUZZLE_COLOR = '#ffb070'
+export const ENEMY_IMPACT_COLOR = '#ffc9a8'
 export const MORTAR_FLASH_COLOR = '#ffb36b'
 export const MORTAR_SMOKE_COLOR = '#e8dcc4'
 export const HELD_BOMB_SCALE = 1
