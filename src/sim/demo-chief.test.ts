@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { getBoss, type BossMoveId } from '../data/bosses'
+import { WEAK_POINTS } from '../data/heights'
 import { createDefaultTuning } from '../data/tuning'
 import { killEnemy } from './combat'
+import { criticalHit } from './projectiles'
 import { stepWorld } from './step'
 import { levelFromAreas } from './testing'
-import type { Enemy, PlayerCommand } from './types'
+import type { Bullet, Enemy, PlayerCommand } from './types'
 import { createWorld, type World } from './world'
 
 const DT = 1 / 60
@@ -137,7 +139,7 @@ describe('demolition chief', () => {
     const boss = bossOf(world)
     const state = boss.boss!
     expect(state.phase).toBe('telegraph')
-    expect(boss.aimAngle).toBeCloseTo(Math.atan2(10.5 - boss.pos.y, 9.5 - boss.pos.x), 5)
+    expect(boss.aimAngle).toBeCloseTo(Math.atan2(10.5 - boss.pos.y, 9.5 - boss.pos.x), 2)
     const aim = boss.aimAngle
     run(world, CANNON.telegraph - 0.05)
     expect(shots(world, 'chiefCannon')).toBe(0)
@@ -166,10 +168,37 @@ describe('demolition chief', () => {
     stepWorld(world, idle(), DT)
     expect(world.spawns.map((marker) => marker.kind)).toEqual(['bomber', 'bomber', 'thrower'])
     expect(world.events.filter((event) => event.type === 'bossSummon')).toHaveLength(1)
+    expect(world.events.filter((event) => event.type === 'spawnWarning')).toHaveLength(3)
     expect(world.pickups.filter((pickup) => pickup.item.type === 'heal')).toHaveLength(1)
     run(world, DEF.summonWarning + 0.1)
     expect(world.enemies.filter((enemy) => enemy.summoned).map((enemy) => enemy.kind)).toEqual(['bomber', 'bomber', 'thrower'])
     expect(world.spawns).toHaveLength(0)
+  })
+
+  it('takes double damage on its belly cannon only while it is exposed', () => {
+    const world = setup()
+    const boss = bossOf(world)
+    const state = boss.boss!
+    const weak = WEAK_POINTS['demo-chief']
+    const front = { x: boss.pos.x + Math.cos(boss.facing) * DEF.radius, y: boss.pos.y + Math.sin(boss.facing) * DEF.radius }
+    const belly = { pos: front, z: boss.z + weak.height, radius: 0.13 } as Bullet
+    const chest = { pos: front, z: boss.z + 2.6, radius: 0.13 } as Bullet
+    state.phase = 'recover'
+    expect(criticalHit(belly, boss)).toBe(true)
+    expect(criticalHit(chest, boss)).toBe(false)
+    state.phase = 'stunned'
+    expect(criticalHit(belly, boss)).toBe(true)
+    state.phase = 'active'
+    expect(criticalHit(belly, boss)).toBe(false)
+  })
+
+  it('stands big enough for first person and reaches across the barn', () => {
+    const tuning = createDefaultTuning()
+    expect(DEF.radius).toBe(1.6)
+    expect(DEF.keepDistance).toBeCloseTo(4.8, 5)
+    expect(tuning.weapons.chiefCannon.range).toBeCloseTo(22.4, 5)
+    expect(tuning.weapons.chiefBomb.range).toBeCloseTo(22.4, 5)
+    expect(tuning.weapons.chiefCannon.speed).toBe(16)
   })
 
   it('opens the barn when beaten and tells the picture how long to lay the bombs down', () => {

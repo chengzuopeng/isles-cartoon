@@ -54,6 +54,7 @@ const THROTTLE_MS: Partial<Record<GameEvent['type'], number>> = {
   enemySuspicious: 200,
   bossBackHit: 80,
   bladeHit: 70,
+  spawnWarning: 110,
 }
 
 const VICTORY_NOTES = [523, 659, 784, 1046]
@@ -303,6 +304,10 @@ export function createSfx(): Sfx {
         break
       case 'enemyAlerted':
         tone({ type: 'sine', from: 1300, to: 1650, duration: 0.07, gain: 0.05 })
+        break
+      case 'spawnWarning':
+        tone({ type: 'square', from: 520, to: 780, duration: 0.12, gain: 0.05 })
+        tone({ type: 'square', from: 520, to: 780, duration: 0.12, gain: 0.05, delay: 0.18 })
         break
       case 'bomberIgnite':
         hiss({ filter: 'bandpass', from: 4200, to: 6800, duration: 0.5, gain: 0.2, q: 1.4 })
@@ -618,6 +623,7 @@ const AMBIENCE = { wind: 0.05, water: 0.07, waterRange: 12, creak: 0.06, creakRa
 const POSITIONED: ReadonlySet<GameEvent['type']> = new Set<GameEvent['type']>([
   'bomberIgnite',
   'landmarkShaking',
+  'spawnWarning',
   'enemyShot',
   'bulletHitWall',
   'enemyAlerted',

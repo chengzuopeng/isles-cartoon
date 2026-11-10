@@ -1050,7 +1050,7 @@ function frame(now: number): void {
   if (viewsReady && levelView && (screen === 'play' || !prep.covers())) {
     placeEye(alpha, dt)
     syncViews(sceneDt, alpha)
-    effects.update(sceneDt)
+    effects.update(sceneDt, stage.view === 'fps' ? stage.camera.position : undefined)
     const { player } = world
     viewmodel.update(
       {

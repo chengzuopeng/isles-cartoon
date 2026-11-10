@@ -796,6 +796,7 @@ function summon(world: World, boss: Enemy, waves: readonly BossSummon[], warning
         area: boss.area,
         summoned: true,
       })
+      world.events.push({ type: 'spawnWarning', x: point.x, y: point.y })
     }
   }
   world.events.push({ type: 'bossSummon' })

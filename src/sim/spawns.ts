@@ -43,6 +43,7 @@ export function updateRushes(world: World): void {
         const point = rush.points[slot % rush.points.length]
         const delay = RUSH.warning + slot * RUSH.gap
         world.spawns.push({ id: world.nextId++, pos: { x: point.x, y: point.y }, remaining: delay, total: delay, kind: squad.kind, area: rush.area, summoned: false })
+        world.events.push({ type: 'spawnWarning', x: point.x, y: point.y })
         slot += 1
         count += 1
       }

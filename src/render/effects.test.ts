@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { CHAPTER_1_LOOK } from './chapter-look'
-import { blobScale } from './effects'
+import { blobScale, clearOfEye, EYE_GAP } from './effects'
 
 describe('smoke and fire blobs', () => {
+  it('shrink away from the eye so a blast at your feet never fills the whole screen', () => {
+    expect(clearOfEye(3, 10)).toBe(3)
+    expect(clearOfEye(3, 1)).toBeCloseTo((1 - EYE_GAP) * 2, 6)
+    expect(clearOfEye(3, 0.2)).toBeLessThan(0.001)
+    for (const distance of [0.6, 1, 1.5, 2]) expect(clearOfEye(5, distance) / 2).toBeLessThanOrEqual(distance - EYE_GAP + 1e-9)
+  })
+
   it('pop out fast, hold their size and shrink away instead of fading', () => {
     expect(blobScale(-0.1, 1, 0.2, 0.4)).toBe(0)
     expect(blobScale(0.1, 1, 0.2, 0.4)).toBeGreaterThan(0.8)

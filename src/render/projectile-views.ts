@@ -58,6 +58,8 @@ interface Flash {
   height: number
 }
 
+export const LOB_WALL = { height: 0.9 } as const
+export const LOB_TRAIL = { every: 0.05, smoke: '#d6d0c2', smokeLife: 0.5, sparks: 3, fuse: 0.2 } as const
 export const RING_WALL = { height: 1.4, color: '#4fd6ff', opacity: 0.8, linger: 1.5, start: 1.2 }
 
 type ProjectileModelId = keyof typeof PROJECTILE_SCALES
@@ -199,13 +201,15 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
   const balls: THREE.Mesh[] = []
   const markerGeometry = new THREE.RingGeometry(0.9, 1, 40)
   const markerFill = new THREE.CircleGeometry(1, 40)
-  const markers: { ring: THREE.Mesh; fill: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial> }[] = []
+  const markers: { ring: THREE.Mesh; fill: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>; wall: THREE.Mesh }[] = []
   const playerMarker = new THREE.MeshBasicMaterial({ color: '#5ff0ff', transparent: true, opacity: 0.45, depthWrite: false })
   const enemyMarker = new THREE.MeshBasicMaterial({ color: '#ff3b30', transparent: true, opacity: 0.5, depthWrite: false })
   const flashes: Flash[] = []
   const ringGeometry = new THREE.RingGeometry(0.85, 1, 48)
   const wallGeometry = curtainPath(circleOutline(1, 48), true)
   const wallGradient = curtainGradient()
+  const lobTrails = new Map<number, number>()
+  const lobWallMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff3b30').multiplyScalar(1.3), map: wallGradient, transparent: true, depthWrite: false, side: THREE.DoubleSide })
   let grid: Grid | null = null
   const chainMaterial = new THREE.LineBasicMaterial({ color: '#fff9b0', transparent: true, opacity: 1 })
   const chains: { line: THREE.Line; age: number }[] = []
@@ -442,10 +446,16 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
     if (!item) {
       const ring = flat(new THREE.Mesh(markerGeometry, playerMarker), 0.05)
       const fill = flat(new THREE.Mesh(markerFill, hatchedMaterial({ color: '#5ff0ff', opacity: TELEGRAPH_HATCH.fill.opacity * 0.6, gap: TELEGRAPH_HATCH.fill.gap, edge: 'disc' })), 0.045)
-      scene.add(ring, fill)
-      item = { ring, fill }
+      const wall = new THREE.Mesh(wallGeometry, lobWallMaterial)
+      wall.userData.noInk = true
+      wall.renderOrder = 2
+      scene.add(ring, fill, wall)
+      item = { ring, fill, wall }
       markers.push(item)
     }
+    item.wall.visible = lob.team === 'enemy'
+    item.wall.position.set(lob.to.x, lob.toZ, lob.to.y)
+    item.wall.scale.set(lob.radius, LOB_WALL.height * (0.4 + 0.6 * t), lob.radius)
     item.ring.visible = true
     item.ring.material = lob.team === 'enemy' ? enemyMarker : playerMarker
     item.ring.position.set(lob.to.x, lob.toZ + 0.05, lob.to.y)
@@ -491,7 +501,7 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
     return tail
   }
 
-  function syncLobs(world: World, alpha: number): void {
+  function syncLobs(world: World, alpha: number, dt: number): void {
     let used = 0
     world.lobs.forEach((lob, index) => {
       const t = lobProgress(lob, alpha)
@@ -503,6 +513,7 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
         const pose = lobPose(lob, t, launch, restOf(id) * PROJECTILE_SCALES[id])
         placeLob(item.root, lob, t, pose.height, lobTail(id))
         orientLob(id, item, lob, pose, t, world.time)
+        trailLob(lob, item.root.position, t, dt)
         return
       }
       let ball = balls[used]
@@ -515,13 +526,28 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
       used += 1
       ball.visible = true
       placeLob(ball, lob, t, lobPose(lob, t, launch, BALL_RADIUS).height, BALL_RADIUS)
+      trailLob(lob, ball.position, t, dt)
     })
+    for (const id of lobTrails.keys()) if (!world.lobs.some((lob) => lob.id === id)) lobTrails.delete(id)
     for (let i = used; i < balls.length; i++) balls[i].visible = false
     for (const [id, launch] of lobLaunches) if (launch.frame !== frame) lobLaunches.delete(id)
     for (let i = world.lobs.length; i < markers.length; i++) {
       markers[i].ring.visible = false
       markers[i].fill.visible = false
+      markers[i].wall.visible = false
     }
+  }
+
+  function trailLob(lob: Lob, at: THREE.Vector3, t: number, dt: number): void {
+    if (lob.team !== 'enemy' || lob.lands !== 'blast' || t <= 0.02 || t >= 0.98) return
+    const wait = (lobTrails.get(lob.id) ?? 0) - dt
+    if (wait > 0) {
+      lobTrails.set(lob.id, wait)
+      return
+    }
+    lobTrails.set(lob.id, LOB_TRAIL.every)
+    effects.puff(at.x, at.y, at.z, LOB_TRAIL.smoke, 0.12, 0.42, LOB_TRAIL.smokeLife)
+    effects.sparks(at.x, at.y + LOB_TRAIL.fuse, at.z, 0, 0, { count: LOB_TRAIL.sparks, speed: 2.4, life: 0.25, color: '#ffd060', spread: 1, lift: 1.4 })
   }
 
   function takeBlade(): PoolItem {
@@ -655,7 +681,7 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
       layerFor(world)
       beginPools()
       syncBullets(world, alpha)
-      syncLobs(world, alpha)
+      syncLobs(world, alpha, dt)
       endPools()
       syncBlades(world)
       updateFlashes(dt)
@@ -687,6 +713,7 @@ export function createProjectileViews(scene: THREE.Scene, models: ModelLibrary, 
       trails.clear()
       launches.clear()
       lobLaunches.clear()
+      lobTrails.clear()
       for (const flash of flashes) {
         scene.remove(flash.mesh)
         flash.mesh.material.dispose()

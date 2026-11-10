@@ -74,10 +74,10 @@ export function throwPose(def: BossDef, state: BossState, sinceToss: number, rig
 }
 
 export function cannonGlow(def: BossDef, state: BossState, weapons: Windups, rig: ChiefRig = CHIEF_RIG): number {
+  if (state.phase === 'recover' || state.phase === 'stunned') return rig.boreGlow
   if (state.move !== 'cannon' || !def.cannon) return 1
   if (state.phase === 'telegraph') return 1 + (rig.boreGlow - 1) * telegraphProgress(def, state, weapons)
   if (state.phase === 'active') return rig.boreGlow
-  if (state.phase === 'recover') return 1 + (rig.boreGlow - 1) * (def.cannon.recover > 0 ? clamp01(state.timer / def.cannon.recover) : 0)
   return 1
 }
 

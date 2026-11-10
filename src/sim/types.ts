@@ -477,6 +477,7 @@ export type GameEvent =
   | { type: 'enemyBumped'; id: number; x: number; y: number; z: number }
   | { type: 'bomberIgnite'; id: number; x: number; y: number }
   | { type: 'landmarkShaking'; index: number; x: number; y: number }
+  | { type: 'spawnWarning'; x: number; y: number }
   | { type: 'rush'; area: number; count: number }
   | { type: 'jumped' }
   | { type: 'landed'; fall: number }

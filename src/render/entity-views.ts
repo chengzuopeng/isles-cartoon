@@ -144,6 +144,7 @@ const BOMBER_IGNITE = { flare: 0.7, every: 0.04, count: 5, speed: 4.2, life: 0.3
 const ELITE_COLOR = '#ffd34d'
 const TELEGRAPH_COLOR = '#ff3b30'
 const MARKER_COLOR = '#ff6a3d'
+const SPAWN_WALL = { radius: 0.62, height: 1.8 } as const
 const BURN_COLOR = new THREE.Color('#ff7a1a')
 const CHILL_COLOR = new THREE.Color('#5fc8ff')
 const FLASH_COLOR = new THREE.Color('#ffffff')
@@ -152,7 +153,9 @@ const ARMING_COLOR = new THREE.Color(TELEGRAPH_COLOR)
 const fitBox = new THREE.Box3()
 const EXPOSED_COLOR = new THREE.Color('#ffd34d')
 const BEAM_COLOR = new THREE.Color('#ff2a1a')
+const EMBLEM_WEAK_POINTS: ReadonlySet<string> = new Set(['scarecrow'])
 const BEAM_UP = new THREE.Vector3(0, 1, 0)
+const CANNON_BEAM = { width: 0.035, grow: 0.05, opacity: 0.4 } as const
 const beamDirection = new THREE.Vector3()
 const CURTAIN_HEIGHT = 0.7
 const CURTAIN_FADE = { power: 2.2, peak: 0.5 } as const
@@ -411,6 +414,8 @@ export function createEntityViews(
   const enemyViews = new Map<number, EnemyView>()
   const defeatTarget: DefeatTarget = { x: 0, y: 0 }
   const markerMeshes: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>[] = []
+  const markerWalls: THREE.Mesh[] = []
+  const markerWallMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(MARKER_COLOR).multiplyScalar(1.3), map: curtainGradient(), transparent: true, depthWrite: false, side: THREE.DoubleSide })
   const blastMeshes: { ring: THREE.Mesh; fill: THREE.Mesh; wall: THREE.Mesh }[] = []
   let clock = 0
   let current: World | null = null
@@ -836,6 +841,12 @@ export function createEntityViews(
       view.ground.add(cannonLane)
       view.lane = cannonLane
       view.laneFill = cannonFill
+      const beam = new THREE.Mesh(beamGeometry, new THREE.MeshBasicMaterial({ color: BEAM_COLOR.clone(), transparent: true, opacity: 0.4, depthWrite: false }))
+      beam.userData.noInk = true
+      beam.visible = false
+      view.owned.push(beam.material as THREE.Material)
+      scene.add(beam)
+      view.beam = beam
     }
     if (def.triple) view.triple = tripleTelegraph(view, def)
     if (!def.fan) return
@@ -1010,6 +1021,7 @@ export function createEntityViews(
   }
 
   function syncWeakPoint(view: EnemyView, enemy: Enemy): void {
+    if (!EMBLEM_WEAK_POINTS.has(enemy.boss?.id ?? '')) return
     view.marks ??= ownMaterials(materialMeshes(view.pivot, 'mat_emblem')).map((entry) => entry.material)
     const exposed = bossExposed(enemy)
     const pulse = 0.8 + Math.sin(clock * 11) * 0.2
@@ -1110,8 +1122,10 @@ export function createEntityViews(
       const reach = laneLength(world.grid, enemy.pos.x, enemy.pos.y, enemy.aimAngle, tuning.weapons[def.cannon.weapon].range)
       view.lane.children[0]?.scale.setX(Math.max(0.01, reach))
       stretchCurtains(view.lane, reach)
-      view.laneFill.scale.x = Math.max(0.01, reach * clamp(1 - state.timer / Math.max(0.01, def.cannon.telegraph), 0, 1))
-    }
+      const amount = clamp(1 - state.timer / Math.max(0.01, def.cannon.telegraph), 0, 1)
+      view.laneFill.scale.x = Math.max(0.01, reach * amount)
+      aimCannon(world, enemy, view, reach, amount)
+    } else if (view.beam && enemy.kind === 'boss') view.beam.visible = false
     if (view.triple && def.triple) {
       const showing = state.phase === 'telegraph' && state.move === 'triple'
       view.triple.group.visible = showing
@@ -1191,6 +1205,25 @@ export function createEntityViews(
     const material = beam.material as THREE.MeshBasicMaterial
     material.opacity = locked ? 0.95 : 0.35 + amount * 0.35
     material.color.copy(BEAM_COLOR).multiplyScalar(locked ? 2.6 : 1.2)
+  }
+
+  function aimCannon(world: World, enemy: Enemy, view: EnemyView, reach: number, amount: number): void {
+    const beam = view.beam
+    if (!beam) return
+    beam.visible = enemy.hp > 0
+    if (!beam.visible) return
+    const { player } = world
+    const fromZ = enemy.z + muzzleHeightOf(enemy.boss?.id ?? enemy.kind)
+    const distance = Math.hypot(player.pos.x - enemy.pos.x, player.pos.y - enemy.pos.y)
+    const pitch = Math.atan2(player.z + CHEST_HEIGHT - fromZ, Math.max(distance, 0.1))
+    beamDirection.set(Math.cos(enemy.aimAngle) * Math.cos(pitch), Math.sin(pitch), Math.sin(enemy.aimAngle) * Math.cos(pitch))
+    beam.position.set(enemy.pos.x, fromZ, enemy.pos.y)
+    beam.quaternion.setFromUnitVectors(BEAM_UP, beamDirection)
+    const width = CANNON_BEAM.width + amount * CANNON_BEAM.grow
+    beam.scale.set(width, Math.max(0.1, reach / Math.max(Math.cos(pitch), 0.2)), width)
+    const material = beam.material as THREE.MeshBasicMaterial
+    material.opacity = CANNON_BEAM.opacity + amount * (1 - CANNON_BEAM.opacity)
+    material.color.copy(BEAM_COLOR).multiplyScalar(1.2 + amount * 1.4)
   }
 
   function showLines(view: EnemyView, visible: boolean, amount: number): void {
@@ -1281,12 +1314,25 @@ export function createEntityViews(
         markerMeshes.push(mesh)
       }
       const amount = marker.total > 0 ? 1 - marker.remaining / marker.total : 1
+      const floor = floorAt(world.grid, marker.pos.x, marker.pos.y)
       mesh.visible = true
-      mesh.position.set(marker.pos.x, floorAt(world.grid, marker.pos.x, marker.pos.y) + 0.03, marker.pos.y)
+      mesh.position.set(marker.pos.x, floor + 0.03, marker.pos.y)
       mesh.scale.setScalar(1.3 - 0.4 * amount + Math.sin(clock * 14) * 0.06)
       mesh.material.opacity = 0.35 + 0.55 * amount
+      let wall = markerWalls[index]
+      if (!wall) {
+        wall = new THREE.Mesh(ringCurtain, markerWallMaterial)
+        wall.userData.noInk = true
+        wall.renderOrder = 2
+        scene.add(wall)
+        markerWalls.push(wall)
+      }
+      wall.visible = true
+      wall.position.set(marker.pos.x, floor, marker.pos.y)
+      wall.scale.set(SPAWN_WALL.radius, SPAWN_WALL.height * (0.5 + 0.5 * amount), SPAWN_WALL.radius)
     })
     for (let i = world.spawns.length; i < markerMeshes.length; i++) markerMeshes[i].visible = false
+    for (let i = world.spawns.length; i < markerWalls.length; i++) markerWalls[i].visible = false
   }
 
   function shapedBlast(blast: Blast) {

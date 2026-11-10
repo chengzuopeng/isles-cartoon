@@ -72,7 +72,7 @@ export interface Effects {
   smoke(x: number, height: number, y: number, size: number, count?: number, color?: THREE.ColorRepresentation): void
   explosion(x: number, height: number, y: number, radius: number): void
   star(x: number, height: number, y: number, size: number, color?: THREE.ColorRepresentation): void
-  update(dt: number): void
+  update(dt: number, eye?: THREE.Vector3): void
   clear(): void
 }
 
@@ -94,6 +94,12 @@ const SMOKE_INK = {
   inkDotCell: { value: 7 },
 }
 const FORWARD = new THREE.Vector3(0, 0, 1)
+
+export const EYE_GAP = 0.45
+
+export function clearOfEye(scale: number, distance: number, gap: number = EYE_GAP): number {
+  return Math.min(scale, Math.max(0.0001, (distance - gap) * 2))
+}
 
 export function blobScale(age: number, life: number, grow: number, fade: number): number {
   if (age <= 0 || age >= life) return 0
@@ -316,13 +322,14 @@ export function createEffects(scene: THREE.Scene): Effects {
       }
       spray(x, height + size * 0.3, y, 0, 0, { count: Math.round(28 + size * 10), speed: 9 + size * 3, life: 0.55, color: FX.sparks.blast, spread: 1, lift: 0.5, width: FX.sparks.width * 1.3 })
     },
-    update(dt) {
+    update(dt, eye) {
       for (let i = active.length - 1; i >= 0; i--) {
         const item = active[i]
         item.age += dt
         const t = Math.min(1, item.age / item.duration)
         const eased = 1 - (1 - t) ** 3
-        item.mesh.scale.setScalar(item.from + (item.to - item.from) * eased)
+        const grown = item.from + (item.to - item.from) * eased
+        item.mesh.scale.setScalar(eye ? clearOfEye(grown, item.mesh.position.distanceTo(eye)) : grown)
         if (item.rise !== 0) item.mesh.position.y = item.base + item.rise * (1 - (1 - t) ** 2)
         item.mesh.material.opacity = START_OPACITY * (1 - t)
         if (t < 1) continue
@@ -348,7 +355,8 @@ export function createEffects(scene: THREE.Scene): Effects {
         item.mesh.position.y += item.vy * dt
         item.mesh.position.z += item.vz * dt
         item.mesh.visible = true
-        item.mesh.scale.setScalar(Math.max(0.0001, item.size * blobScale(item.age, item.life, item.grow, item.fade)))
+        const grown = Math.max(0.0001, item.size * blobScale(item.age, item.life, item.grow, item.fade))
+        item.mesh.scale.setScalar(eye ? clearOfEye(grown, item.mesh.position.distanceTo(eye)) : grown)
       }
       for (const item of stars) {
         if (!item.sprite.visible) continue

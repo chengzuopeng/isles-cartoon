@@ -52,7 +52,7 @@ export const LEVEL_1_2: LevelDef = {
   maxHits: 15,
   unlockAfter: '1-1',
   firstPerson: true,
-  wip: '第一人称版还没做完：灰盒搭好了，新机制、场景、剧情和 Boss 还没做',
+  wip: '第一人称版还没做完：灰盒、新机制和 Boss 做好了，场景、剧情还没做',
   areas: [
     {
       name: '牧场入口',

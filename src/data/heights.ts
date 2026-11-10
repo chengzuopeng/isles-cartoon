@@ -92,7 +92,7 @@ export const MUZZLE_HEIGHTS: Readonly<Record<string, number>> = {
   thrower: 1.6,
   scarecrow: 1,
   harvester: 1.4,
-  'demo-chief': 1.6,
+  'demo-chief': 1.15,
   'shield-captain': 1.4,
   'forest-tank': 1.6,
 }
@@ -105,6 +105,7 @@ export type WeakPoint = {
 
 export const WEAK_POINTS: Readonly<Record<string, WeakPoint>> = {
   scarecrow: { height: 3, forward: 1.4, radius: 0.6 },
+  'demo-chief': { height: 1.15, forward: 1.4, radius: 0.6 },
 }
 
 export const EYE_CRIT = { band: 0.18, facing: 0.2, scale: 2 } as const
