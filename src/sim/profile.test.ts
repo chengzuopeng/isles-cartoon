@@ -23,6 +23,7 @@ import {
   loadoutOf,
   markInterlude,
   pendingInterlude,
+  refund,
   resetSkills,
   respec,
   runXp,
@@ -72,54 +73,43 @@ describe('experience curve', () => {
   })
 })
 
-describe('attribute points', () => {
-  it('spends points until the attribute is maxed', () => {
+describe('specialisation points', () => {
+  it('spends points until the tree is full at rank ten', () => {
     const profile = createProfile()
     profile.points = 12
-    for (let i = 0; i < 10; i++) expect(allocate(profile, 'health')).toBe(true)
-    expect(allocationBlock(profile, 'health')).toBe('maxed')
-    expect(allocate(profile, 'health')).toBe(false)
+    for (let i = 0; i < 10; i++) expect(allocate(profile, 'brawl')).toBe(true)
+    expect(allocationBlock(profile, 'brawl')).toBe('maxed')
+    expect(allocate(profile, 'brawl')).toBe(false)
     expect(profile.points).toBe(2)
   })
 
   it('refuses to spend points the hero does not have', () => {
     const profile = createProfile()
-    expect(allocationBlock(profile, 'damage')).toBe('noPoints')
-    expect(allocate(profile, 'damage')).toBe(false)
+    expect(allocationBlock(profile, 'gun')).toBe('noPoints')
+    expect(allocate(profile, 'gun')).toBe(false)
   })
 
-  it('locks magazine ranks behind hero levels 5 and 15', () => {
+  it('takes a single rank back with a refund', () => {
     const profile = createProfile()
-    profile.points = 5
-    profile.level = 4
-    expect(allocationBlock(profile, 'magazine')).toBe('level')
-    profile.level = 5
-    expect(allocate(profile, 'magazine')).toBe(true)
-    expect(allocationBlock(profile, 'magazine')).toBe('level')
-    profile.level = 15
-    expect(allocate(profile, 'magazine')).toBe(true)
-    expect(allocationBlock(profile, 'magazine')).toBe('maxed')
-  })
-
-  it('keeps skill cooldown closed until a skill is learned', () => {
-    const profile = createProfile()
-    resetSkills(profile)
-    profile.points = 1
-    expect(allocationBlock(profile, 'cooldown')).toBe('skill')
-    profile.skills.concussion = 1
-    expect(allocationBlock(profile, 'cooldown')).toBeNull()
+    profile.points = 2
+    allocate(profile, 'move')
+    allocate(profile, 'move')
+    expect(refund(profile, 'move')).toBe(true)
+    expect(profile.specs.move).toBe(1)
+    expect(profile.points).toBe(1)
+    expect(refund(profile, 'energy')).toBe(false)
   })
 
   it('gives every point back for free on respec', () => {
     const profile = createProfile()
     profile.points = 4
-    allocate(profile, 'speed')
-    allocate(profile, 'damage')
-    allocate(profile, 'damage')
+    allocate(profile, 'move')
+    allocate(profile, 'gun')
+    allocate(profile, 'gun')
     respec(profile)
     expect(profile.points).toBe(4)
-    expect(profile.attributes.damage).toBe(0)
-    expect(profile.attributes.speed).toBe(0)
+    expect(profile.specs.gun).toBe(0)
+    expect(profile.specs.move).toBe(0)
   })
 })
 
@@ -215,29 +205,35 @@ describe('saved profiles', () => {
       level: 4,
       xp: 99_999,
       points: 50,
-      attributes: { health: 2, speed: 99, bogus: 3 },
+      specs: { brawl: 2, move: 99, bogus: 3 },
       records: { '1-1': { cleared: true, bestStars: 7, bestTime: 300, clears: 2 } },
     })
     expect(profile.level).toBe(4)
     expect(profile.xp).toBe(xpToNext(4) - 1)
-    expect(profile.attributes.health).toBe(0)
+    expect(profile.specs.brawl).toBe(0)
     expect(profile.points).toBe(3)
     expect(profile.records['1-1']).toEqual({ cleared: true, bestStars: 3, bestTime: 300, clears: 2, challenges: [] })
   })
 
   it('keeps a consistent allocation', () => {
-    const profile = sanitizeProfile({ level: 5, attributes: { health: 2, damage: 1 } })
-    expect(profile.attributes.health).toBe(2)
+    const profile = sanitizeProfile({ level: 5, specs: { brawl: 2, gun: 1 } })
+    expect(profile.specs.brawl).toBe(2)
     expect(profile.points).toBe(1)
+  })
+
+  it('hands every point back to a save from before the specialisations', () => {
+    const profile = sanitizeProfile({ version: 2, level: 6, attributes: { health: 3, damage: 2 } })
+    expect(profile.specs).toEqual({ gun: 0, brawl: 0, move: 0, energy: 0 })
+    expect(profile.points).toBe(5)
   })
 
   it('upgrades a version 1 save that has no clue book yet', () => {
     const old = { version: 1, level: 2, xp: 120, attributes: { health: 1 }, records: { '1-1': { cleared: true, bestStars: 2, bestTime: 80, clears: 1 } } }
     const profile = sanitizeProfile(old)
     expect(profile.version).toBe(PROFILE_VERSION)
-    expect(PROFILE_VERSION).toBe(2)
+    expect(PROFILE_VERSION).toBe(3)
     expect(profile.clues).toEqual([])
-    expect(profile).toMatchObject({ level: 2, xp: 120, points: 0 })
+    expect(profile).toMatchObject({ level: 2, xp: 120, points: 1 })
     expect(profile.records['1-1'].cleared).toBe(true)
   })
 

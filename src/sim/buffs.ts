@@ -1,3 +1,5 @@
+import { MILESTONE } from '../data/progression'
+import { hasMilestone } from './stats'
 import { BUFFS, type BuffId } from '../data/loot'
 import type { Player } from './types'
 import type { World } from './world'
@@ -48,7 +50,17 @@ export function absorbDamage(world: World, amount: number): number {
 export function onDamageDealt(world: World, amount: number): void {
   const { player } = world
   if (!player.alive || amount <= 0 || !hasBuff(player, 'leech')) return
-  player.hp = Math.min(player.maxHp, player.hp + amount * BUFFS.leech.value)
+  healPlayer(world, amount * BUFFS.leech.value)
+}
+
+export function healPlayer(world: World, amount: number): number {
+  const { player } = world
+  if (!player.alive || amount <= 0) return 0
+  const healed = Math.min(player.maxHp - player.hp, amount)
+  player.hp += healed
+  const spill = amount - healed
+  if (spill > 0 && hasMilestone(world, 'brawl10')) player.armor = Math.min(MILESTONE.overhealCap, player.armor + spill)
+  return healed
 }
 
 export function consumesAmmo(player: Player): boolean {

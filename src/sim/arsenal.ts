@@ -18,6 +18,7 @@ const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
 
 export interface FireOptions {
   stagger?: number
+  sureCrit?: boolean
   damageScale?: number
   attack?: Attack | null
   z?: number
@@ -52,7 +53,7 @@ export function firePattern(
   const spread = (weapon.spreadDeg * Math.PI) / 180
   const jitter = (weapon.jitterDeg * Math.PI) / 180
   const pitch = options.pitch ?? 0
-  const bullet = { damageScale: options.damageScale ?? 1, attack: options.attack ?? null, z: options.z }
+  const bullet = { damageScale: options.damageScale ?? 1, attack: options.attack ?? null, z: options.z, sureCrit: options.sureCrit ?? false }
   if (team === 'player') {
     for (let i = 0; i < count; i++) {
       const ring = count > 1 ? (spread / 2) * Math.sqrt((i + 0.5) / count) : 0

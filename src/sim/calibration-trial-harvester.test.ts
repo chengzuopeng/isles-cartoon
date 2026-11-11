@@ -6,7 +6,7 @@ import { createLoadout } from './stats'
 
 describe('calibrating the chapter boss trial with human-like autopilots', () => {
   it('reports how often each skill level beats the harvester', () => {
-    const loadout = () => createLoadout({ health: 3, damage: 2 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
+    const loadout = () => createLoadout({ brawl: 3, gun: 2 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
     const runs = AUTOPILOT_SKILL_ORDER.flatMap((skill) => SEEDS.map((seed) => play(TRIAL_HARVESTER, skill, seed, loadout())))
     console.table(table(runs))
     console.table(summarize(runs))

@@ -1,94 +1,72 @@
-import { ATTRIBUTES, ATTRIBUTE_ORDER, RECOVERY_DELAY_PER_RANK, type AttributeId } from '../data/progression'
+import { SPECS, SPEC_MAX, SPEC_ORDER, type SpecId } from '../data/progression'
 import { assetUrl } from '../render/asset-urls'
-import { allocationBlock, nextRankLevel, type Profile } from '../sim/profile'
+import { allocationBlock, type Profile } from '../sim/profile'
 import { icon } from './assets'
 import { element } from './dom'
 
-interface CardView {
-  root: HTMLButtonElement
-  rank: HTMLDivElement
-  current: HTMLDivElement
-  next: HTMLDivElement
+interface SpecView {
+  root: HTMLDivElement
+  rank: HTMLSpanElement
+  cells: HTMLButtonElement[]
+  stones: HTMLDivElement[]
 }
 
-export interface AttributeCards {
+export interface SpecBars {
   readonly root: HTMLDivElement
   render(profile: Profile): void
 }
 
-export function createAttributeCards(parent: HTMLElement, onPick: (id: AttributeId) => void): AttributeCards {
-  const root = element('div', 'attr-grid', parent)
-  const cards = new Map<AttributeId, CardView>()
-  for (const id of ATTRIBUTE_ORDER) {
-    const card = element('button', 'attr-card', root)
-    card.type = 'button'
-    card.tabIndex = -1
-    const head = element('div', 'attr-head', card)
-    icon(head, 'attr-icon', assetUrl.attribute(id))
-    const title = element('div', 'attr-title', head)
-    element('div', 'attr-name', title, ATTRIBUTES[id].name)
-    const rank = element('div', 'attr-rank', title)
-    const current = element('div', 'attr-effect', card)
-    const next = element('div', 'attr-next', card)
-    card.addEventListener('mousedown', (event) => event.preventDefault())
-    card.addEventListener('click', () => onPick(id))
-    cards.set(id, { root: card, rank, current, next })
+export function createAttributeCards(parent: HTMLElement, onPick: (id: SpecId) => void, onRefund?: (id: SpecId) => void): SpecBars {
+  const root = element('div', 'spec-grid', parent)
+  const views = new Map<SpecId, SpecView>()
+  for (const id of SPEC_ORDER) {
+    const def = SPECS[id]
+    const column = element('div', 'spec-column', root)
+    const head = element('div', 'spec-head', column)
+    icon(head, 'spec-icon', assetUrl.attribute(def.icon))
+    element('span', 'spec-name', head, def.name)
+    const rank = element('span', 'spec-rank', head)
+    element('div', 'spec-per', column, def.per)
+    const bar = element('div', 'spec-bar', column)
+    const cells: HTMLButtonElement[] = []
+    for (let at = 1; at <= SPEC_MAX; at++) {
+      const milestone = def.milestones.find((item) => item.rank === at)
+      const cell = element('button', milestone ? 'spec-cell star' : 'spec-cell', bar)
+      cell.type = 'button'
+      cell.tabIndex = -1
+      cell.title = milestone ? `${at} 级 · ${milestone.name}：${milestone.text}` : `${at} 级`
+      cell.addEventListener('mousedown', (event) => event.preventDefault())
+      cell.addEventListener('click', () => onPick(id))
+      cell.addEventListener('contextmenu', (event) => {
+        event.preventDefault()
+        onRefund?.(id)
+      })
+      cells.push(cell)
+    }
+    const stones = def.milestones.map((milestone) => {
+      const stone = element('div', 'spec-stone', column)
+      element('span', 'spec-stone-name', stone, `${milestone.rank} 级 · ${milestone.name}`)
+      element('span', 'spec-stone-text', stone, milestone.text)
+      return stone
+    })
+    views.set(id, { root: column, rank, cells, stones })
   }
   return {
     root,
     render(profile) {
-      for (const id of ATTRIBUTE_ORDER) {
-        const view = cards.get(id)
+      for (const id of SPEC_ORDER) {
+        const view = views.get(id)
         if (!view) continue
-        const rank = profile.attributes[id]
-        const max = ATTRIBUTES[id].maxRank
+        const rank = profile.specs[id]
         const block = allocationBlock(profile, id)
-        view.rank.textContent = `${rank} / ${max}`
-        view.current.textContent = rank > 0 ? effectText(id, rank) : '尚未加点'
-        view.next.textContent = describeNext(id, rank, block)
-        view.root.disabled = block !== null
+        view.rank.textContent = `${rank} / ${SPEC_MAX}`
+        view.cells.forEach((cell, index) => {
+          cell.classList.toggle('on', index < rank)
+          cell.classList.toggle('next', index === rank && block === null)
+        })
+        SPECS[id].milestones.forEach((milestone, index) => view.stones[index].classList.toggle('reached', rank >= milestone.rank))
         view.root.classList.toggle('maxed', block === 'maxed')
-        view.root.classList.toggle('locked', block === 'level' || block === 'skill')
       }
     },
   }
-}
-
-function describeNext(id: AttributeId, rank: number, block: ReturnType<typeof allocationBlock>): string {
-  switch (block) {
-    case 'maxed':
-      return '已加满'
-    case 'level':
-      return `${nextRankLevel(id, rank)} 级解锁下一级`
-    case 'skill':
-      return '学会技能后开放'
-    default:
-      return `下一级：${effectText(id, rank + 1)}`
-  }
-}
-
-export function effectText(id: AttributeId, rank: number): string {
-  const total = ATTRIBUTES[id].perRank * rank
-  switch (id) {
-    case 'health':
-      return `最大生命 +${percent(total)}`
-    case 'damage':
-      return `伤害 +${percent(total)}`
-    case 'fireRate':
-      return `攻击间隔 −${percent(total)}`
-    case 'reload':
-      return `装填时间 −${percent(total)}`
-    case 'speed':
-      return `移速 +${percent(total)}`
-    case 'magazine':
-      return `主武器弹药 +${total} 格`
-    case 'recovery':
-      return `回血 +${percent(total)}，等待 −${(RECOVERY_DELAY_PER_RANK * rank).toFixed(1)} 秒`
-    case 'cooldown':
-      return `技能冷却 −${percent(total)}`
-  }
-}
-
-function percent(value: number): string {
-  return `${Math.round(value * 100)}%`
 }

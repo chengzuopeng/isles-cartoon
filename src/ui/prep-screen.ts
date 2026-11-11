@@ -1,7 +1,7 @@
 import { CHALLENGES, type ChallengeId } from '../data/challenges'
 import { CHAPTERS } from '../data/chapters'
 import { DIFFICULTIES, DIFFICULTY_ORDER, type DifficultyId } from '../data/difficulty'
-import type { AttributeId } from '../data/progression'
+import type { SpecId } from '../data/progression'
 import type { SkillId, SkillSlot } from '../data/skills'
 import type { PlayerWeaponId } from '../data/weapons'
 import { assetUrl, type SceneId } from '../render/asset-urls'
@@ -27,7 +27,8 @@ export interface PrepLevelInfo {
 export interface PrepScreenOptions {
   missions: PrepLevelInfo[]
   onStart(id: string): void
-  onAllocate(id: AttributeId): void
+  onAllocate(id: SpecId): void
+  onRefund(id: SpecId): void
   onRespec(): void
   onLearn(id: SkillId): void
   onEquip(id: SkillId, slot: SkillSlot): void
@@ -104,9 +105,9 @@ export function createPrepScreen(container: HTMLElement, options: PrepScreenOpti
   button(header, 'ghost small prep-settings', '设置', options.onSettings)
   const xp = createXpBar(panel)
   const points = element('div', 'prep-points', panel)
-  const cards = createAttributeCards(panel, options.onAllocate)
+  const cards = createAttributeCards(panel, options.onAllocate, options.onRefund)
   const tools = element('div', 'prep-tools', panel)
-  const respec = button(tools, 'ghost', '重置加点（免费）', options.onRespec)
+  const respec = button(tools, 'ghost', '重置专精（免费）', options.onRespec)
   const skills = createSkillCards(panel, { onLearn: options.onLearn, onEquip: options.onEquip, onReset: options.onResetSkills })
   const rack = createWeaponRack(panel, options.onCarry)
   const difficulty = element('div', 'prep-difficulty', panel)
@@ -198,7 +199,7 @@ export function createPrepScreen(container: HTMLElement, options: PrepScreenOpti
   const refresh = (profile: Profile) => {
     current = profile
     xp.set(profile.level, profile.xp)
-    points.textContent = profile.points > 0 ? `可分配属性点：${profile.points}` : '没有可分配的属性点，升级后获得'
+    points.textContent = profile.points > 0 ? `可分配专精点：${profile.points}（点格子加一级，右键退一级）` : '没有可分配的专精点，升级后获得（右键退一级）'
     points.classList.toggle('has-points', profile.points > 0)
     cards.render(profile)
     respec.disabled = spentPoints(profile) === 0

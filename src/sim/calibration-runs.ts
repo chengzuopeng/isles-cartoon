@@ -127,11 +127,11 @@ export function firstSteps(): Loadout {
 }
 
 export function afterOutskirts(): Loadout {
-  return createLoadout({ health: 1 }, [{ slot: 'q', id: 'concussion', rank: 2 }])
+  return createLoadout({ brawl: 1 }, [{ slot: 'q', id: 'concussion', rank: 2 }])
 }
 
 export function afterPasture(): Loadout {
-  return createLoadout({ health: 1, damage: 1 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
+  return createLoadout({ brawl: 1, gun: 1 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
 }
 
 export function playFarm(skill: AutopilotSkillId, seed: number, bell: BellMode): FarmRun {
@@ -167,7 +167,7 @@ export interface TrailRun extends Run {
 }
 
 export function afterFarm(): Loadout {
-  return createLoadout({ health: 2, damage: 1 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
+  return createLoadout({ brawl: 2, gun: 1 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
 }
 
 export function playTrail(skill: AutopilotSkillId, seed: number): TrailRun {
@@ -208,7 +208,7 @@ export interface HarvestRun extends Run {
 }
 
 export function afterTrail(): Loadout {
-  return createLoadout({ health: 2, damage: 2 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
+  return createLoadout({ brawl: 2, gun: 2 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
 }
 
 export function playHarvest(

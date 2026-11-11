@@ -33,7 +33,7 @@ const HELP = `用法：pnpm map <命令> <关卡…> [选项]
   --heading <文字>         compare 的大标题
   --json                   draw / compare 时另存测量数据
   --seeds 1,2,3            play 用的种子（默认 1,2,3,4,5）
-  --points health=1        play 的加点，和关卡的校准用例保持一致（1-2 是 health=1）
+  --points brawl=1         play 的专精加点（gun、brawl、move、energy），和关卡的校准用例保持一致（1-2 是 brawl=1）
   --skills q=concussion:1  play 带的技能，槽位=技能:等级，逗号隔开；和校准用例保持一致
 `
 

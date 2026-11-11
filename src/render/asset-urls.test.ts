@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BUFF_ORDER } from '../data/loot'
-import { ATTRIBUTE_ORDER } from '../data/progression'
+import { SPECS, SPEC_ORDER } from '../data/progression'
 import { SKILL_ORDER } from '../data/skills'
 import { SPECIAL_WEAPONS, type PlayerWeaponId } from '../data/weapons'
 import { ITEM_ICONS, MODEL_IDS, PORTRAIT_IDS, SCENE_IDS, assetUrl } from './asset-urls'
@@ -33,7 +33,7 @@ describe('asset urls', () => {
     const weapons: PlayerWeaponId[] = ['blaster', ...SPECIAL_WEAPONS]
     expect(missing(BUFF_ORDER.map(assetUrl.buff))).toEqual([])
     expect(missing(SKILL_ORDER.map(assetUrl.skill))).toEqual([])
-    expect(missing(ATTRIBUTE_ORDER.map(assetUrl.attribute))).toEqual([])
+    expect(missing(SPEC_ORDER.map((id) => assetUrl.attribute(SPECS[id].icon)))).toEqual([])
     expect(missing(weapons.map(assetUrl.weapon))).toEqual([])
     expect(missing(ITEM_ICONS.map(assetUrl.item))).toEqual([])
   })

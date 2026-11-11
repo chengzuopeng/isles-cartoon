@@ -1,9 +1,10 @@
 import { eyeHeightOf } from '../data/heights'
-import { CONCUSSION_MIN, SKILLS, type BarrierRank, type ConcussionRank, type ShockwaveRank } from '../data/skills'
+import { MILESTONE } from '../data/progression'
+import { CONCUSSION_MIN, SKILLS, type BarrierRank, type ConcussionRank, type ShockwaveRank, type SkillId } from '../data/skills'
 import { damageEnemy, spawnBlast } from './combat'
 import { interruptEnemy } from './enemies'
 import { blocksMovement, floorAt, tileAt } from './grid'
-import { refreshStats } from './stats'
+import { hasMilestone, refreshStats } from './stats'
 import { playerDisabled, stunEnemy } from './status'
 import type { PlayerCommand, SkillRuntime } from './types'
 import type { World } from './world'
@@ -82,6 +83,7 @@ function throwConcussion(world: World, rank: ConcussionRank, command: PlayerComm
     source: 'player',
     ownerId: 0,
     stun: rank.stun,
+    skill: 'concussion',
   })
 }
 
@@ -94,12 +96,21 @@ function raiseBarrier(world: World, rank: BarrierRank): void {
 
 function shockwave(world: World, rank: ShockwaveRank): void {
   const { player } = world
-  pushEnemies(world, rank.radius, rank.knockback, rank.damage * world.playerStats.damage, rank.stun)
+  closeCircuit(world, 'shockwave', pushEnemies(world, rank.radius, rank.knockback, rank.damage * world.playerStats.damage, rank.stun))
   world.events.push({ type: 'shockwave', x: player.pos.x, y: player.pos.y, radius: rank.radius })
 }
 
-export function pushEnemies(world: World, radius: number, knockback: number, damage: number, stun: number): void {
+export function closeCircuit(world: World, id: SkillId, struck: number): void {
+  if (struck < MILESTONE.circuitHits || !hasMilestone(world, 'energy5')) return
+  const skill = world.player.skills.find((item) => item.id === id)
+  if (!skill) return
+  skill.cooldown = Math.max(0, skill.cooldown - skillCooldownOf(world, skill) * MILESTONE.circuitRefund)
+  world.events.push({ type: 'circuit', skill: id })
+}
+
+export function pushEnemies(world: World, radius: number, knockback: number, damage: number, stun: number): number {
   const { player } = world
+  let struck = 0
   for (const enemy of world.enemies) {
     if (enemy.hp <= 0 || enemy.boss?.phase === 'dormant') continue
     const dx = enemy.pos.x - player.pos.x
@@ -114,7 +125,9 @@ export function pushEnemies(world: World, radius: number, knockback: number, dam
       enemy.knock.y += (dy / length) * knockback
     }
     if (stun > 0 && enemy.hp > 0) stunEnemy(world, enemy, stun)
+    struck += 1
   }
+  return struck
 }
 
 export function barrierBurstKnockback(): number {

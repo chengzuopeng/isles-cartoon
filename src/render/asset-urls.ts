@@ -1,6 +1,6 @@
 import type { MinionKind } from '../data/enemies'
 import type { BuffId, ChestTier } from '../data/loot'
-import type { AttributeId } from '../data/progression'
+import type { SpecIcon } from '../data/progression'
 import type { SkillId } from '../data/skills'
 import type { PlayerWeaponId } from '../data/weapons'
 
@@ -207,7 +207,7 @@ const BASE = `${import.meta.env.BASE_URL}assets/`
 export const assetUrl = {
   buff: (id: BuffId) => `${BASE}ui/buffs/${id}.png`,
   skill: (id: SkillId) => `${BASE}ui/skills/${id}.png`,
-  attribute: (id: AttributeId) => `${BASE}ui/attributes/${id}.png`,
+  attribute: (id: SpecIcon) => `${BASE}ui/attributes/${id}.png`,
   weapon: (id: PlayerWeaponId) => `${BASE}ui/weapons/${id}.png`,
   item: (id: ItemIcon) => `${BASE}ui/items/${id}.png`,
   mapIcon: (id: MapIcon) => `${BASE}ui/map/${id}.png`,

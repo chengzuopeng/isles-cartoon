@@ -111,21 +111,25 @@ describe('buffs', () => {
   })
 })
 
-describe('attributes', () => {
-  it('shape the hero from the saved allocation', () => {
-    const { world, tuning } = setup(createLoadout({ health: 5, damage: 4, fireRate: 5, reload: 4, speed: 2, magazine: 1 }))
+describe('specialisations', () => {
+  it('shape the hero from the saved ranks', () => {
+    const { world, tuning } = setup(createLoadout({ brawl: 4, gun: 5, move: 3, energy: 2 }))
     const { player } = world
-    expect(player.maxHp).toBe(Math.round(tuning.player.maxHp * 1.4))
+    expect(player.maxHp).toBe(Math.round(tuning.player.maxHp * 1.2))
     expect(player.hp).toBe(player.maxHp)
-    expect(player.magazine).toBe(tuning.weapons.blaster.magazine + 1)
-    expect(player.ammo).toBe(player.magazine)
+    expect(player.magazine).toBe(tuning.weapons.blaster.magazine)
     stepWorld(world, { ...idle(), fire: true }, DT)
-    expect(player.cooldown).toBeCloseTo(tuning.weapons.blaster.cooldown * 0.8, 5)
-    expect(world.bullets[0].damage).toBeCloseTo(tuning.weapons.blaster.damage * 1.2, 5)
+    expect(player.cooldown).toBeCloseTo(tuning.weapons.blaster.cooldown, 5)
+    expect(world.bullets[0].damage).toBeCloseTo(tuning.weapons.blaster.damage * 1.15, 5)
     expect(world.playerStats.speed).toBeCloseTo(tuning.player.speed * 1.06, 5)
+    expect(world.playerStats.meleeDamage).toBeCloseTo(1.32, 5)
+    expect(world.playerStats.skillCooldown).toBeCloseTo(0.94, 5)
+    expect(world.playerStats.ultCharge).toBeCloseTo(1.06, 5)
+    expect(world.playerStats.dashRecharge).toBeCloseTo(1 / 1.12, 5)
+    expect(world.playerStats.streakWindow).toBe(4.5)
     player.ammo = 0
     player.reload = 0
-    run(world, idle(), tuning.weapons.blaster.reloadSeconds * 0.8 + 0.02)
+    run(world, idle(), tuning.weapons.blaster.reloadSeconds / 1.15 + 0.02)
     expect(player.ammo).toBe(1)
   })
 })

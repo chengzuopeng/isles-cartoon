@@ -23,7 +23,7 @@ import { TRIAL_SYSTEMS } from './data/levels/trial-systems'
 import type { LevelDef } from './data/levels/types'
 import { HEAL_SMALL, type BuffId, type DropType } from './data/loot'
 import type { TrackId } from './data/music'
-import type { AttributeId } from './data/progression'
+import type { SpecId } from './data/progression'
 import { SLOT_UNLOCK_LEVEL, type SkillId, type SkillSlot } from './data/skills'
 import { CHAIN_WORDS } from './data/chains'
 import { createDefaultTuning, type Tuning } from './data/tuning'
@@ -81,6 +81,7 @@ import {
   markInterlude,
   nextSeed,
   pendingInterlude,
+  refund,
   resetSkills,
   respec,
   sanitizeProfile,
@@ -150,7 +151,7 @@ interface GameDebugHandle {
   giveBuff(id: BuffId): void
   drop(type: DropType): void
   addXp(amount: number): void
-  allocate(id: AttributeId): void
+  allocate(id: SpecId): void
   learnSkill(id: SkillId): void
   equipSkill(id: SkillId, slot: SkillSlot): void
   unlockSlotE(): void
@@ -280,6 +281,7 @@ const prep = createPrepScreen(container, {
     void startLevel(id)
   },
   onAllocate: spendPoint,
+  onRefund: refundPoint,
   onRespec: resetPoints,
   onLearn: (id) => changeSkills(() => learnSkill(profile, id)),
   onEquip: (id, slot) => changeSkills(() => equipSkill(profile, id, slot)),
@@ -673,10 +675,17 @@ function toggleMute(): void {
   hud.setPaused(paused, sfx.isMuted())
 }
 
-function spendPoint(id: AttributeId): void {
+function spendPoint(id: SpecId): void {
   if (!allocate(profile, id)) return
   persist()
   sfx.cue('allocate')
+  prep.refresh(profile)
+  results.refresh(profile)
+}
+
+function refundPoint(id: SpecId): void {
+  if (!refund(profile, id)) return
+  persist()
   prep.refresh(profile)
   results.refresh(profile)
 }

@@ -1,3 +1,5 @@
+import { MILESTONE } from '../data/progression'
+import { hasMilestone } from './stats'
 import {
   AMMO_REFILL,
   BUFF_ORDER,
@@ -33,7 +35,7 @@ import { FOG } from '../data/fog'
 import { RARE_CHEST_XP } from '../data/progression'
 import { SPECIAL_WEAPONS, type PlayerWeaponId } from '../data/weapons'
 import { equipSpecial, specialMagazine } from './arsenal'
-import { giveBuff } from './buffs'
+import { giveBuff, healPlayer } from './buffs'
 import { resolveCircleGrid, segmentClear } from './collision'
 import { lightLamp } from './fog'
 import { eyeHeightOf } from '../data/heights'
@@ -257,7 +259,8 @@ function attract(world: World, pickup: Pickup, dt: number): void {
   const dx = player.pos.x - pickup.pos.x
   const dy = player.pos.y - pickup.pos.y
   const distance = Math.hypot(dx, dy)
-  if (distance > PICKUP_MAGNET.radius || distance < 1e-4 || !wanted(world, pickup)) return
+  const reach = pickup.item.type === 'heal' && pickup.item.food && hasMilestone(world, 'brawl2') ? MILESTONE.foodMagnet : PICKUP_MAGNET.radius
+  if (distance > reach || distance < 1e-4 || !wanted(world, pickup)) return
   if (Math.abs(player.z - floorAt(world.grid, pickup.pos.x, pickup.pos.y)) > PICKUP_REACH_UP + 1) return
   const step = Math.min(distance, PICKUP_MAGNET.speed * dt)
   pickup.pos.x += (dx / distance) * step
@@ -279,9 +282,9 @@ function collect(world: World, pickup: Pickup): boolean {
   let amount = 0
   switch (item.type) {
     case 'heal':
-      if (player.hp >= player.maxHp) return false
-      amount = Math.min(player.maxHp - player.hp, player.maxHp * item.amount)
-      player.hp += amount
+      if (player.hp >= player.maxHp && !hasMilestone(world, 'brawl10')) return false
+      if (player.hp >= player.maxHp && player.armor >= MILESTONE.overhealCap) return false
+      amount = healPlayer(world, player.maxHp * item.amount)
       if (item.food) world.stats.foodHealed += amount
       else world.stats.packHealed += amount
       break
@@ -338,8 +341,7 @@ function useSupplies(world: World): void {
     if (supply.used) continue
     if (Math.hypot(supply.pos.x - player.pos.x, supply.pos.y - player.pos.y) > SUPPLY_RADIUS + player.radius) continue
     supply.used = true
-    const amount = Math.min(player.maxHp - player.hp, player.maxHp * SUPPLY_HEAL)
-    player.hp += amount
+    const amount = healPlayer(world, player.maxHp * SUPPLY_HEAL)
     world.events.push({ type: 'supplyUsed', x: supply.pos.x, y: supply.pos.y, amount })
   }
 }

@@ -3,15 +3,15 @@ import { CLUES, CLUE_ORDER, isClueId, type ClueId } from '../data/clues'
 import { INTERLUDES, type Interlude } from '../data/dialogue'
 import type { LevelDef } from '../data/levels/types'
 import {
-  ATTRIBUTES,
-  ATTRIBUTE_ORDER,
   CLEAR_XP,
   LEVEL_CAP,
   REPLAY_XP_SCALE,
   THREE_STAR_XP,
   XP_BASE,
   XP_STEP,
-  type AttributeId,
+  SPEC_MAX,
+  SPEC_ORDER,
+  type SpecId,
 } from '../data/progression'
 import {
   FREE_SKILL_POINTS,
@@ -29,10 +29,10 @@ import {
 import { CLEAR_WEAPONS } from '../data/loot'
 import { SPECIAL_WEAPONS, type PlayerWeaponId } from '../data/weapons'
 import type { RunRating } from './rating'
-import { createLoadout, emptyRanks, type AttributeRanks, type EquippedSkill, type Loadout } from './stats'
+import { createLoadout, emptySpecs, type EquippedSkill, type Loadout, type SpecRanks } from './stats'
 import type { World } from './world'
 
-export const PROFILE_VERSION = 2
+export const PROFILE_VERSION = 3
 
 export interface LevelRecord {
   cleared: boolean
@@ -47,7 +47,7 @@ export interface Profile {
   level: number
   xp: number
   points: number
-  attributes: AttributeRanks
+  specs: SpecRanks
   skills: Partial<Record<SkillId, number>>
   equipped: Record<SkillSlot, SkillId | null>
   chapter: number
@@ -61,7 +61,7 @@ export interface Profile {
 
 export type SkillBlock = 'maxed' | 'chapter' | 'noPoints'
 
-export type AllocationBlock = 'noPoints' | 'maxed' | 'level' | 'skill'
+export type AllocationBlock = 'noPoints' | 'maxed'
 
 export interface RewardLine {
   label: string
@@ -100,7 +100,7 @@ export function createProfile(): Profile {
     level: 1,
     xp: 0,
     points: 0,
-    attributes: emptyRanks(),
+    specs: emptySpecs(),
     skills: { [STARTER_SKILL]: 1 },
     equipped: { q: STARTER_SKILL, e: null },
     chapter: 1,
@@ -145,34 +145,33 @@ export function knowsSkill(profile: Profile): boolean {
   return Object.values(profile.skills).some((rank) => rank > 0)
 }
 
-export function nextRankLevel(id: AttributeId, rank: number): number {
-  return ATTRIBUTES[id].unlockLevels[rank] ?? 0
-}
-
-export function allocationBlock(profile: Profile, id: AttributeId): AllocationBlock | null {
-  const def = ATTRIBUTES[id]
-  const rank = profile.attributes[id]
-  if (rank >= def.maxRank) return 'maxed'
-  if (profile.level < nextRankLevel(id, rank)) return 'level'
-  if (def.needsSkill && !knowsSkill(profile)) return 'skill'
+export function allocationBlock(profile: Profile, id: SpecId): AllocationBlock | null {
+  if (profile.specs[id] >= SPEC_MAX) return 'maxed'
   if (profile.points <= 0) return 'noPoints'
   return null
 }
 
-export function allocate(profile: Profile, id: AttributeId): boolean {
+export function allocate(profile: Profile, id: SpecId): boolean {
   if (allocationBlock(profile, id) !== null) return false
-  profile.attributes[id] += 1
+  profile.specs[id] += 1
   profile.points -= 1
   return true
 }
 
+export function refund(profile: Profile, id: SpecId): boolean {
+  if (profile.specs[id] <= 0) return false
+  profile.specs[id] -= 1
+  profile.points += 1
+  return true
+}
+
 export function spentPoints(profile: Profile): number {
-  return ATTRIBUTE_ORDER.reduce((sum, id) => sum + profile.attributes[id], 0)
+  return SPEC_ORDER.reduce((sum, id) => sum + profile.specs[id], 0)
 }
 
 export function respec(profile: Profile): void {
   profile.points += spentPoints(profile)
-  profile.attributes = emptyRanks()
+  profile.specs = emptySpecs()
 }
 
 export function skillRank(profile: Profile, id: SkillId): number {
@@ -240,7 +239,7 @@ export function loadoutOf(profile: Profile): Loadout {
     const id = profile.equipped[slot]
     if (id && slotUnlocked(profile, slot) && skillRank(profile, id) > 0) skills.push({ slot, id, rank: skillRank(profile, id) })
   }
-  return createLoadout({ ...profile.attributes }, skills, profile.carry && profile.weapons.includes(profile.carry) ? profile.carry : null)
+  return createLoadout({ ...profile.specs }, skills, profile.carry && profile.weapons.includes(profile.carry) ? profile.carry : null)
 }
 
 export function unlockWeapon(profile: Profile, id: PlayerWeaponId): boolean {
@@ -386,8 +385,8 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (!isRecord(raw)) return profile
   profile.level = clampInt(raw.level, 1, LEVEL_CAP, 1)
   profile.xp = profile.level >= LEVEL_CAP ? 0 : clampInt(raw.xp, 0, xpToNext(profile.level) - 1, 0)
-  if (isRecord(raw.attributes)) {
-    for (const id of ATTRIBUTE_ORDER) profile.attributes[id] = clampInt(raw.attributes[id], 0, ATTRIBUTES[id].maxRank, 0)
+  if (isRecord(raw.specs)) {
+    for (const id of SPEC_ORDER) profile.specs[id] = clampInt(raw.specs[id], 0, SPEC_MAX, 0)
   }
   profile.chapter = clampInt(raw.chapter, 1, 5, 1)
   resetSkills(profile)
@@ -450,7 +449,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   const earned = profile.level - 1
   const spent = spentPoints(profile)
   if (spent > earned) {
-    profile.attributes = emptyRanks()
+    profile.specs = emptySpecs()
     profile.points = earned
   } else {
     profile.points = earned - spent

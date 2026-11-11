@@ -1,4 +1,5 @@
 import { MAX_PITCH, STEP_HEIGHT, THROW_HEIGHT, eyeHeightOf } from '../data/heights'
+import { MILESTONE } from '../data/progression'
 import type { PlayerWeaponId } from '../data/weapons'
 import { activeWeaponId, firePattern, weaponOf } from './arsenal'
 import { consumesAmmo } from './buffs'
@@ -8,7 +9,7 @@ import { spawnLob } from './lobs'
 import { clamp, decay, type Vec2 } from './math'
 import { swingMelee } from './melee'
 import { aggro, emitNoise } from './perception'
-import { refreshStats } from './stats'
+import { hasMilestone, refreshStats } from './stats'
 import { playerDisabled, playerSpeedFactor, reelEnemy } from './status'
 import { SUPPORT_SHARE, heightsOverlap, playerReach } from './terrain'
 import type { Player, PlayerCommand, WeaponSlot } from './types'
@@ -29,7 +30,8 @@ export function updatePlayer(world: World, command: PlayerCommand, dt: number): 
   rechargeDash(world, dt)
   player.meleeCooldown = Math.max(0, player.meleeCooldown - dt)
   const free = !playerDisabled(player)
-  if (command.dash && free && dashReady(player)) dash(world, command)
+  if (player.grounded) player.airDashes = hasMilestone(world, 'move5') ? MILESTONE.airDashes : 0
+  if (command.dash && free && dashReady(player) && (player.grounded || player.airDashes > 0)) dash(world, command)
   if (command.jump && free && player.grounded) jump(world)
 
   let moveX = player.knock.x * dt
@@ -73,12 +75,14 @@ export function updatePlayer(world: World, command: PlayerCommand, dt: number): 
   const busy = player.ultShots > 0 || player.rollTime > 0 || !free
   if (command.fire && !busy && player.burstLeft === 0 && player.cooldown === 0 && hasAmmo) {
     const weapon = weaponOf(world, activeId)
+    const primary = activeId === player.primary
+    player.burstCrit = primary && player.ammo >= player.magazine && hasMilestone(world, 'gun2')
     if (consumesAmmo(player)) {
       if (usingSpecial) player.specialAmmo -= 1
       else player.ammo -= 1
     }
     player.cooldown = weapon.cooldown * stats.fireInterval
-    player.burstLeft = Math.max(1, Math.round(weapon.burstCount))
+    player.burstLeft = Math.max(1, Math.round(weapon.burstCount)) + (primary && hasMilestone(world, 'gun10') ? MILESTONE.extraBurst : 0)
     player.burstTimer = 0
     player.burstAngle = player.facing
     player.burstWeapon = activeId
@@ -125,9 +129,12 @@ function dash(world: World, command: PlayerCommand): void {
   player.rollDirY = dirY
   player.rollSpeed = tuning.player.dashDistance / time
   player.invulnerable = Math.max(player.invulnerable, time)
+  if (!player.grounded) player.airDashes -= 1
   player.dashCharges -= 1
-  if (player.dashRecharge <= 0) player.dashRecharge = tuning.player.dashRecharge
+  if (player.dashRecharge <= 0) player.dashRecharge = tuning.player.dashRecharge * world.playerStats.dashRecharge
   player.rammed = []
+  player.grazed = false
+  player.leverageUntil = world.time + time + MILESTONE.leverageWindow
   world.stats.dashes += 1
   world.events.push({ type: 'dashed', x: player.pos.x, y: player.pos.y, angle: Math.atan2(dirY, dirX) })
 }
@@ -140,7 +147,7 @@ export function dashGauge(world: World): number {
   const { player, tuning } = world
   const full = Math.max(1, tuning.player.dashCharges)
   if (player.dashCharges >= full) return 1
-  const partial = 1 - player.dashRecharge / Math.max(0.05, tuning.player.dashRecharge)
+  const partial = 1 - player.dashRecharge / Math.max(0.05, tuning.player.dashRecharge * world.playerStats.dashRecharge)
   return Math.min(1, (player.dashCharges + Math.max(0, partial)) / full)
 }
 
@@ -153,7 +160,7 @@ function rechargeDash(world: World, dt: number): void {
   player.dashRecharge -= dt
   if (player.dashRecharge > 0) return
   player.dashCharges += 1
-  player.dashRecharge = player.dashCharges < tuning.player.dashCharges ? player.dashRecharge + tuning.player.dashRecharge : 0
+  player.dashRecharge = player.dashCharges < tuning.player.dashCharges ? player.dashRecharge + tuning.player.dashRecharge * world.playerStats.dashRecharge : 0
 }
 
 function shoveEnemies(world: World): void {
@@ -290,7 +297,7 @@ function fire(world: World, id: PlayerWeaponId, angle: number, pitch: number): v
   if (weaponOf(world, id).kind === 'lob') {
     spawnLob(world, 'player', player.pos, lobTarget(world, angle, pitch, id), id, damageScale, null, undefined, player.z + THROW_HEIGHT)
   } else {
-    firePattern(world, 'player', player.pos.x, player.pos.y, offset, angle, id, { damageScale, z: eye, pitch })
+    firePattern(world, 'player', player.pos.x, player.pos.y, offset, angle, id, { damageScale, z: eye, pitch, sureCrit: player.burstCrit })
   }
   emitNoise(world, player.pos, world.tuning.perception.noiseRadius)
   const flat = Math.cos(pitch) * offset

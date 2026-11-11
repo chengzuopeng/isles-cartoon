@@ -1,6 +1,6 @@
 import { createWeapons } from '../data/weapons'
 import { CHALLENGES } from '../data/challenges'
-import type { AttributeId } from '../data/progression'
+import type { SpecId } from '../data/progression'
 import { assetUrl } from '../render/asset-urls'
 import { totalXpAt, type Profile, type Settlement } from '../sim/profile'
 import type { RunRating } from '../sim/rating'
@@ -20,7 +20,7 @@ export interface ResultsData {
 }
 
 export interface ResultsOptions {
-  onAllocate(id: AttributeId): void
+  onAllocate(id: SpecId): void
   onReplay(): void
   onPrep(): void
   onNext(): void

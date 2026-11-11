@@ -1,4 +1,6 @@
 import { FOOD_HEAL, type FoodKind } from '../data/loot'
+import { MILESTONE } from '../data/progression'
+import { hasMilestone } from './stats'
 import { onDamageDealt } from './buffs'
 import { lineClear } from './collision'
 import { angleBetween, damageEnemy, killEnemy } from './combat'
@@ -20,7 +22,15 @@ export function foodOf(enemy: Enemy): FoodKind {
   return enemy.id % 2 === 0 ? 'bread' : 'apple'
 }
 
-export function meleeTargets(world: World): Enemy[] {
+export function meleeReachOf(world: World): number {
+  return leveraged(world) ? MILESTONE.leverageReach : world.tuning.player.meleeRange
+}
+
+function leveraged(world: World): boolean {
+  return world.time <= world.player.leverageUntil && hasMilestone(world, 'move2')
+}
+
+export function meleeTargets(world: World, range = meleeReachOf(world)): Enemy[] {
   const { player, tuning, grid } = world
   const half = (tuning.player.meleeArcDeg * Math.PI) / 360
   const chest = playerChest(player)
@@ -29,7 +39,7 @@ export function meleeTargets(world: World): Enemy[] {
     const dx = enemy.pos.x - player.pos.x
     const dy = enemy.pos.y - player.pos.y
     const distance = Math.hypot(dx, dy)
-    if (distance - enemy.radius > tuning.player.meleeRange) return false
+    if (distance - enemy.radius > range) return false
     if (distance > 1e-6 && Math.abs(angleBetween(Math.atan2(dy, dx), player.facing)) > half) return false
     return lineClear(grid, chest, centerOf(enemy))
   })
@@ -37,9 +47,10 @@ export function meleeTargets(world: World): Enemy[] {
 
 export function swingMelee(world: World): void {
   const { player, tuning } = world
-  player.meleeCooldown = tuning.player.meleeCooldown
+  const desperate = hasMilestone(world, 'brawl10') && player.hp < player.maxHp * MILESTONE.desperateBelow
+  player.meleeCooldown = tuning.player.meleeCooldown * (desperate ? MILESTONE.desperateCooldown : 1)
   const targets = meleeTargets(world)
-  const damage = tuning.player.meleeDamage * world.playerStats.damage
+  const damage = tuning.player.meleeDamage * world.playerStats.meleeDamage * (leveraged(world) ? MILESTONE.leverageDamage : 1)
   const push = tuning.player.meleeKnockback * tuning.feel.knockbackDecay
   for (const enemy of targets) {
     if (enemy.hp <= 0) continue
@@ -97,6 +108,21 @@ function sneak(world: World, enemy: Enemy): void {
   chargeUltimate(world, dealt, enemy)
 }
 
+function aftershock(world: World, center: Enemy): void {
+  const push = MILESTONE.aftershockPush * world.tuning.feel.knockbackDecay
+  for (const enemy of world.enemies) {
+    if (enemy === center || enemy.hp <= 0 || enemy.kind === 'boss' || enemy.kind === 'turret') continue
+    const dx = enemy.pos.x - center.pos.x
+    const dy = enemy.pos.y - center.pos.y
+    const distance = Math.hypot(dx, dy)
+    if (distance > MILESTONE.aftershockRadius + enemy.radius) continue
+    const length = distance > 1e-6 ? distance : 1
+    enemy.knock.x += (dx / length) * push
+    enemy.knock.y += (dy / length) * push
+    reelEnemy(world, enemy, MILESTONE.aftershockReel)
+  }
+}
+
 export function smash(world: World, enemy: Enemy): void {
   const { x, y } = enemy.pos
   if (enemy.status.frozen > 0) world.events.push({ type: 'combo', kind: 'shatter', x, y, z: enemy.z })
@@ -106,7 +132,8 @@ export function smash(world: World, enemy: Enemy): void {
   const length = Math.hypot(dx, dy) || 1
   world.events.push({ type: 'smashed', id: enemy.id, kind: enemy.kind, x, y, z: enemy.z })
   killEnemy(world, enemy, true, true, false, dx / length, dy / length)
-  spawnPickup(world, { type: 'heal', amount: FOOD_HEAL, food: foodOf(enemy) }, x, y, { from: { x, y } })
+  spawnPickup(world, { type: 'heal', amount: hasMilestone(world, 'brawl2') ? MILESTONE.foodHeal : FOOD_HEAL, food: foodOf(enemy) }, x, y, { from: { x, y } })
+  if (hasMilestone(world, 'brawl5')) aftershock(world, enemy)
   world.stats.smashes += 1
   onDamageDealt(world, left)
   chargeUltimate(world, left, enemy)

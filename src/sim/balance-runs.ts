@@ -43,7 +43,7 @@ export function play(
 ): RunReport {
   const level = buildLevel(def)
   const before = start()
-  const loadout = createLoadout({ ...before.attributes }, skill ? [{ slot: 'q', id: skill, rank: 1 }] : [])
+  const loadout = createLoadout({ ...before.specs }, skill ? [{ slot: 'q', id: skill, rank: 1 }] : [])
   const world = createWorld(level, createDefaultTuning(), { seed, loadout })
   const pilot = createAutopilot(options)
   const report: RunReport = {
@@ -99,7 +99,7 @@ export function play(
 export function afterTutorial(): Profile {
   const profile = createProfile()
   grantXp(profile, 400)
-  profile.attributes.health = 1
+  profile.specs.brawl = 1
   profile.points -= 1
   profile.records['1-1'] = { cleared: true, bestStars: 3, bestTime: 60, clears: 1 }
   return profile
@@ -108,8 +108,8 @@ export function afterTutorial(): Profile {
 export function afterPasture(): Profile {
   const profile = createProfile()
   grantXp(profile, 780)
-  profile.attributes.health = 1
-  profile.attributes.damage = 1
+  profile.specs.brawl = 1
+  profile.specs.gun = 1
   profile.points -= 2
   profile.skills.barrier = 1
   profile.equipped.q = 'barrier'
@@ -121,8 +121,8 @@ export function afterPasture(): Profile {
 export function afterFarm(): Profile {
   const profile = createProfile()
   grantXp(profile, 1280)
-  profile.attributes.health = 2
-  profile.attributes.damage = 1
+  profile.specs.brawl = 2
+  profile.specs.gun = 1
   profile.points -= 3
   profile.skills.barrier = 1
   profile.equipped.q = 'barrier'
@@ -135,8 +135,8 @@ export function afterFarm(): Profile {
 export function afterTrail(): Profile {
   const profile = createProfile()
   grantXp(profile, 1770)
-  profile.attributes.health = 2
-  profile.attributes.damage = 2
+  profile.specs.brawl = 2
+  profile.specs.gun = 2
   profile.points -= 4
   profile.skills.barrier = 1
   profile.equipped.q = 'barrier'

@@ -8,7 +8,7 @@
 ```bash
 pnpm map draw 1-2                                  # 画现在的 1-2，打印视线统计和关卡校验
 pnpm map compare 1-3 scripts/map/sketches/1-3.mjs  # 现在和草稿并排
-pnpm map play scripts/map/sketches/1-3.mjs --points health=1,damage=1 --skills q=concussion:1   # 自动驾驶三档各跑 5 局
+pnpm map play scripts/map/sketches/1-3.mjs --points brawl=1,gun=1 --skills q=concussion:1   # 自动驾驶三档各跑 5 局
 pnpm map text 1-1                                  # 打印字符画和高度表，带行号
 pnpm map emit scripts/map/sketches/1-3.mjs src/data/levels/level-1-3.ts   # 草稿写成关卡数据
 pnpm map --help                                    # 全部命令和选项

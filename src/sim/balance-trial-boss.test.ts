@@ -12,7 +12,7 @@ describe('chapter boss trial', () => {
   it('is hard but beatable for the autopilot', () => {
     const level = buildLevel(TRIAL_HARVESTER)
     const runs = SEEDS.map((seed) => {
-      const loadout = createLoadout({ health: 3, damage: 2 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
+      const loadout = createLoadout({ brawl: 3, gun: 2 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
       const world = createWorld(level, createDefaultTuning(), { seed, loadout })
       const pilot = createAutopilot()
       let fight = 0

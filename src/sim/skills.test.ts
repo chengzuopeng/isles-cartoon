@@ -82,10 +82,10 @@ describe('concussion grenade', () => {
     expect(third.blasts[0].stun).toBe(SKILLS.concussion.ranks[2].stun)
   })
 
-  it('cools down faster with the cooldown attribute', () => {
-    const { world } = setup('concussion', 1, { cooldown: 4 })
+  it('cools down faster with the energy specialisation', () => {
+    const { world } = setup('concussion', 1, { energy: 4 })
     stepWorld(world, { ...idle(), skill: 'q' }, DT)
-    expect(world.player.skills[0].cooldown).toBeCloseTo(SKILLS.concussion.ranks[0].cooldown * 0.8, 1)
+    expect(world.player.skills[0].cooldown).toBeCloseTo(SKILLS.concussion.ranks[0].cooldown * 0.88, 1)
   })
 })
 

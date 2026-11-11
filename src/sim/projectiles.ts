@@ -5,7 +5,9 @@ import { backScale, bossExposed } from './boss'
 import { onDamageDealt } from './buffs'
 import { lineClear } from './collision'
 import { damageEnemy, damagePlayer, spawnBlast } from './combat'
+import { MILESTONE } from '../data/progression'
 import { damageCrate } from './crates'
+import { hasMilestone } from './stats'
 import { igniteHay } from './props'
 import { shieldBlocks } from './enemies'
 import { Tile, blocksBullets, cellFloor, cellTop, floorAt, insideGrid, tileAt } from './grid'
@@ -21,6 +23,7 @@ const SUBSTEP = 0.25
 
 export interface BulletOptions {
   damageScale?: number
+  sureCrit?: boolean
   attack?: Attack | null
   z?: number
   pitch?: number
@@ -75,6 +78,7 @@ export function spawnBullet(
     statusDuration: spec.statusDuration,
     hits: [],
     landed: false,
+    sureCrit: options.sureCrit ?? false,
     attack: options.attack ?? null,
   }
   world.bullets.push(bullet)
@@ -196,6 +200,14 @@ export function criticalHit(bullet: Bullet, target: Enemy): boolean {
   return bullet.dirX * Math.cos(target.facing) + bullet.dirY * Math.sin(target.facing) < EYE_CRIT.facing
 }
 
+function recycleAmmo(world: World, bullet: Bullet): void {
+  const { player } = world
+  if (bullet.weapon !== player.primary || !hasMilestone(world, 'gun5') || player.ammo >= player.magazine) return
+  if (world.time - player.recycledAt < MILESTONE.recycleGap) return
+  player.recycledAt = world.time
+  player.ammo += 1
+}
+
 export function falloffOf(world: World, bullet: Bullet): number {
   const spec = world.tuning.weapons[bullet.weapon]
   if (!spec || spec.falloffStart <= 0 || bullet.range <= spec.falloffStart) return 1
@@ -205,9 +217,10 @@ export function falloffOf(world: World, bullet: Bullet): number {
 
 function hitEnemy(world: World, bullet: Bullet, target: Enemy): void {
   const back = target.kind === 'boss' ? backScale(target, bullet.dirX, bullet.dirY) : 1
-  const crit = criticalHit(bullet, target)
+  const crit = bullet.sureCrit || criticalHit(bullet, target)
   const damage = bullet.damage * back * falloffOf(world, bullet) * (crit ? (target.boss ? WEAK_POINT_SCALE : EYE_CRIT.scale) : 1)
   if (crit) world.stats.crits += 1
+  if (crit && bullet.team === 'player') recycleAmmo(world, bullet)
   damageEnemy(world, target, damage, bullet.dirX, bullet.dirY, bullet.knockback, { z: bullet.z, crit })
   if (back > 1) world.events.push({ type: 'bossBackHit', id: target.id, x: target.pos.x, y: target.pos.y, damage })
   onDamageDealt(world, damage)

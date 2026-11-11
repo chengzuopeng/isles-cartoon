@@ -3,13 +3,15 @@ import { CHAIN } from '../data/chains'
 import { BLAST_REACH, bodyHeightOf } from '../data/heights'
 import { ELITE } from '../data/elites'
 import { ELITE_WEIGHTS } from '../data/loot'
-import { BOSS_XP, ELITE_XP, KILL_XP } from '../data/progression'
+import { BOSS_XP, ELITE_XP, KILL_XP, MILESTONE } from '../data/progression'
+import type { SkillId } from '../data/skills'
 import type { WeaponId } from '../data/weapons'
 import { attackOf, sameAttack } from './attacks'
 import { absorbDamage } from './buffs'
 import { damageCratesInRadius } from './crates'
 import { armBomber } from './enemies/bomber'
 import { burstKeg, setOffProps } from './props'
+import { closeCircuit } from './skills'
 import { floorAt } from './grid'
 import { blastLandmarks } from './landmark-state'
 import { aggro, witnessDeath } from './perception'
@@ -17,6 +19,7 @@ import { rollEnemyDrop, rollItem, spawnPickup } from './pickups'
 import { barrierBurstKnockback, pushEnemies } from './skills'
 import { feelPain, stunEnemy } from './status'
 import type { Vec2 } from './math'
+import { hasMilestone } from './stats'
 import { bodyHeight } from './terrain'
 import { chargeUltimate, ultShareOf } from './ultimate'
 import type { Attack, Blast, BlastSource, Enemy } from './types'
@@ -48,6 +51,7 @@ export interface BlastSpec {
   ignites?: boolean
   chainable?: boolean
   keg?: number
+  skill?: SkillId | null
 }
 
 export function damagePlayer(
@@ -64,6 +68,7 @@ export function damagePlayer(
   if (!player.alive || world.status !== 'playing') return
   if (player.invulnerable > 0) {
     world.events.push({ type: 'dodged', x: player.pos.x, y: player.pos.y })
+    graze(world)
     return
   }
   const scale = world.level.def.bossTuning?.damage
@@ -74,7 +79,9 @@ export function damagePlayer(
   player.knock.y += dirY * knockback * push
   player.stagger = Math.max(player.stagger, Math.min(tuning.feel.staggerMax, knockback * tuning.feel.staggerPerKnock))
   const blocked = absorbBarrier(world, amount)
-  const absorbed = blocked + absorbDamage(world, amount - blocked)
+  const plated = Math.min(player.armor, amount - blocked)
+  player.armor -= plated
+  const absorbed = blocked + plated + absorbDamage(world, amount - blocked - plated)
   const damage = amount - absorbed
   if (damage > 0) {
     world.stats.hits += 1
@@ -92,6 +99,15 @@ export function damagePlayer(
   world.status = 'dead'
   world.stats.killedBy = attack
   world.events.push({ type: 'playerDied', x: player.pos.x, y: player.pos.y, attack })
+}
+
+function graze(world: World): void {
+  const { player, tuning } = world
+  if (player.rollTime <= 0 || player.grazed || !hasMilestone(world, 'move10')) return
+  player.grazed = true
+  player.dashCharges = Math.min(tuning.player.dashCharges, player.dashCharges + 1)
+  if (player.ultShots === 0) player.ultimate = Math.min(1, player.ultimate + MILESTONE.grazeUlt)
+  world.events.push({ type: 'grazed', x: player.pos.x, y: player.pos.y })
 }
 
 function tallyDamage(world: World, attack: Attack | null, damage: number): void {
@@ -166,7 +182,7 @@ export function damageEnemy(
 
 export function countStreak(world: World): void {
   const { player, time } = world
-  player.streak = time - player.streakAt <= world.tuning.player.streak.window ? player.streak + 1 : 1
+  player.streak = time - player.streakAt <= world.playerStats.streakWindow ? player.streak + 1 : 1
   player.streakAt = time
 }
 
@@ -303,6 +319,7 @@ export function spawnBlast(world: World, spec: BlastSpec): Blast {
     ignites: spec.ignites ?? (round && spec.source !== 'boss'),
     chainable: spec.chainable ?? false,
     keg: spec.keg ?? -1,
+    skill: spec.skill ?? null,
   }
   world.blasts.push(blast)
   return blast
@@ -356,6 +373,7 @@ function detonate(world: World, blast: Blast): void {
     damagePlayer(world, blast.playerDamage, dx / length, distance > 1e-6 ? dy / length : 1, knockback, blast.attack, { x: blast.x, y: blast.y })
   }
   let friendly = false
+  let struck = 0
   if (blast.enemyDamage > 0) {
     for (const enemy of world.enemies) {
       if (enemy.hp <= 0 || enemy.id === blast.ownerId) continue
@@ -368,11 +386,13 @@ function detonate(world: World, blast: Blast): void {
       const length = distance > 1e-6 ? distance : 1
       damageEnemy(world, enemy, blast.enemyDamage, dx / length, dy / length, knockback)
       if (blast.source === 'bomber' || blast.source === 'boss') friendly = true
+      struck += 1
       if (blast.stun > 0 && enemy.hp > 0) stunEnemy(world, enemy, blast.stun)
       if (blast.source === 'player') chargeUltimate(world, blast.enemyDamage * ultShareOf(world, blast.weapon), enemy)
     }
   }
   if (friendly) world.events.push({ type: 'combo', kind: 'friendly', x: blast.x, y: blast.y, z: blast.z })
+  if (blast.skill) closeCircuit(world, blast.skill, struck)
   burstKeg(world, blast)
   if (blast.ignites) setOff(world, blast)
   if (blast.arcWidth <= 0 && blast.gapWidth <= 0 && blast.inner <= 0) {

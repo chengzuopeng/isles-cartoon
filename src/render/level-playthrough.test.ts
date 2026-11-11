@@ -66,7 +66,7 @@ function playLevel(def: LevelDef, models: ModelLibrary): World {
     const pickups = createPickupViews(scene, models)
     const projectiles = createProjectileViews(scene, models, effects)
     const rings = createRingViews(scene)
-    const loadout = createLoadout({ health: 2, damage: 1 }, [
+    const loadout = createLoadout({ brawl: 2, gun: 1 }, [
       { slot: 'q', id: 'barrier', rank: 1 },
       { slot: 'e', id: 'shockwave', rank: 1 },
     ])

@@ -119,6 +119,12 @@ export interface Player extends Body {
   invulnerable: number
   empowered: number
   burstEmpower: number
+  burstCrit: boolean
+  recycledAt: number
+  armor: number
+  leverageUntil: number
+  airDashes: number
+  grazed: boolean
   barrier: number
   barrierTime: number
   barrierBurst: number
@@ -247,6 +253,7 @@ export interface Bullet {
   statusDuration: number
   hits: number[]
   landed: boolean
+  sureCrit: boolean
   attack: Attack | null
 }
 
@@ -299,6 +306,7 @@ export interface Blast {
   ignites: boolean
   chainable: boolean
   keg: number
+  skill: SkillId | null
 }
 
 export interface Ring {
@@ -488,6 +496,8 @@ export type GameEvent =
   | { type: 'smashed'; id: number; kind: EnemyKind; x: number; y: number; z: number }
   | { type: 'combo'; kind: ChainKind; x: number; y: number; z: number }
   | { type: 'vaulted'; x: number; y: number }
+  | { type: 'grazed'; x: number; y: number }
+  | { type: 'circuit'; skill: SkillId }
   | { type: 'kegLit'; x: number; y: number; z: number; index: number }
   | { type: 'hayLit'; x: number; y: number; z: number; index: number }
   | { type: 'hayBurnt'; x: number; y: number; z: number; index: number }

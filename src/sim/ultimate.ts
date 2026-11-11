@@ -2,6 +2,8 @@ import { eyeHeightOf } from '../data/heights'
 import { SPECIAL_WEAPONS, type WeaponId } from '../data/weapons'
 import { firePattern, weaponOf } from './arsenal'
 import { playerDisabled } from './status'
+import { hasMilestone } from './stats'
+import { MILESTONE } from '../data/progression'
 import type { Enemy, PlayerCommand } from './types'
 import type { World } from './world'
 
@@ -16,7 +18,7 @@ export function ultShareOf(world: World, weapon: WeaponId | null): number {
 export function streakBoost(world: World): number {
   const { player, time } = world
   const rule = world.tuning.player.streak
-  if (player.streak < 2 || time - player.streakAt > rule.window) return 1
+  if (player.streak < 2 || time - player.streakAt > world.playerStats.streakWindow) return 1
   return 1 + rule.ultBonus * Math.min(player.streak - 1, rule.maxSteps)
 }
 
@@ -24,7 +26,7 @@ export function chargeUltimate(world: World, damage: number, target: Enemy | nul
   const { player, tuning } = world
   if (player.ultimate >= 1 || player.ultShots > 0 || damage <= 0) return
   const boost = target && target.kind !== 'boss' ? streakBoost(world) : 1
-  player.ultimate = Math.min(1, player.ultimate + (damage * boost) / Math.max(1, tuning.player.ultimateCharge))
+  player.ultimate = Math.min(1, player.ultimate + (damage * boost * world.playerStats.ultCharge) / Math.max(1, tuning.player.ultimateCharge))
   if (player.ultimate >= 1) world.events.push({ type: 'ultimateReady' })
 }
 
@@ -34,7 +36,7 @@ export function updateUltimate(world: World, command: PlayerCommand, dt: number)
   const weapon = weaponOf(world, ULTIMATE_WEAPON)
   if (command.ultimate && player.ultimate >= 1 && player.ultShots === 0 && !playerDisabled(player)) {
     player.ultimate = 0
-    player.ultShots = Math.max(1, Math.round(weapon.burstCount))
+    player.ultShots = Math.max(1, Math.round(weapon.burstCount)) + (hasMilestone(world, 'energy10') ? MILESTONE.overloadShots : 0)
     player.ultTimer = 0
     player.burstLeft = 0
     world.stats.ultimates += 1
@@ -62,5 +64,6 @@ export function updateUltimate(world: World, command: PlayerCommand, dt: number)
     })
     player.ultShots -= 1
     player.ultTimer += weapon.burstInterval
+    if (player.ultShots === 0 && hasMilestone(world, 'energy10')) for (const skill of player.skills) skill.cooldown = 0
   }
 }
