@@ -5,6 +5,7 @@ import { LEVEL_1_2 } from '../data/levels/level-1-2'
 import { LEVEL_1_3 } from '../data/levels/level-1-3'
 import { createDefaultTuning } from '../data/tuning'
 import { updateBarks } from './barks'
+import { Tile, tileAt } from './grid'
 import { breakLandmark } from './landmark-state'
 import { buildLevel } from './level'
 import { aggro } from './perception'
@@ -161,11 +162,12 @@ describe('barks in 1-2', () => {
     const wreck = level.landmarks.find((landmark) => landmark.id === 'grunt-wreck')!
     const plough = BARKS['1-2'].find((bark) => bark.id === 'plough')!
     const radius = plough.trigger.on === 'near' ? plough.trigger.radius : 0
-    expect(wreck.column + wreck.width).toBe(18)
+    expect(wreck.column + wreck.width).toBe(25)
+    expect(tileAt(level.grid, 26, wreck.row)).toBe(Tile.Path)
     expect(radius).toBeGreaterThanOrEqual(4)
-    place(world, 21.5, wreck.row - radius - 0.5)
+    place(world, 27.5, wreck.row - radius - 0.5)
     expect(step(world).some((event) => event.type === 'bark')).toBe(false)
-    place(world, 21.5, wreck.row + 0.5)
+    place(world, 27.5, wreck.row + 0.5)
     const barks = step(world).filter((event) => event.type === 'bark')
     expect(barks.map((event) => event.type === 'bark' && event.id)).toEqual(['plough'])
     expect(step(world).some((event) => event.type === 'bark')).toBe(false)

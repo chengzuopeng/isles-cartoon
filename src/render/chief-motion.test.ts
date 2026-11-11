@@ -139,8 +139,8 @@ describe('demolition chief motion', () => {
     const arena = level.areas.find((area) => area.kind === 'boss')
     if (!arena) throw new Error('no boss arena')
     const y = arena.top + 9.5
-    expect(laneLength(level.grid, 20.5, y, Math.PI, 30)).toBeCloseTo(20.5 - 4, 0)
-    expect(laneLength(level.grid, 20.5, y, 0, 6)).toBe(6)
+    expect(laneLength(level.grid, 30.5, y, Math.PI, 30)).toBeCloseTo(30.5 - 14, 0)
+    expect(laneLength(level.grid, 30.5, y, 0, 6)).toBe(6)
     const pillar = level.landmarks.find((item) => item.id === 'ch1-hay-pillar')
     if (!pillar) throw new Error('no pillar')
     const toward = laneLength(level.grid, pillar.column + 1, pillar.row - 3, Math.PI / 2, 10)

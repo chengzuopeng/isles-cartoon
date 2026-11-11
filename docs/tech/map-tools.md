@@ -1,16 +1,16 @@
 # 地图工具：`pnpm map`
 
 - 状态：2026-11-11 加的。1-1 换地图时用的是仓库外的临时脚本（Python 加临时测试文件），这次整理成命令，全部用 Node，不用另装东西
-- 相关：[1-1 地图重做](../design/levels/1-1-layout.md)（第一次用这套办法）、[1-2 地图重做](../design/levels/1-2-layout.md)（第一次用这个命令）、[自动驾驶](autopilot.md)
+- 相关：[1-1 地图重做](../design/levels/1-1-layout.md)（第一次用这套办法）、[1-2 地图重做](../design/levels/1-2-layout.md)（第一次用这个命令，从草稿到落地走完了一遍）、[自动驾驶](autopilot.md)
 
 改一关的地图之前，先回答三个问题：现在的地图哪里一览无余、新布局挡住了没有、新布局走不走得通。这个命令把三件事都做成一条：
 
 ```bash
 pnpm map draw 1-2                                  # 画现在的 1-2，打印视线统计和关卡校验
-pnpm map compare 1-2 scripts/map/sketches/1-2.mjs  # 现在和草稿并排
-pnpm map play scripts/map/sketches/1-2.mjs --points health=1   # 自动驾驶三档各跑 5 局
+pnpm map compare 1-3 scripts/map/sketches/1-3.mjs  # 现在和草稿并排
+pnpm map play scripts/map/sketches/1-3.mjs --points health=1,damage=1   # 自动驾驶三档各跑 5 局
 pnpm map text 1-1                                  # 打印字符画和高度表，带行号
-pnpm map emit scripts/map/sketches/1-2.mjs src/data/levels/level-1-2.ts   # 草稿写成关卡数据
+pnpm map emit scripts/map/sketches/1-3.mjs src/data/levels/level-1-3.ts   # 草稿写成关卡数据
 pnpm map --help                                    # 全部命令和选项
 ```
 
@@ -62,6 +62,7 @@ a.raise(25, 33, 30, 36, 6)                               // 只改高度，数�
 a.road([[11.5, 44], [11.5, 34], [15, 30.5]], 4)          // 沿折线铺 4 米宽的土路；{ clear: 1.6 } 顺便把两边的树和墙清掉
 a.box(29, 12, 36, 17, '"')                               // 填一种符号
 a.put(35, 15, 'b')                                       // 放一个符号：敌人、宝箱、起点等
+a.thinForest(1, 9)                                       // 树林只在空地和水边留 1 排树，再往里换成高度 9 的土坡
 a.extra = { ambush: [[35, 15]], landmarks: [...] }       // 区域的其余字段，原样进关卡数据
 
 export const level = levelOf({ id: '1-2', title: '1-2 牧场', /* 其余关卡字段 */ }, [a /* 从南到北 */])
@@ -74,7 +75,9 @@ export const names = { 牧场入口: 'ENTRANCE' }            // 可选：emit �
 - 两边的边墙不用管：符号总是墙，高度跟着里面挨着的那一格
 - `fill` 是区域一开始填满的东西：`'#'` 是墙，`'T'` 是树林，`'.'` 配上高一截的 `fillHeight` 就是一整块上不去的台地，再往里挖
 - 垫高的地要比旁边能走的地高 3 米（6 级）以上才上不去；旁边有 1.2 米的石头时也够。台子顶离墙至少隔一格，不然能从台子跳上墙。画完看图：上得去的台地是浅色，上不去的是深色
-- 草稿放在 `scripts/map/sketches/`。用户定了方向、`emit` 写成关卡数据以后，以 `src/data/levels/` 为准，草稿删掉
+- 树 `T` 是一棵棵模型，是最贵的东西。用树林当填充（`fill: 'T'`）时，最后调一次 `thinForest`：站在路上看，一排树已经是不透的树墙，后面的树看不见却照样要画。1-2 的磨坊照建议稿铺满是 531 棵，留一排以后 142 棵，装车场入口的三角形从 231 万降到 171 万
+- 台子上的射手、口子和门洞对得太正时，隔着两个院子也看得见人。画完看统计里「沿主路同时看得见的敌人最多」在哪一步，把门洞错开
+- 草稿放在 `scripts/map/sketches/`。用户定了方向、`emit` 写成关卡数据以后，以 `src/data/levels/` 为准，草稿删掉（1-2 的已经删了）
 
 ## 一关的流程
 
@@ -82,7 +85,9 @@ export const names = { 牧场入口: 'ENTRANCE' }            // 可选：emit �
 2. 写草稿，`draw` 反复看图，直到关卡校验通过
 3. `pnpm map play <草稿>` 看自动驾驶走不走得通；加点和这一关的校准用例一致（`calibration-<关卡>.test.ts` 里的 `createLoadout`）
 4. `pnpm map compare <关卡> <草稿>` 出对比图，写建议稿（`docs/design/levels/<关卡>-layout.md`），给用户看
-5. 用户定了以后 `emit` 写成关卡数据，改写死坐标的单元测试、对话触发点、截图机位（`scripts/shots/spots.json`）、e2e 的走位，量性能（`pnpm perf spots`）
+5. 用户定了以后 `emit` 写成关卡数据，改写死坐标的单元测试、对话触发点、截图机位（`scripts/shots/spots.json`）、e2e 的走位
+6. 量性能：先 `git archive HEAD` 出一份改前的副本量基线，再量改后（`pnpm perf spots --levels <关卡>`，机位在 `scripts/perf/spots.json`）；超了预算先数树
+7. 自动驾驶多跑一些种子（10 局的波动能差两三局），和改前的副本比；通关数掉了就看死在哪，回草稿改，再 `emit`
 
 ## 实现
 

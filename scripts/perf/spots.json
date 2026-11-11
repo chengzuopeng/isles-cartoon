@@ -5,6 +5,12 @@
     { "id": "1-1-yard", "level": "1-1", "name": "1-1 晒谷场", "area": 2, "advance": 0.1 },
     { "id": "1-1-yard-back", "level": "1-1", "name": "1-1 晒谷场，回头看来路", "area": 2, "advance": 0.1, "yaw": 1.5708 },
     { "id": "1-1-road", "level": "1-1", "name": "1-1 田埂小路", "area": 3, "advance": 0.1 },
-    { "id": "1-1-boss", "level": "1-1", "name": "1-1 收割场 Boss 战", "boss": true, "advance": 0.5 }
+    { "id": "1-1-boss", "level": "1-1", "name": "1-1 收割场 Boss 战", "boss": true, "advance": 0.5 },
+    { "id": "1-2-start", "level": "1-2", "name": "1-2 起点，看向北边", "area": 0, "advance": 0.1 },
+    { "id": "1-2-pens", "level": "1-2", "name": "1-2 羊圈", "area": 1, "advance": 0.1 },
+    { "id": "1-2-loading", "level": "1-2", "name": "1-2 装车场", "area": 2, "advance": 0.1 },
+    { "id": "1-2-loading-back", "level": "1-2", "name": "1-2 装车场，回头看来路", "area": 2, "advance": 0.1, "yaw": 1.5708 },
+    { "id": "1-2-mill", "level": "1-2", "name": "1-2 磨坊", "area": 3, "advance": 0.1 },
+    { "id": "1-2-boss", "level": "1-2", "name": "1-2 大谷仓 Boss 战", "boss": true, "advance": 0.5 }
   ]
 }

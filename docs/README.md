@@ -28,8 +28,8 @@
   - [样机关卡：1-1 出发](design/prototype-1-1.md)（M1 缩减版）
   - [关卡 1-1 出发（第一人称完整版）](design/levels/1-1.md)
   - [1-1 地图重做：为什么一览无余，改成了什么样](design/levels/1-1-layout.md)（2026-11-11 落地）
-  - [关卡 1-2 牧场（第一人称版）](design/levels/1-2.md)（灰盒和新机制做完）
-  - [1-2 地图重做：新布局](design/levels/1-2-layout.md)（建议稿，等用户看）
+  - [关卡 1-2 牧场（第一人称版）](design/levels/1-2.md)（灰盒、新机制、Boss 做完，地图已换成新布局；场景和剧情还没做）
+  - [1-2 地图重做：为什么改，改成了什么样](design/levels/1-2-layout.md)（2026-11-11 落地）
   - [设定摘要](design/setting.md)
 - 技术
   - [技术架构](tech/architecture.md)

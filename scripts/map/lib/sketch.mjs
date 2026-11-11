@@ -102,6 +102,39 @@ export class Area {
     return this
   }
 
+  thinForest(rows, height, { byWater = rows } = {}) {
+    const spread = (seed) => {
+      const depth = this.tiles.map((line) => line.map((symbol) => (symbol === 'T' ? Infinity : seed(symbol) ? 0 : -1)))
+      const queue = []
+      for (let y = 0; y < this.depth; y++) {
+        for (let x = 1; x <= this.width - 2; x++) if (depth[y][x] === 0) queue.push([x, y])
+      }
+      for (let head = 0; head < queue.length; head++) {
+        const [x, y] = queue[head]
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx
+            const ny = y + dy
+            if (!this.inside(nx, ny) || depth[ny][nx] !== Infinity) continue
+            depth[ny][nx] = depth[y][x] + 1
+            queue.push([nx, ny])
+          }
+        }
+      }
+      return depth
+    }
+    const fromLand = spread((symbol) => symbol !== '#' && symbol !== '~')
+    const fromWater = spread((symbol) => symbol === '~')
+    for (let y = 0; y < this.depth; y++) {
+      for (let x = 1; x <= this.width - 2; x++) {
+        if (this.tiles[y][x] !== 'T' || fromLand[y][x] <= rows || fromWater[y][x] <= byWater) continue
+        this.tiles[y][x] = '.'
+        this.levels[y][x] = height
+      }
+    }
+    return this
+  }
+
   stamp(x, y, lines, height) {
     lines.forEach((line, dy) => {
       for (let dx = 0; dx < line.length; dx++) {
