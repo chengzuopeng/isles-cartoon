@@ -34,7 +34,9 @@ const HELP = `用法：pnpm map <命令> <关卡…> [选项]
   --json                   draw / compare 时另存测量数据
   --seeds 1,2,3            play 用的种子（默认 1,2,3,4,5）
   --points brawl=1         play 的专精加点（gun、brawl、move、energy），和关卡的校准用例保持一致（1-2 是 brawl=1）
-  --skills q=concussion:1  play 带的技能，槽位=技能:等级，逗号隔开；和校准用例保持一致
+  --skills q=concussion:1  play 带的技能，槽位=技能:等级（3 级可以写 :3b 选 B 支），逗号隔开；和校准用例保持一致
+  --carry shotgun          play 带进关的特殊武器
+  --badges straw,fuse      play 装的徽章
 `
 
 function parseArgs(argv) {
@@ -81,8 +83,8 @@ function parseSkills(text) {
     .split(',')
     .map((pair) => pair.split('='))
     .map(([slot, rest]) => {
-      const [id, rank] = rest.split(':')
-      return { slot, id, rank: Number(rank ?? 1) }
+      const [id, rank = '1'] = rest.split(':')
+      return { slot, id, rank: Number.parseInt(rank, 10), branch: rank.endsWith('b') ? 'b' : 'a' }
     })
 }
 
@@ -157,12 +159,14 @@ async function play(sim, sources, options) {
     .map(Number)
   const points = parsePoints(options.points)
   const skills = parseSkills(options.skills)
+  const carry = options.carry && options.carry !== true ? String(options.carry) : null
+  const badges = options.badges && options.badges !== true ? String(options.badges).split(',') : []
   for (const source of sources) {
     const entry = await resolveLevel(sim, source)
-    console.log(`\n${entry.title}，${entry.label}（种子 ${seeds.join(',')}${Object.keys(points).length > 0 ? `，加点 ${JSON.stringify(points)}` : ''}${skills.length > 0 ? `，技能 ${skills.map((item) => `${item.slot}=${item.id}:${item.rank}`).join(',')}` : ''}）`)
+    console.log(`\n${entry.title}，${entry.label}（种子 ${seeds.join(',')}${Object.keys(points).length > 0 ? `，加点 ${JSON.stringify(points)}` : ''}${skills.length > 0 ? `，技能 ${skills.map((item) => `${item.slot}=${item.id}:${item.rank}`).join(',')}` : ''}${carry ? `，带 ${carry}` : ''}${badges.length > 0 ? `，徽章 ${badges.join(',')}` : ''}）`)
     const all = []
     for (const skill of AUTOPILOT_SKILL_ORDER) {
-      const mine = seeds.map((seed) => runs.play(entry.def, skill, seed, createLoadout(points, skills)))
+      const mine = seeds.map((seed) => runs.play(entry.def, skill, seed, createLoadout(points, skills, carry, badges)))
       all.push(...mine)
       const clears = mine.filter((run) => run.status === 'complete')
       const time = clears.length > 0 ? Math.round(clears.reduce((sum, run) => sum + run.time, 0) / clears.length) : 0

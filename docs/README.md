@@ -23,8 +23,8 @@
   - [愿景](design/vision.md)
   - [第一人称玩法](design/gameplay.md)
   - [战斗节奏：为什么显得呆，怎么改](design/combat-pacing.md)（第一轮：前四条和第 8 条已做，其余并进第二轮）
-  - [可玩性第二轮：手里的东西、规则连锁、每局不一样](design/playability.md)（用户定了全部要做，分三个批次；批次 1 已做完）
-  - [成长体系：专精、技能分支、徽章](design/progression.md)（2026-11-11 用户定了，排在可玩性第二轮的批次 2，还没开始）
+  - [可玩性第二轮：手里的东西、规则连锁、每局不一样](design/playability.md)（用户定了全部要做，分三个批次；批次 1、2 已做完）
+  - [成长体系：专精、技能分支、徽章](design/progression.md)（2026-11-12 做完）
   - [画风：会动的漫画](design/art-direction.md)
   - [画面复盘：为什么还不够好看，怎么改](design/visual-review.md)（12 项已落地，其余 9 项待做）
   - [样机关卡：1-1 出发](design/prototype-1-1.md)（M1 缩减版）

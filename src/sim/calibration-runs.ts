@@ -127,7 +127,7 @@ export function firstSteps(): Loadout {
 }
 
 export function afterOutskirts(): Loadout {
-  return createLoadout({ brawl: 1 }, [{ slot: 'q', id: 'concussion', rank: 2 }])
+  return createLoadout({ brawl: 1 }, [{ slot: 'q', id: 'concussion', rank: 2 }], 'shotgun', ['straw'])
 }
 
 export function afterPasture(): Loadout {
