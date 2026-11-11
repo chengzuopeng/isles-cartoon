@@ -126,6 +126,8 @@ export interface Player extends Body {
   leverageUntil: number
   airDashes: number
   grazed: boolean
+  guardUntil: number
+  bushAt: number
   barrier: number
   barrierTime: number
   barrierBurst: number
@@ -502,6 +504,7 @@ export type GameEvent =
   | { type: 'grazed'; x: number; y: number }
   | { type: 'circuit'; skill: SkillId }
   | { type: 'reflected'; x: number; y: number; z: number }
+  | { type: 'parried'; x: number; y: number; z: number }
   | { type: 'kegLit'; x: number; y: number; z: number; index: number }
   | { type: 'hayLit'; x: number; y: number; z: number; index: number }
   | { type: 'hayBurnt'; x: number; y: number; z: number; index: number }

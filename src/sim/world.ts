@@ -361,6 +361,8 @@ function createPlayer(spawn: Vec2, z: number, tuning: Tuning, loadout: Loadout):
     leverageUntil: -Infinity,
     airDashes: 0,
     grazed: false,
+    guardUntil: -Infinity,
+    bushAt: -Infinity,
     barrier: 0,
     barrierTime: 0,
     barrierBurst: 0,

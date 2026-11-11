@@ -1,3 +1,4 @@
+import { BADGES } from '../data/badges'
 import { createWeapons } from '../data/weapons'
 import { CHALLENGES } from '../data/challenges'
 import type { SpecId } from '../data/progression'
@@ -142,6 +143,7 @@ export function createResults(container: HTMLElement, options: ResultsOptions): 
       note.textContent = [
         settlement.skillPointsGained > 0 ? `获得 ${settlement.skillPointsGained} 个技能点，回整备界面学习技能` : '',
         ...settlement.newWeapons.map((id) => `武器架解锁：${WEAPONS[id].name}`),
+        ...settlement.newBadges.map((id) => `新徽章：${BADGES[id].name}`),
       ]
         .filter(Boolean)
         .join('　')

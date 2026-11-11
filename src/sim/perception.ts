@@ -1,3 +1,4 @@
+import { BADGE } from '../data/badges'
 import { FOG } from '../data/fog'
 import { claimRunner } from './alarms'
 import { lineClear } from './collision'
@@ -41,7 +42,8 @@ export function noticeRate(world: World, enemy: Enemy, distance: number, sight: 
   if (distance <= perception.proximity) return Infinity
   const closeness = Math.min(1.5, Math.max(0.5, 1.5 - distance / Math.max(sight, 1e-3)))
   const suspicious = enemy.alert === 'suspicious' || enemy.alert === 'search' ? perception.noticeSuspicious : 1
-  return (closeness * suspicious) / perception.noticeSeconds
+  const cover = world.loadout.badges.includes('straw') && world.time - world.player.bushAt <= BADGE.strawLinger ? BADGE.strawNotice : 1
+  return (closeness * suspicious * cover) / perception.noticeSeconds
 }
 
 export type Watch = 'none' | 'noticing' | 'spotted'

@@ -2,6 +2,9 @@ import { eyeHeightOf } from '../data/heights'
 import { SPECIAL_WEAPONS, type WeaponId } from '../data/weapons'
 import { firePattern, weaponOf } from './arsenal'
 import { playerDisabled } from './status'
+import { BADGE } from '../data/badges'
+import { hasBadge } from './badges'
+import { healPlayer } from './buffs'
 import { hasMilestone } from './stats'
 import { MILESTONE } from '../data/progression'
 import type { Enemy, PlayerCommand } from './types'
@@ -40,6 +43,7 @@ export function updateUltimate(world: World, command: PlayerCommand, dt: number)
     player.ultTimer = 0
     player.burstLeft = 0
     world.stats.ultimates += 1
+    if (hasBadge(world, 'star')) healPlayer(world, player.maxHp * BADGE.starHeal)
     world.events.push({ type: 'ultimateFired', x: player.pos.x, y: player.pos.y })
   }
   if (player.ultShots <= 0) return

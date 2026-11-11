@@ -11,6 +11,8 @@ import { createAttributeCards } from './attribute-cards'
 import { button, element } from './dom'
 import { createSkillCards } from './skill-cards'
 import { createWeaponRack } from './weapon-rack'
+import { createBadgeBox } from './badge-box'
+import type { BadgeId } from '../data/badges'
 import { createXpBar } from './xp-bar'
 
 export interface PrepLevelInfo {
@@ -35,6 +37,7 @@ export interface PrepScreenOptions {
   onBranch(id: SkillId, branch: SkillBranch): void
   onResetSkills(): void
   onCarry(id: PlayerWeaponId | null): void
+  onBadge(id: BadgeId): void
   onSettings(): void
   onDifficulty(id: DifficultyId): void
   onInterlude(id: string): void
@@ -111,6 +114,7 @@ export function createPrepScreen(container: HTMLElement, options: PrepScreenOpti
   const respec = button(tools, 'ghost', '重置专精（免费）', options.onRespec)
   const skills = createSkillCards(panel, { onLearn: options.onLearn, onEquip: options.onEquip, onBranch: options.onBranch, onReset: options.onResetSkills })
   const rack = createWeaponRack(panel, options.onCarry)
+  const badges = createBadgeBox(panel, options.onBadge)
   const difficulty = element('div', 'prep-difficulty', panel)
   element('span', 'prep-difficulty-label', difficulty, '难度')
   const choiceRow = element('div', 'prep-difficulty-options', difficulty)
@@ -206,6 +210,7 @@ export function createPrepScreen(container: HTMLElement, options: PrepScreenOpti
     respec.disabled = spentPoints(profile) === 0
     skills.render(profile)
     rack.render(profile)
+    badges.render(profile)
     const level = options.difficulty()
     for (const [id, choice] of choices) choice.classList.toggle('active', id === level)
     blurb.textContent = DIFFICULTIES[level].blurb

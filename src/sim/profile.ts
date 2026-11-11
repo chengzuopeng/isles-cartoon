@@ -27,6 +27,7 @@ import {
   type SkillId,
   type SkillSlot,
 } from '../data/skills'
+import { BADGE, BADGE_ORDER, BADGE_SLOT_LEVELS, BOSS_BADGES, type BadgeId } from '../data/badges'
 import { CLEAR_WEAPONS } from '../data/loot'
 import { SPECIAL_WEAPONS, type PlayerWeaponId } from '../data/weapons'
 import type { RunRating } from './rating'
@@ -59,6 +60,8 @@ export interface Profile {
   plays: Record<string, number>
   weapons: PlayerWeaponId[]
   carry: PlayerWeaponId | null
+  badges: BadgeId[]
+  bounties: number
 }
 
 export type SkillBlock = 'maxed' | 'chapter' | 'noPoints'
@@ -86,6 +89,7 @@ export interface Settlement {
   newBest: boolean
   newClues: ClueId[]
   newWeapons: PlayerWeaponId[]
+  newBadges: BadgeId[]
 }
 
 export interface ClueEntry {
@@ -113,6 +117,8 @@ export function createProfile(): Profile {
     plays: {},
     weapons: [],
     carry: null,
+    badges: [],
+    bounties: 0,
   }
 }
 
@@ -248,7 +254,41 @@ export function loadoutOf(profile: Profile): Loadout {
     const id = profile.equipped[slot]
     if (id && slotUnlocked(profile, slot) && skillRank(profile, id) > 0) skills.push({ slot, id, rank: skillRank(profile, id), branch: profile.branches[id] ?? 'a' })
   }
-  return createLoadout({ ...profile.specs }, skills, profile.carry && profile.weapons.includes(profile.carry) ? profile.carry : null)
+  const owned = ownedBadges(profile)
+  const badges = profile.badges.filter((id) => owned.includes(id)).slice(0, badgeSlots(profile))
+  return createLoadout({ ...profile.specs }, skills, profile.carry && profile.weapons.includes(profile.carry) ? profile.carry : null, badges)
+}
+
+export function badgeSlots(profile: Profile): number {
+  return BADGE_SLOT_LEVELS.filter((level) => profile.level >= level).length
+}
+
+export function ownedBadges(profile: Profile): BadgeId[] {
+  const clues = clueBook(profile, BADGE.clueChapter)
+  const earned: Record<BadgeId, boolean> = {
+    straw: false,
+    fuse: false,
+    door: false,
+    tread: false,
+    star: false,
+    apprentice: profile.bounties >= BADGE.apprenticeBounties,
+    veteran: profile.bounties >= BADGE.veteranBounties,
+    iou: clues.length > 0 && clues.every((entry) => entry.found),
+    stars: BADGE.starLevels.every((id) => (recordOf(profile, id)?.bestStars ?? 0) >= 3),
+    flawless: Object.values(profile.records).some((record) => record.challenges?.includes('flawless')),
+  }
+  for (const [level, badge] of Object.entries(BOSS_BADGES)) if (recordOf(profile, level)?.cleared) earned[badge] = true
+  return BADGE_ORDER.filter((id) => earned[id])
+}
+
+export function toggleBadge(profile: Profile, id: BadgeId): boolean {
+  if (profile.badges.includes(id)) {
+    profile.badges = profile.badges.filter((item) => item !== id)
+    return true
+  }
+  if (!ownedBadges(profile).includes(id) || profile.badges.length >= badgeSlots(profile)) return false
+  profile.badges = [...profile.badges, id]
+  return true
 }
 
 export function unlockWeapon(profile: Profile, id: PlayerWeaponId): boolean {
@@ -362,6 +402,7 @@ export function settleRun(profile: Profile, world: World, rating: RunRating): Se
   const reward = computeReward(world, rating, record)
   const newClues = keepClues(profile, world)
   const before = { level: profile.level, xp: profile.xp }
+  const ownedBefore = ownedBadges(profile)
   const levelsGained = grantXp(profile, reward.total)
   const previous = record ?? { cleared: false, bestStars: 0, bestTime: 0, clears: 0 }
   const earned = newChallenges(rating, record)
@@ -386,6 +427,7 @@ export function settleRun(profile: Profile, world: World, rating: RunRating): Se
     newBest,
     newClues,
     newWeapons,
+    newBadges: ownedBadges(profile).filter((id) => !ownedBefore.includes(id)),
   }
 }
 
@@ -448,6 +490,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   }
   const carry = raw.carry
   profile.carry = typeof carry === 'string' && profile.weapons.some((id) => id === carry) ? (carry as PlayerWeaponId) : null
+  profile.bounties = clampInt(raw.bounties, 0, 1e6, 0)
   if (isRecord(raw.plays)) {
     for (const [id, value] of Object.entries(raw.plays)) {
       const plays = clampInt(value, 0, 1e9, 0)
@@ -457,6 +500,11 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (Array.isArray(raw.interludes)) {
     const seen = raw.interludes as unknown[]
     profile.interludes = INTERLUDES.filter((item) => seen.includes(item.id)).map((item) => item.id)
+  }
+  if (Array.isArray(raw.badges)) {
+    const owned = ownedBadges(profile)
+    const kept = raw.badges as unknown[]
+    profile.badges = BADGE_ORDER.filter((id) => kept.includes(id) && owned.includes(id)).slice(0, badgeSlots(profile))
   }
   const earned = profile.level - 1
   const spent = spentPoints(profile)

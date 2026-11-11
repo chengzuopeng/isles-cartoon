@@ -1,9 +1,12 @@
+import { BADGE, type BadgeId } from '../data/badges'
 import { BUFFS } from '../data/loot'
 import { MILESTONE, SPECS, SPEC_BONUS, SPEC_ORDER, STAT_FLOOR, type SpecId } from '../data/progression'
 import type { SkillBranch, SkillId, SkillSlot } from '../data/skills'
 import { LEGACY_REGEN, type Tuning } from '../data/tuning'
 import type { PlayerWeaponId } from '../data/weapons'
+import { starPower } from './badges'
 import { hasBuff } from './buffs'
+import { playerHidden } from './perception'
 import type { World } from './world'
 
 export type SpecRanks = Record<SpecId, number>
@@ -21,6 +24,7 @@ export interface Loadout {
   specs: SpecRanks
   skills: EquippedSkill[]
   special: PlayerWeaponId | null
+  badges: BadgeId[]
 }
 
 export interface PlayerStats {
@@ -43,8 +47,8 @@ export function emptySpecs(): SpecRanks {
   return ranks
 }
 
-export function createLoadout(specs: Partial<SpecRanks> = {}, skills: EquippedSkill[] = [], special: PlayerWeaponId | null = null): Loadout {
-  return { specs: { ...emptySpecs(), ...specs }, skills: skills.map((skill) => ({ ...skill })), special }
+export function createLoadout(specs: Partial<SpecRanks> = {}, skills: EquippedSkill[] = [], special: PlayerWeaponId | null = null, badges: BadgeId[] = []): Loadout {
+  return { specs: { ...emptySpecs(), ...specs }, skills: skills.map((skill) => ({ ...skill })), special, badges: [...badges] }
 }
 
 export function reached(specs: SpecRanks, id: MilestoneId): boolean {
@@ -76,9 +80,13 @@ export function refreshStats(world: World): PlayerStats {
   const swift = hasBuff(player, 'swift') ? 1 + BUFFS.swift.value : 1
   const might = hasBuff(player, 'might') ? 1 + BUFFS.might.value : 1
   const frenzy = hasBuff(player, 'frenzy') ? 1 + BUFFS.frenzy.value : 1
-  stats.speed = tuning.player.speed * (1 + SPEC_BONUS.move.speed * specs.move) * swift
-  stats.damage = (1 + SPEC_BONUS.gun.damage * specs.gun) * might
-  stats.meleeDamage = (1 + SPEC_BONUS.brawl.melee * specs.brawl) * might
+  const badges = world.loadout.badges
+  const straw = badges.includes('straw') && playerHidden(world) ? 1 + BADGE.strawSpeed : 1
+  const whole = badges.includes('flawless') && player.hp >= player.maxHp ? 1 + BADGE.flawlessSpeed : 1
+  const star = starPower(world)
+  stats.speed = tuning.player.speed * (1 + SPEC_BONUS.move.speed * specs.move) * swift * straw * whole
+  stats.damage = (1 + SPEC_BONUS.gun.damage * specs.gun) * might * star
+  stats.meleeDamage = (1 + SPEC_BONUS.brawl.melee * specs.brawl) * might * star
   stats.fireInterval = 1 / frenzy
   stats.reload = 1 / (1 + SPEC_BONUS.gun.recharge * specs.gun)
   stats.dashRecharge = 1 / (1 + SPEC_BONUS.move.dash * specs.move)

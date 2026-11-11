@@ -8,7 +8,9 @@ import { climbable, floorAt, standHeight, supportsStanding, tileAt } from './gri
 import { spawnLob } from './lobs'
 import { clamp, decay, type Vec2 } from './math'
 import { swingMelee } from './melee'
-import { aggro, emitNoise } from './perception'
+import { aggro, emitNoise, playerHidden } from './perception'
+import { BADGE } from '../data/badges'
+import { hasBadge } from './badges'
 import { hasMilestone, refreshStats } from './stats'
 import { playerDisabled, playerSpeedFactor, reelEnemy } from './status'
 import { SUPPORT_SHARE, heightsOverlap, playerReach } from './terrain'
@@ -28,6 +30,7 @@ export function updatePlayer(world: World, command: PlayerCommand, dt: number): 
   player.pitch = clamp(Number.isFinite(command.pitch) ? command.pitch : 0, -MAX_PITCH, MAX_PITCH)
 
   rechargeDash(world, dt)
+  if (playerHidden(world)) player.bushAt = world.time
   player.meleeCooldown = Math.max(0, player.meleeCooldown - dt)
   const free = !playerDisabled(player)
   if (player.grounded) player.airDashes = hasMilestone(world, 'move5') ? MILESTONE.airDashes : 0
@@ -165,7 +168,7 @@ function rechargeDash(world: World, dt: number): void {
 
 function shoveEnemies(world: World): void {
   const { player, tuning } = world
-  const push = tuning.player.dashShove * tuning.feel.knockbackDecay
+  const push = tuning.player.dashShove * tuning.feel.knockbackDecay * (hasBadge(world, 'tread') ? BADGE.treadShove : 1)
   for (const enemy of world.enemies) {
     if (enemy.hp <= 0 || enemy.kind === 'boss' || enemy.kind === 'turret' || player.rammed.includes(enemy.id)) continue
     if (!heightsOverlap(world, enemy)) continue

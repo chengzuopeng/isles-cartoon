@@ -8,6 +8,8 @@ import { damageEnemy, damagePlayer, spawnBlast } from './combat'
 import { MILESTONE } from '../data/progression'
 
 const REFLECT_FRONT = 0.5
+import { BADGE } from '../data/badges'
+import { critScale, hasBadge } from './badges'
 import { damageCrate } from './crates'
 import { hasMilestone } from './stats'
 import { igniteHay } from './props'
@@ -169,6 +171,7 @@ function advance(world: World, bullet: Bullet, dt: number): boolean {
         }
       }
     } else if (hitsPlayer(world, bullet)) {
+      if (parry(world, bullet)) return false
       if (reflect(world, bullet)) continue
       damagePlayer(world, bullet.damage, bullet.dirX, bullet.dirY, bullet.knockback, bullet.attack, bullet.origin)
       if (bullet.status !== 'none') applyStatusToPlayer(world, bullet)
@@ -201,6 +204,14 @@ export function criticalHit(bullet: Bullet, target: Enemy): boolean {
   const eye = target.z + eyeHeightOf(heightKey(target))
   if (Math.abs(bullet.z - eye) > EYE_CRIT.band) return false
   return bullet.dirX * Math.cos(target.facing) + bullet.dirY * Math.sin(target.facing) < EYE_CRIT.facing
+}
+
+function parry(world: World, bullet: Bullet): boolean {
+  const { player } = world
+  if (world.time > player.guardUntil || !hasBadge(world, 'door')) return false
+  if (bullet.dirX * Math.cos(player.facing) + bullet.dirY * Math.sin(player.facing) > -BADGE.doorFront) return false
+  world.events.push({ type: 'parried', x: bullet.pos.x, y: bullet.pos.y, z: bullet.z })
+  return true
 }
 
 function reflect(world: World, bullet: Bullet): boolean {
@@ -239,7 +250,8 @@ export function falloffOf(world: World, bullet: Bullet): number {
 function hitEnemy(world: World, bullet: Bullet, target: Enemy): void {
   const back = target.kind === 'boss' ? backScale(target, bullet.dirX, bullet.dirY) : 1
   const crit = bullet.sureCrit || criticalHit(bullet, target)
-  const damage = bullet.damage * back * falloffOf(world, bullet) * (crit ? (target.boss ? WEAK_POINT_SCALE : EYE_CRIT.scale) : 1)
+  const scale = crit ? (bullet.team === 'player' ? critScale(world, target.boss ? WEAK_POINT_SCALE : EYE_CRIT.scale) : target.boss ? WEAK_POINT_SCALE : EYE_CRIT.scale) : 1
+  const damage = bullet.damage * back * falloffOf(world, bullet) * scale
   if (crit) world.stats.crits += 1
   if (crit && bullet.team === 'player') recycleAmmo(world, bullet)
   damageEnemy(world, target, damage, bullet.dirX, bullet.dirY, bullet.knockback, { z: bullet.z, crit })

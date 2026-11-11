@@ -1,5 +1,7 @@
 import { FOOD_HEAL, type FoodKind } from '../data/loot'
 import { MILESTONE } from '../data/progression'
+import { BADGE } from '../data/badges'
+import { hasBadge } from './badges'
 import { hasMilestone } from './stats'
 import { onDamageDealt } from './buffs'
 import { lineClear } from './collision'
@@ -49,6 +51,7 @@ export function swingMelee(world: World): void {
   const { player, tuning } = world
   const desperate = hasMilestone(world, 'brawl10') && player.hp < player.maxHp * MILESTONE.desperateBelow
   player.meleeCooldown = tuning.player.meleeCooldown * (desperate ? MILESTONE.desperateCooldown : 1)
+  if (hasBadge(world, 'door')) player.guardUntil = world.time + BADGE.doorWindow
   const targets = meleeTargets(world)
   const damage = tuning.player.meleeDamage * world.playerStats.meleeDamage * (leveraged(world) ? MILESTONE.leverageDamage : 1)
   const push = tuning.player.meleeKnockback * tuning.feel.knockbackDecay
@@ -134,6 +137,7 @@ export function smash(world: World, enemy: Enemy): void {
   killEnemy(world, enemy, true, true, false, dx / length, dy / length)
   spawnPickup(world, { type: 'heal', amount: hasMilestone(world, 'brawl2') ? MILESTONE.foodHeal : FOOD_HEAL, food: foodOf(enemy) }, x, y, { from: { x, y } })
   if (hasMilestone(world, 'brawl5')) aftershock(world, enemy)
+  if (hasBadge(world, 'iou') && world.lootRng.next() < BADGE.iouChance) spawnPickup(world, { type: 'heal', amount: hasMilestone(world, 'brawl2') ? MILESTONE.foodHeal : FOOD_HEAL, food: foodOf(enemy) }, x, y, { from: { x, y } })
   world.stats.smashes += 1
   onDamageDealt(world, left)
   chargeUltimate(world, left, enemy)

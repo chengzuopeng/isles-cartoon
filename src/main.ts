@@ -89,6 +89,7 @@ import {
   setCarry,
   settleRun,
   skillBlock,
+  toggleBadge,
   unlockWeapon,
   variedRun,
   xpScaleFor,
@@ -292,6 +293,11 @@ const prep = createPrepScreen(container, {
       resetSkills(profile)
       return true
     }),
+  onBadge: (id) => {
+    if (!toggleBadge(profile, id)) return
+    persist()
+    prep.refresh(profile)
+  },
   onCarry: (id) => {
     if (!setCarry(profile, id)) return
     persist()

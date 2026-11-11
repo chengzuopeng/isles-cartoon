@@ -19,6 +19,8 @@ import { rollEnemyDrop, rollItem, spawnPickup } from './pickups'
 import { barrierBurstKnockback, pushEnemies } from './skills'
 import { feelPain, reelEnemy, stunEnemy } from './status'
 import type { Vec2 } from './math'
+import { BADGE } from '../data/badges'
+import { hasBadge } from './badges'
 import { hasMilestone } from './stats'
 import { bodyHeight } from './terrain'
 import { chargeUltimate, ultShareOf } from './ultimate'
@@ -75,10 +77,11 @@ export function damagePlayer(
   const scale = world.level.def.bossTuning?.damage
   if (scale !== undefined && world.boss && world.areaIndex === world.boss.area) amount *= scale
   player.sinceDamage = 0
-  const push = shove ? 1 : tuning.feel.playerKnockScale
+  const tread = hasBadge(world, 'tread') ? BADGE.treadScale : 1
+  const push = (shove ? 1 : tuning.feel.playerKnockScale) * tread
   player.knock.x += dirX * knockback * push
   player.knock.y += dirY * knockback * push
-  player.stagger = Math.max(player.stagger, Math.min(tuning.feel.staggerMax, knockback * tuning.feel.staggerPerKnock))
+  player.stagger = Math.max(player.stagger, Math.min(tuning.feel.staggerMax, knockback * tuning.feel.staggerPerKnock) * tread)
   const blocked = absorbBarrier(world, amount)
   const plated = Math.min(player.armor, amount - blocked)
   player.armor -= plated
@@ -185,6 +188,7 @@ export function countStreak(world: World): void {
   const { player, time } = world
   player.streak = time - player.streakAt <= world.playerStats.streakWindow ? player.streak + 1 : 1
   player.streakAt = time
+  if (player.streak === BADGE.veteranStreak && hasBadge(world, 'veteran')) player.dashCharges = Math.min(world.tuning.player.dashCharges, player.dashCharges + 1)
 }
 
 export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain = true, drop = true, dirX = 0, dirY = 0): void {
@@ -297,12 +301,13 @@ function defeatBoss(world: World, boss: Enemy): void {
 
 export function spawnBlast(world: World, spec: BlastSpec): Blast {
   const round = (spec.inner ?? 0) <= 0 && (spec.arcWidth ?? 0) <= 0 && (spec.gapWidth ?? 0) <= 0
+  const widened = round && (spec.source === 'player' || spec.source === 'keg') && hasBadge(world, 'fuse') ? BADGE.fuseRadius : 1
   const blast: Blast = {
     id: world.nextId++,
     x: spec.x,
     y: spec.y,
     z: spec.z ?? floorAt(world.grid, spec.x, spec.y),
-    radius: spec.radius,
+    radius: spec.radius * widened,
     delay: spec.delay,
     total: spec.delay,
     playerDamage: spec.playerDamage,
@@ -372,7 +377,8 @@ function detonate(world: World, blast: Blast): void {
     const dy = player.pos.y - blast.y
     const distance = Math.hypot(dx, dy)
     const length = distance > 1e-6 ? distance : 1
-    damagePlayer(world, blast.playerDamage, dx / length, distance > 1e-6 ? dy / length : 1, knockback, blast.attack, { x: blast.x, y: blast.y })
+    const self = hasBadge(world, 'fuse') ? BADGE.fuseSelf : 1
+    damagePlayer(world, blast.playerDamage * self, dx / length, distance > 1e-6 ? dy / length : 1, knockback, blast.attack, { x: blast.x, y: blast.y })
   }
   let friendly = false
   let struck = 0
