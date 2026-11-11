@@ -8,7 +8,7 @@
 ```bash
 pnpm map draw 1-2                                  # 画现在的 1-2，打印视线统计和关卡校验
 pnpm map compare 1-3 scripts/map/sketches/1-3.mjs  # 现在和草稿并排
-pnpm map play scripts/map/sketches/1-3.mjs --points health=1,damage=1   # 自动驾驶三档各跑 5 局
+pnpm map play scripts/map/sketches/1-3.mjs --points health=1,damage=1 --skills q=concussion:1   # 自动驾驶三档各跑 5 局
 pnpm map text 1-1                                  # 打印字符画和高度表，带行号
 pnpm map emit scripts/map/sketches/1-3.mjs src/data/levels/level-1-3.ts   # 草稿写成关卡数据
 pnpm map --help                                    # 全部命令和选项
@@ -83,7 +83,7 @@ export const names = { 牧场入口: 'ENTRANCE' }            // 可选：emit �
 
 1. `pnpm map draw <关卡>` 看现在的问题，数字记进建议稿
 2. 写草稿，`draw` 反复看图，直到关卡校验通过
-3. `pnpm map play <草稿>` 看自动驾驶走不走得通；加点和这一关的校准用例一致（`calibration-<关卡>.test.ts` 里的 `createLoadout`）
+3. `pnpm map play <草稿>` 看自动驾驶走不走得通；加点（`--points`）和技能（`--skills 槽位=技能:等级`）和这一关的校准用例一致（`calibration-<关卡>.test.ts` 里的 `createLoadout`）
 4. `pnpm map compare <关卡> <草稿>` 出对比图，写建议稿（`docs/design/levels/<关卡>-layout.md`），给用户看
 5. 用户定了以后 `emit` 写成关卡数据，改写死坐标的单元测试、对话触发点、截图机位（`scripts/shots/spots.json`）、e2e 的走位
 6. 量性能：先 `git archive HEAD` 出一份改前的副本量基线，再量改后（`pnpm perf spots --levels <关卡>`，机位在 `scripts/perf/spots.json`）；超了预算先数树

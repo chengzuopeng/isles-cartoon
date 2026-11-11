@@ -122,6 +122,14 @@ export interface FarmRun extends Run {
   stuns: number
 }
 
+export function firstSteps(): Loadout {
+  return createLoadout({}, [{ slot: 'q', id: 'concussion', rank: 1 }])
+}
+
+export function afterOutskirts(): Loadout {
+  return createLoadout({ health: 1 }, [{ slot: 'q', id: 'concussion', rank: 2 }])
+}
+
 export function afterPasture(): Loadout {
   return createLoadout({ health: 1, damage: 1 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
 }

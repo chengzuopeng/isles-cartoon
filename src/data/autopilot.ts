@@ -26,6 +26,7 @@ export const AUTOPILOT = {
   dodgeMargin: 0.5,
   lootRange: 12.8,
   chestRange: 32,
+  lootStick: 1.5,
   healBelow: 0.75,
   supplyBelow: 0.6,
   ammoBelow: 0.5,

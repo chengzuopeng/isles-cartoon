@@ -118,6 +118,7 @@ export function createAutopilot(options: AutopilotOptions = {}): Autopilot {
   let aimUntil = -Infinity
   const siege = { id: -1, since: 0 }
   let detour: number | null = null
+  let lootKey: string | null = null
   const crossings = new Map<number, { misread: boolean }>()
   let safe: { level: World['level']; key: string; age: number; cells: Uint8Array | null } | null = null
 
@@ -270,8 +271,9 @@ export function createAutopilot(options: AutopilotOptions = {}): Autopilot {
 
       if (command.fire && world.mines.length > 0 && mineInLine(world, command.aimX, command.aimY)) command.fire = false
 
-      const loots = pickLoot(world, hiddenChests(world), options.onward ? world.areaIndex : 0)
+      const loots = pickLoot(world, hiddenChests(world), options.onward ? world.areaIndex : 0, lootKey)
       const loot = loots[0] ?? null
+      lootKey = loot?.key ?? null
       if (loot?.interact && distance(player.pos, loot.pos) <= INTERACT_RANGE - 0.15) command.interact = true
 
       if (target && point && player.ultimate >= 1 && distance(player.pos, target.pos) <= AUTOPILOT.ultimateRange) {
@@ -726,12 +728,12 @@ function pickTarget(world: World, stealthy: boolean): Enemy | null {
   return best
 }
 
-function pickLoot(world: World, hidden: ReadonlySet<string>, fromArea: number): LootGoal[] {
+function pickLoot(world: World, hidden: ReadonlySet<string>, fromArea: number, keep: string | null = null): LootGoal[] {
   const { player } = world
   const found: { goal: LootGoal; gap: number }[] = []
   const consider = (goal: LootGoal, range: number) => {
     const gap = distance(player.pos, goal.pos)
-    if (gap <= range) found.push({ goal, gap })
+    if (gap <= (goal.key === keep ? range * AUTOPILOT.lootStick : range)) found.push({ goal, gap })
   }
   const health = player.hp / player.maxHp
   for (const pickup of world.pickups) {

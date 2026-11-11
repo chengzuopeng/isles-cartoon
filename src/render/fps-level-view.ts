@@ -118,6 +118,7 @@ interface CrateView {
 
 interface KegView {
   index: number
+  row: number
   root: THREE.Object3D
   body: THREE.MeshToonMaterial
   spark: THREE.Object3D
@@ -458,8 +459,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
         keg.root.rotation.y = yaw
         group.add(keg.root)
         const index = row * grid.columns + column
-        kegs.push({ index, root: keg.root, body: keg.body, spark: keg.spark, yaw })
-        crates.push({ index, root: keg.root })
+        kegs.push({ index, row, root: keg.root, body: keg.body, spark: keg.spark, yaw })
         disposables.push(keg.body)
         continue
       }
@@ -703,6 +703,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       }
       for (const crate of crates) crate.root.visible = world.grid.tiles[crate.index] === Tile.Crate
       for (const keg of kegs) {
+        keg.root.visible = world.grid.tiles[keg.index] === Tile.Crate && Math.abs(keg.row + 0.5 - z) <= LEVEL_CULL.drawDistance
         const lit = keg.root.visible && world.blasts.some((blast) => blast.keg === keg.index)
         const beat = lit ? 0.5 + 0.5 * Math.sin(time * KEG_LOOK.pulse) : 0
         keg.body.emissiveIntensity = beat * 0.9

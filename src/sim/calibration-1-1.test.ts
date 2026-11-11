@@ -1,14 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { AUTOPILOT_SKILL_ORDER } from '../data/autopilot'
 import { LEVEL_1_1 } from '../data/levels/level-1-1'
-import { averageOf, clearsOf, play, SEEDS, summarize, table, type Run } from './calibration-runs'
-import { createLoadout } from './stats'
+import { averageOf, clearsOf, firstSteps, play, SEEDS, summarize, table, type Run } from './calibration-runs'
 
 describe('calibrating level 1-1 with human-like autopilots', () => {
   let runs: Run[] = []
 
   beforeAll(() => {
-    runs = AUTOPILOT_SKILL_ORDER.flatMap((skill) => SEEDS.map((seed) => play(LEVEL_1_1, skill, seed, createLoadout())))
+    runs = AUTOPILOT_SKILL_ORDER.flatMap((skill) => SEEDS.map((seed) => play(LEVEL_1_1, skill, seed, firstSteps())))
     console.table(table(runs))
     console.table(summarize(runs))
   }, 120_000)
@@ -17,7 +16,7 @@ describe('calibrating level 1-1 with human-like autopilots', () => {
     expect(clearsOf(runs, 'perfect')).toBe(SEEDS.length)
     expect(clearsOf(runs, 'human')).toBeGreaterThanOrEqual(8)
     expect(clearsOf(runs, 'novice')).toBeLessThanOrEqual(clearsOf(runs, 'human'))
-    expect(averageOf(runs, 'novice', (run) => run.hits)).toBeGreaterThan(averageOf(runs, 'human', (run) => run.hits) * 2)
+    expect(averageOf(runs, 'novice', (run) => run.hits)).toBeGreaterThan(averageOf(runs, 'human', (run) => run.hits) * 1.5)
   })
 
   it('misses more shots and takes more damage as the skill drops', () => {

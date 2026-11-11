@@ -3,16 +3,15 @@ import { AUTOPILOT_SKILL_ORDER } from '../data/autopilot'
 import { LEVEL_1_2 } from '../data/levels/level-1-2'
 import { createDefaultTuning } from '../data/tuning'
 import { createAutopilot } from './autopilot'
-import { averageOf, clearsOf, DT, LIMIT_SECONDS, play, SEEDS, summarize, table, type Run } from './calibration-runs'
+import { afterOutskirts, averageOf, clearsOf, DT, LIMIT_SECONDS, play, SEEDS, summarize, table, type Run } from './calibration-runs'
 import { buildLevel } from './level'
 import { stepWorld } from './step'
-import { createLoadout } from './stats'
 import { createWorld } from './world'
 
 describe('level 1-2 from start to finish', () => {
   it('breaks the three carts, beats the demolition chief and walks out', () => {
     const level = buildLevel(LEVEL_1_2)
-    const world = createWorld(level, createDefaultTuning(), { debug: { invincible: true }, loadout: createLoadout({ health: 1 }) })
+    const world = createWorld(level, createDefaultTuning(), { debug: { invincible: true }, loadout: afterOutskirts() })
     const pilot = createAutopilot()
     const entered: string[] = []
     const broken: string[] = []
@@ -39,7 +38,7 @@ describe('calibrating level 1-2 with human-like autopilots', () => {
   let runs: Run[] = []
 
   beforeAll(() => {
-    runs = AUTOPILOT_SKILL_ORDER.flatMap((skill) => SEEDS.map((seed) => play(LEVEL_1_2, skill, seed, createLoadout({ health: 1 }))))
+    runs = AUTOPILOT_SKILL_ORDER.flatMap((skill) => SEEDS.map((seed) => play(LEVEL_1_2, skill, seed, afterOutskirts())))
     console.table(table(runs))
     console.table(summarize(runs))
   }, 240_000)
