@@ -13,7 +13,8 @@
     "e2e": "playwright test",
     "e2e:update": "playwright test --update-snapshots",
     "perf": "node scripts/perf/perf.mjs",
-    "shots": "node scripts/shots/shots.mjs"
+    "shots": "node scripts/shots/shots.mjs",
+    "map": "node scripts/map/map.mjs"
   },
   "dependencies": {
     "three": "^0.186.1",
