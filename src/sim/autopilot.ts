@@ -744,7 +744,7 @@ function pickLoot(world: World, hidden: ReadonlySet<string>, fromArea: number, k
       (item.type === 'ammo' &&
         player.special !== null &&
         player.specialAmmo < specialMagazine(world, player.special) * AUTOPILOT.ammoBelow) ||
-      (item.type === 'weapon' && player.special === null)
+      (item.type === 'weapon' && item.ammo > 0 && (player.special === null || player.specialAmmo <= 0))
     if (!wanted) continue
     consider({ key: `pickup:${pickup.id}`, pos: pickup.pos, interact: item.type === 'weapon', ground: true }, AUTOPILOT.lootRange)
   }

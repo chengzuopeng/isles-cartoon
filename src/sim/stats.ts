@@ -8,6 +8,7 @@ import {
   type AttributeId,
 } from '../data/progression'
 import type { SkillId, SkillSlot } from '../data/skills'
+import type { PlayerWeaponId } from '../data/weapons'
 import { LEGACY_REGEN, type Tuning } from '../data/tuning'
 import { hasBuff } from './buffs'
 import type { World } from './world'
@@ -23,6 +24,7 @@ export interface EquippedSkill {
 export interface Loadout {
   attributes: AttributeRanks
   skills: EquippedSkill[]
+  special: PlayerWeaponId | null
 }
 
 export interface PlayerStats {
@@ -41,8 +43,8 @@ export function emptyRanks(): AttributeRanks {
   return ranks
 }
 
-export function createLoadout(attributes: Partial<AttributeRanks> = {}, skills: EquippedSkill[] = []): Loadout {
-  return { attributes: { ...emptyRanks(), ...attributes }, skills: skills.map((skill) => ({ ...skill })) }
+export function createLoadout(attributes: Partial<AttributeRanks> = {}, skills: EquippedSkill[] = [], special: PlayerWeaponId | null = null): Loadout {
+  return { attributes: { ...emptyRanks(), ...attributes }, skills: skills.map((skill) => ({ ...skill })), special }
 }
 
 export function attributeBonus(ranks: AttributeRanks, id: AttributeId): number {

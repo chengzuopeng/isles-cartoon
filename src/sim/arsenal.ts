@@ -96,9 +96,10 @@ export function fireEnemyWeapon(world: World, enemy: Enemy, id: WeaponId, angle:
 export function equipSpecial(world: World, id: PlayerWeaponId, ammo: number): void {
   const { player } = world
   player.special = id
-  player.specialAmmo = Math.max(1, Math.round(ammo))
-  player.slot = 'special'
+  player.specialAmmo = Math.max(0, Math.round(ammo))
   player.burstLeft = 0
+  if (player.specialAmmo <= 0) return
+  player.slot = 'special'
   world.events.push({ type: 'weaponChanged', weapon: id, slot: 'special' })
 }
 

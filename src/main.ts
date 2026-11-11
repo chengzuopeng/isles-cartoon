@@ -84,8 +84,10 @@ import {
   resetSkills,
   respec,
   sanitizeProfile,
+  setCarry,
   settleRun,
   skillBlock,
+  unlockWeapon,
   variedRun,
   xpScaleFor,
   xpToNext,
@@ -286,6 +288,11 @@ const prep = createPrepScreen(container, {
       resetSkills(profile)
       return true
     }),
+  onCarry: (id) => {
+    if (!setCarry(profile, id)) return
+    persist()
+    prep.refresh(profile)
+  },
   onSettings: openSettings,
   onInterlude: (id) => playInterlude(id),
   difficulty: () => settings.difficulty,
@@ -993,6 +1000,7 @@ function dispatchEvents(): void {
   meleeBatch = batch.some((event) => event.type === 'melee' && event.hits > 0)
   for (const event of batch) {
     if (event.type === 'bossIntro' && event.story && playBossStory(event)) continue
+    if (event.type === 'pickedUp' && event.item.type === 'weapon' && !training && unlockWeapon(profile, event.item.weapon)) persist()
     dispatch(event)
   }
   if (world.status === 'dead' && lastStatus !== 'dead') {

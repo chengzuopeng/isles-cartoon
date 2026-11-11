@@ -644,7 +644,7 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
           ult.animate([{ transform: 'scale(1.15)' }, { transform: 'scale(1)' }], { duration: 300, easing: 'ease-out' })
           break
         case 'weaponEmpty':
-          showBanner('弹药耗尽', `${world.tuning.weapons[event.weapon].name}已丢弃，切回主武器`)
+          showBanner('弹药耗尽', `${world.tuning.weapons[event.weapon].name}留在 2 号位，捡到弹药再用`)
           break
         case 'playerHit':
           if (event.damage > 0) {

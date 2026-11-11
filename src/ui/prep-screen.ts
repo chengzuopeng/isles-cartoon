@@ -3,12 +3,14 @@ import { CHAPTERS } from '../data/chapters'
 import { DIFFICULTIES, DIFFICULTY_ORDER, type DifficultyId } from '../data/difficulty'
 import type { AttributeId } from '../data/progression'
 import type { SkillId, SkillSlot } from '../data/skills'
+import type { PlayerWeaponId } from '../data/weapons'
 import { assetUrl, type SceneId } from '../render/asset-urls'
 import { clueBook, recordOf, seenInterludes, spentPoints, type Profile } from '../sim/profile'
 import { icon } from './assets'
 import { createAttributeCards } from './attribute-cards'
 import { button, element } from './dom'
 import { createSkillCards } from './skill-cards'
+import { createWeaponRack } from './weapon-rack'
 import { createXpBar } from './xp-bar'
 
 export interface PrepLevelInfo {
@@ -30,6 +32,7 @@ export interface PrepScreenOptions {
   onLearn(id: SkillId): void
   onEquip(id: SkillId, slot: SkillSlot): void
   onResetSkills(): void
+  onCarry(id: PlayerWeaponId | null): void
   onSettings(): void
   onDifficulty(id: DifficultyId): void
   onInterlude(id: string): void
@@ -105,6 +108,7 @@ export function createPrepScreen(container: HTMLElement, options: PrepScreenOpti
   const tools = element('div', 'prep-tools', panel)
   const respec = button(tools, 'ghost', '重置加点（免费）', options.onRespec)
   const skills = createSkillCards(panel, { onLearn: options.onLearn, onEquip: options.onEquip, onReset: options.onResetSkills })
+  const rack = createWeaponRack(panel, options.onCarry)
   const difficulty = element('div', 'prep-difficulty', panel)
   element('span', 'prep-difficulty-label', difficulty, '难度')
   const choiceRow = element('div', 'prep-difficulty-options', difficulty)
@@ -199,6 +203,7 @@ export function createPrepScreen(container: HTMLElement, options: PrepScreenOpti
     cards.render(profile)
     respec.disabled = spentPoints(profile) === 0
     skills.render(profile)
+    rack.render(profile)
     const level = options.difficulty()
     for (const [id, choice] of choices) choice.classList.toggle('active', id === level)
     blurb.textContent = DIFFICULTIES[level].blurb

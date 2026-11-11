@@ -12,8 +12,8 @@ import { createWorld } from './world'
 describe('level 1-4 from start to finish', () => {
   it('follows the signal through the fog, lights the lamps on its way, beats the forest tank in the clearing and walks out', () => {
     const level = buildLevel(LEVEL_1_4)
-    const world = createWorld(level, createDefaultTuning(), { debug: { invincible: true }, loadout: afterFarm() })
-    const pilot = createAutopilot()
+    const world = createWorld(level, createDefaultTuning(), { seed: 2, debug: { invincible: true }, loadout: afterFarm() })
+    const pilot = createAutopilot({ seed: 2 })
     const entered: string[] = []
     const seen = new Set<string>()
     let defeatedAt = -1

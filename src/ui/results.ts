@@ -1,3 +1,4 @@
+import { createWeapons } from '../data/weapons'
 import { CHALLENGES } from '../data/challenges'
 import type { AttributeId } from '../data/progression'
 import { assetUrl } from '../render/asset-urls'
@@ -9,6 +10,8 @@ import { createAttributeCards } from './attribute-cards'
 import { tallyLines, tallyText } from './level-info'
 import { button, element } from './dom'
 import { createXpBar, splitXp } from './xp-bar'
+
+const WEAPONS = createWeapons()
 
 export interface ResultsData {
   rating: RunRating
@@ -136,8 +139,12 @@ export function createResults(container: HTMLElement, options: ResultsOptions): 
       xp.set(settlement.before.level, settlement.before.xp)
       levelUp.classList.remove('visible')
       allocate.classList.remove('visible')
-      note.textContent =
-        settlement.skillPointsGained > 0 ? `获得 ${settlement.skillPointsGained} 个技能点，回整备界面学习技能` : ''
+      note.textContent = [
+        settlement.skillPointsGained > 0 ? `获得 ${settlement.skillPointsGained} 个技能点，回整备界面学习技能` : '',
+        ...settlement.newWeapons.map((id) => `武器架解锁：${WEAPONS[id].name}`),
+      ]
+        .filter(Boolean)
+        .join('　')
     },
     hide() {
       open = false

@@ -98,11 +98,9 @@ export function updatePlayer(world: World, command: PlayerCommand, dt: number): 
     }
   }
 
-  if (player.special && player.specialAmmo <= 0 && player.burstLeft === 0) {
-    const empty = player.special
-    player.special = null
-    world.events.push({ type: 'weaponEmpty', weapon: empty })
-    if (player.slot === 'special') selectSlot(world, 'primary')
+  if (player.special && player.specialAmmo <= 0 && player.burstLeft === 0 && player.slot === 'special') {
+    world.events.push({ type: 'weaponEmpty', weapon: player.special })
+    selectSlot(world, 'primary')
   }
 
   if (command.melee && free && player.meleeCooldown === 0) {
@@ -270,7 +268,7 @@ function canRegenerate(world: World): boolean {
 
 function selectSlot(world: World, slot: WeaponSlot): void {
   const { player } = world
-  if (slot === player.slot || (slot === 'special' && !player.special)) return
+  if (slot === player.slot || (slot === 'special' && (!player.special || player.specialAmmo <= 0))) return
   player.slot = slot
   player.burstLeft = 0
   world.events.push({ type: 'weaponChanged', weapon: activeWeaponId(player), slot })

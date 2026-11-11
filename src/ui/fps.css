@@ -903,3 +903,58 @@
   background: #ff5a3c;
   color: var(--paper);
 }
+
+.weapon-rack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.weapon-rack-title {
+  font-weight: 700;
+}
+
+.weapon-rack-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.weapon-rack-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 64px;
+  padding: 4px 6px;
+}
+
+.weapon-rack-slot.locked {
+  opacity: 0.35;
+}
+
+.weapon-rack-slot.active,
+.weapon-rack-none.active {
+  outline: 3px solid var(--player, #f08a24);
+  outline-offset: 1px;
+}
+
+.weapon-rack-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.weapon-rack-slot.locked .weapon-rack-icon {
+  filter: grayscale(1) brightness(0.4);
+}
+
+.weapon-rack-name {
+  font-size: 12px;
+}
+
+.weapon-rack-note {
+  font-size: 13px;
+  opacity: 0.85;
+}

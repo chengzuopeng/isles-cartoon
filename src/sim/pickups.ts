@@ -217,9 +217,11 @@ export function openChest(world: World, chest: Chest): void {
       break
     }
     case 'weapon':
+      refillSpecial(world)
       items.push(weaponItem(world, chest.weapon ?? undefined))
       break
     case 'rare': {
+      refillSpecial(world)
       items.push(weaponItem(world, chest.weapon ?? undefined), makeItem(world, 'buff'))
       const amount = RARE_CHEST_XP * world.chapter
       world.rewards.chests += amount
@@ -229,6 +231,16 @@ export function openChest(world: World, chest: Chest): void {
   }
   const from = chest.perch ? { x: chest.perch.x, y: chest.perch.y } : chest.pos
   for (const item of items) spawnPickup(world, item, chest.pos.x, chest.pos.y, { persistent: true, from })
+}
+
+function refillSpecial(world: World): void {
+  const { player } = world
+  if (!player.special) return
+  const magazine = specialMagazine(world, player.special)
+  const amount = magazine - player.specialAmmo
+  if (amount <= 0) return
+  player.specialAmmo = magazine
+  world.events.push({ type: 'pickedUp', item: { type: 'ammo' }, x: player.pos.x, y: player.pos.y, amount })
 }
 
 export function wanted(world: World, pickup: Pickup): boolean {
@@ -305,7 +317,7 @@ function takeWeapon(world: World, pickup: Pickup): void {
   if (item.type !== 'weapon') return
   const { player } = world
   world.pickups.splice(world.pickups.indexOf(pickup), 1)
-  if (player.special && player.specialAmmo > 0) {
+  if (player.special) {
     const dropped = spawnPickup(
       world,
       { type: 'weapon', weapon: player.special, ammo: player.specialAmmo },

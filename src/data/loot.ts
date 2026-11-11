@@ -46,15 +46,15 @@ export const DROP_PITY = 8
 export const DROP_WEIGHTS: Readonly<Record<DropType, number>> = {
   heal: 35,
   buff: 30,
-  ammo: 20,
-  weapon: 15,
+  ammo: 30,
+  weapon: 5,
 }
 
 export const ELITE_WEIGHTS: Readonly<Record<DropType, number>> = {
   heal: 15,
   buff: 40,
-  ammo: 10,
-  weapon: 35,
+  ammo: 25,
+  weapon: 20,
 }
 
 export const CHEST_WEIGHTS: Readonly<Record<DropType, number>> = {
@@ -102,6 +102,14 @@ export const PICKUP_MAGNET = { radius: 4, speed: 14 } as const
 export const FOOD_NAMES: Readonly<Record<FoodKind, string>> = {
   bread: '麦饼',
   apple: '苹果',
+}
+
+export const CLEAR_WEAPONS: Readonly<Record<string, PlayerWeaponId>> = {
+  '1-1': 'shotgun',
+  '1-2': 'smg',
+  '1-3': 'ricochet',
+  '1-4': 'sniper',
+  '1-5': 'rocket',
 }
 
 export const CHAPTER_WEAPONS: Readonly<Record<number, readonly PlayerWeaponId[]>> = {

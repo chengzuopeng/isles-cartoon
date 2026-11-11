@@ -50,13 +50,14 @@ describe('weapons', () => {
     expect(Math.max(...pitches) - Math.min(...pitches)).toBeGreaterThan(shotgun.spreadDeg / 3)
   })
 
-  it('drops an empty special weapon and goes back to the primary one', () => {
+  it('keeps an empty special weapon in slot two and goes back to the primary one', () => {
     const { world } = setup()
     giveSpecialWeapon(world, 'sniper')
     world.player.specialAmmo = 1
     stepWorld(world, { ...idle(), fire: true }, DT)
     run(world, idle(), 0.1)
-    expect(world.player.special).toBeNull()
+    expect(world.player.special).toBe('sniper')
+    expect(world.player.specialAmmo).toBe(0)
     expect(world.player.slot).toBe('primary')
     const types = world.events.map((event) => event.type)
     expect(types).toContain('weaponEmpty')

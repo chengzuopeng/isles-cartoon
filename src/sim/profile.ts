@@ -26,6 +26,8 @@ import {
   type SkillId,
   type SkillSlot,
 } from '../data/skills'
+import { CLEAR_WEAPONS } from '../data/loot'
+import { SPECIAL_WEAPONS, type PlayerWeaponId } from '../data/weapons'
 import type { RunRating } from './rating'
 import { createLoadout, emptyRanks, type AttributeRanks, type EquippedSkill, type Loadout } from './stats'
 import type { World } from './world'
@@ -53,6 +55,8 @@ export interface Profile {
   clues: ClueId[]
   interludes: string[]
   plays: Record<string, number>
+  weapons: PlayerWeaponId[]
+  carry: PlayerWeaponId | null
 }
 
 export type SkillBlock = 'maxed' | 'chapter' | 'noPoints'
@@ -79,6 +83,7 @@ export interface Settlement {
   firstClear: boolean
   newBest: boolean
   newClues: ClueId[]
+  newWeapons: PlayerWeaponId[]
 }
 
 export interface ClueEntry {
@@ -103,6 +108,8 @@ export function createProfile(): Profile {
     clues: [],
     interludes: [],
     plays: {},
+    weapons: [],
+    carry: null,
   }
 }
 
@@ -233,7 +240,20 @@ export function loadoutOf(profile: Profile): Loadout {
     const id = profile.equipped[slot]
     if (id && slotUnlocked(profile, slot) && skillRank(profile, id) > 0) skills.push({ slot, id, rank: skillRank(profile, id) })
   }
-  return createLoadout({ ...profile.attributes }, skills)
+  return createLoadout({ ...profile.attributes }, skills, profile.carry && profile.weapons.includes(profile.carry) ? profile.carry : null)
+}
+
+export function unlockWeapon(profile: Profile, id: PlayerWeaponId): boolean {
+  if (profile.weapons.includes(id) || !SPECIAL_WEAPONS.includes(id)) return false
+  profile.weapons = SPECIAL_WEAPONS.filter((item) => item === id || profile.weapons.includes(item))
+  if (profile.carry === null) profile.carry = id
+  return true
+}
+
+export function setCarry(profile: Profile, id: PlayerWeaponId | null): boolean {
+  if (id !== null && !profile.weapons.includes(id)) return false
+  profile.carry = id
+  return true
 }
 
 export function recordOf(profile: Profile, levelId: string): LevelRecord | undefined {
@@ -339,6 +359,8 @@ export function settleRun(profile: Profile, world: World, rating: RunRating): Se
   const earned = newChallenges(rating, record)
   const challenges = CHALLENGE_ORDER.filter((id) => (previous.challenges ?? []).includes(id) || earned.includes(id))
   const newBest = rating.cleared && (!previous.cleared || rating.stars > previous.bestStars || rating.time < previous.bestTime)
+  const prize = rating.cleared && !previous.cleared ? CLEAR_WEAPONS[levelId] : undefined
+  const newWeapons = prize && unlockWeapon(profile, prize) ? [prize] : []
   profile.records[levelId] = {
     cleared: previous.cleared || rating.cleared,
     bestStars: Math.max(previous.bestStars, rating.stars),
@@ -355,6 +377,7 @@ export function settleRun(profile: Profile, world: World, rating: RunRating): Se
     firstClear: rating.cleared && !previous.cleared,
     newBest,
     newClues,
+    newWeapons,
   }
 }
 
@@ -408,6 +431,12 @@ export function sanitizeProfile(raw: unknown): Profile {
     const kept = raw.clues.filter((id): id is ClueId => typeof id === 'string' && isClueId(id))
     profile.clues = CLUE_ORDER.filter((id) => kept.includes(id))
   }
+  if (Array.isArray(raw.weapons)) {
+    const kept = raw.weapons as unknown[]
+    profile.weapons = SPECIAL_WEAPONS.filter((id) => kept.includes(id))
+  }
+  const carry = raw.carry
+  profile.carry = typeof carry === 'string' && profile.weapons.some((id) => id === carry) ? (carry as PlayerWeaponId) : null
   if (isRecord(raw.plays)) {
     for (const [id, value] of Object.entries(raw.plays)) {
       const plays = clampInt(value, 0, 1e9, 0)
