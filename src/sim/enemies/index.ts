@@ -12,6 +12,7 @@ import { looseBody, settleWalker } from '../terrain'
 import type { AlertState, Enemy } from '../types'
 import type { World } from '../world'
 import { calm } from './calm'
+import { lured } from '../baits'
 import { setState, still } from './kit'
 import { behaviorOf, stationary } from './registry'
 import { assignSlots } from './tactics'
@@ -28,6 +29,11 @@ export function updateEnemies(world: World, dt: number): void {
     updateEliteShield(enemy, dt)
     if (disabled(enemy)) {
       integrate(world, enemy, still(), dt)
+      continue
+    }
+    const bait = lured(world, enemy, dt)
+    if (bait) {
+      integrate(world, enemy, bait, dt)
       continue
     }
     if (!enemy.aggro) {

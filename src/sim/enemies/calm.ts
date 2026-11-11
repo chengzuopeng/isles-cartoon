@@ -123,6 +123,10 @@ function pickWanderSpot(world: World, enemy: Enemy): Vec2 | null {
   return null
 }
 
+export function moveTo(world: World, enemy: Enemy, target: Vec2, share: number): Vec2 {
+  return walk(world, enemy, target, share)
+}
+
 function walk(world: World, enemy: Enemy, target: Vec2, share: number): Vec2 {
   const speed = speedOf(world, enemy) * share
   if (speed <= 0) return still()
@@ -142,6 +146,6 @@ function speedOf(world: World, enemy: Enemy): number {
   }
 }
 
-function distanceTo(enemy: Enemy, point: Vec2): number {
+export function distanceTo(enemy: Enemy, point: Vec2): number {
   return Math.hypot(point.x - enemy.pos.x, point.y - enemy.pos.y)
 }

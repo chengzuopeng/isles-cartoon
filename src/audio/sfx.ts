@@ -389,6 +389,12 @@ export function createSfx(): Sfx {
         hiss({ filter: 'lowpass', from: 900, to: 300, duration: 0.2, gain: 0.12 })
         chime(CHEST_NOTES, 0.07, 0.09)
         break
+      case 'baitThrown':
+        tone({ type: 'triangle', from: 520, to: 300, duration: 0.18, gain: 0.08 })
+        break
+      case 'baitLanded':
+        tone({ type: 'sine', from: 900, to: 1300, duration: 0.12, gain: 0.06 })
+        break
       case 'kegLit':
         hiss({ filter: 'bandpass', from: 3600, to: 7000, duration: 0.4, gain: 0.22, q: 1.2 })
         break

@@ -13,6 +13,7 @@ import { createLandmarkStates } from './landmark-state'
 import type { BuiltLevel } from './level'
 import type { Vec2 } from './math'
 import { createFlowField, type FlowField } from './pathing'
+import type { Bait } from './baits'
 import type { Fire } from './props'
 import { createRng, type Rng } from './rng'
 import { RUSH_VARIETY } from '../data/levels/rules'
@@ -115,6 +116,7 @@ export interface World {
   kegs: Set<number>
   hay: Set<number>
   fires: Fire[]
+  baits: Bait[]
   rocks: Map<number, number>
   landmarks: LandmarkState[]
   sheep: Sheep[]
@@ -207,6 +209,7 @@ export function createWorld(level: BuiltLevel, tuning: Tuning, options: WorldOpt
     kegs: new Set(level.kegs),
     hay: new Set(level.hay),
     fires: [],
+    baits: [],
     rocks: new Map(),
     landmarks: createLandmarkStates(level),
     sheep: createSheep(level),
@@ -432,6 +435,8 @@ export function createEnemy(world: World, kind: MinionKind, pos: Vec2, area: num
     flank: ((id % 3) - 1) * ((world.tuning.grunt.flankDeg * Math.PI) / 180),
     engaged: false,
     summoned: options.summoned ?? false,
+    lure: 0,
+    lureLeft: 0,
     airborne: false,
     vz: 0,
     fallFrom: z,
@@ -487,6 +492,8 @@ export function createBoss(world: World, id: string, pos: Vec2, area: number): E
     flank: 0,
     engaged: false,
     summoned: false,
+    lure: 0,
+    lureLeft: 0,
     airborne: false,
     vz: 0,
     fallFrom: z,

@@ -165,6 +165,8 @@ export function damageEnemy(
     }
   }
   enemy.hp -= damage
+  enemy.lure = 0
+  enemy.lureLeft = 0
   const pushable = enemy.kind !== 'boss' && enemy.kind !== 'turret'
   if (pushable) {
     enemy.knock.x += dirX * knockback

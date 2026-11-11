@@ -2,6 +2,7 @@ import { eyeHeightOf } from '../data/heights'
 import { MILESTONE } from '../data/progression'
 import { BOMBLET, CONCUSSION_MIN, SKILLS, type BarrierRank, type ConcussionRank, type ShockwaveRank, type SkillBranch, type SkillDef, type SkillId } from '../data/skills'
 import { damageEnemy, spawnBlast } from './combat'
+import { throwBaits } from './baits'
 import { interruptEnemy } from './enemies'
 import { blocksMovement, floorAt, tileAt } from './grid'
 import { hasMilestone, refreshStats } from './stats'
@@ -57,6 +58,12 @@ function cast(world: World, skill: SkillRuntime, command: PlayerCommand): void {
     case 'shockwave':
       shockwave(world, rankFor(SKILLS.shockwave, skill.rank, skill.branch))
       break
+    case 'bait': {
+      const rank = rankFor(SKILLS.bait, skill.rank, skill.branch)
+      const yaw = Math.atan2(command.aimY - player.pos.y, command.aimX - player.pos.x)
+      throwBaits(world, rank, concussionTarget(world, rank.range, yaw, command.pitch), yaw)
+      break
+    }
   }
   world.events.push({ type: 'skillCast', skill: skill.id, x: player.pos.x, y: player.pos.y })
 }

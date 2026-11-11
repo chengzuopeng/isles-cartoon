@@ -34,6 +34,7 @@ import { GRASS_EYE_HEIGHT, loadLookSettings, saveLookSettings } from './input/lo
 import { RESIDENT_MODEL_IDS, VIEWMODEL_MODEL_IDS, type ModelId } from './render/asset-urls'
 import { createEffects } from './render/effects'
 import { createPropFires } from './render/prop-fires'
+import { createBaitViews } from './render/bait-views'
 import { createEntityViews, type EntityViews, type ViewFlags } from './render/entity-views'
 import { createFpsLevelView, type FpsLevelView } from './render/fps-level-view'
 import { createFpsStage, type ViewMode } from './render/fps-stage'
@@ -244,6 +245,7 @@ const stage = createFpsStage({ container, grid: level.grid, quality: settings, f
 const models = createModelLibrary(gltfSource(stage))
 const effects = createEffects(stage.scene)
 const propFires = createPropFires(effects)
+const baitViews = createBaitViews(stage.scene)
 const sfx = createSfx()
 const music = createMusic()
 const soundtrack = createSoundtrackState()
@@ -527,6 +529,7 @@ function resetScene(): void {
   rings.reset()
   effects.clear()
   propFires.clear()
+  baitViews.clear()
   hud.reset()
   numbers.clear()
   tips.clear()
@@ -1092,6 +1095,7 @@ function frame(now: number): void {
     placeEye(alpha, dt)
     syncViews(sceneDt, alpha)
     propFires.update(world, sceneDt)
+    baitViews.update(world, now / 1000)
     effects.update(sceneDt, stage.view === 'fps' ? stage.camera.position : undefined)
     const { player } = world
     viewmodel.update(

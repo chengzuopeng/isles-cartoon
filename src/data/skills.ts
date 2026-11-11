@@ -1,4 +1,4 @@
-export type SkillId = 'concussion' | 'barrier' | 'shockwave'
+export type SkillId = 'concussion' | 'barrier' | 'shockwave' | 'bait'
 
 export type SkillSlot = 'q' | 'e'
 
@@ -38,6 +38,18 @@ export type ShockwaveRank = {
   pullTo: number
 }
 
+export type BaitRank = {
+  cooldown: number
+  range: number
+  lure: number
+  radius: number
+  flight: number
+  count: number
+  spacing: number
+  burstRadius: number
+  burstDamage: number
+}
+
 export type SkillDef<Rank> = {
   name: string
   kind: string
@@ -52,9 +64,10 @@ export type SkillBook = {
   concussion: SkillDef<ConcussionRank>
   barrier: SkillDef<BarrierRank>
   shockwave: SkillDef<ShockwaveRank>
+  bait: SkillDef<BaitRank>
 }
 
-export const SKILL_ORDER: readonly SkillId[] = ['concussion', 'barrier', 'shockwave']
+export const SKILL_ORDER: readonly SkillId[] = ['concussion', 'barrier', 'shockwave', 'bait']
 
 export const RETIRED_SKILLS: Readonly<Record<string, SkillId>> = { roll: 'concussion' }
 
@@ -118,7 +131,25 @@ export const SKILLS: SkillBook = {
     },
     branchB: { cooldown: 10, radius: 6, knockback: 0, damage: 60, stun: 0.6, pullTo: 2 },
   },
+  bait: {
+    name: '麦饼诱饵',
+    kind: '辅助',
+    unlockChapter: 1,
+    lines: ['朝准星扔一块麦饼，最远 12 米；8 米内的小兵丢下你去抢，最多 4 秒，挨打就醒', '能引开 6 秒，冷却从 14 秒缩短到 11 秒'],
+    ranks: [
+      { cooldown: 14, range: 12, lure: 4, radius: 8, flight: 0.5, count: 1, spacing: 0, burstRadius: 0, burstDamage: 0 },
+      { cooldown: 11, range: 12, lure: 6, radius: 8, flight: 0.5, count: 1, spacing: 0, burstRadius: 0, burstDamage: 0 },
+      { cooldown: 11, range: 12, lure: 6, radius: 8, flight: 0.5, count: 1, spacing: 0, burstRadius: 2.5, burstDamage: 200 },
+    ],
+    branches: {
+      a: { name: '加料', line: '麦饼被抢到时炸开，2.5 米、200 伤害，也能引爆火药桶和自爆兵' },
+      b: { name: '一大袋', line: '一次扔 3 块，落在相隔 3 米的三处，把敌人拆开' },
+    },
+    branchB: { cooldown: 11, range: 12, lure: 6, radius: 8, flight: 0.5, count: 3, spacing: 3, burstRadius: 0, burstDamage: 0 },
+  },
 }
+
+export const BAIT = { reach: 0.8, eliteShare: 0.5, chew: 0.6 } as const
 
 export const BOMBLET = { spread: 2.5, radius: 2, damage: 40, stun: 0.8, delay: 0.25 } as const
 

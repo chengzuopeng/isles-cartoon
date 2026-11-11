@@ -219,6 +219,8 @@ export interface Enemy extends Body {
   flank: number
   engaged: boolean
   summoned: boolean
+  lure: number
+  lureLeft: number
   airborne: boolean
   vz: number
   fallFrom: number
@@ -505,6 +507,9 @@ export type GameEvent =
   | { type: 'circuit'; skill: SkillId }
   | { type: 'reflected'; x: number; y: number; z: number }
   | { type: 'parried'; x: number; y: number; z: number }
+  | { type: 'baitThrown'; x: number; y: number; count: number }
+  | { type: 'baitLanded'; x: number; y: number; z: number }
+  | { type: 'baitEaten'; x: number; y: number; z: number; burst: boolean }
   | { type: 'kegLit'; x: number; y: number; z: number; index: number }
   | { type: 'hayLit'; x: number; y: number; z: number; index: number }
   | { type: 'hayBurnt'; x: number; y: number; z: number; index: number }

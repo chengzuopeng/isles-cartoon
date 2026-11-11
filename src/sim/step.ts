@@ -13,6 +13,7 @@ import { updateEnemies } from './enemies'
 import type { Vec2 } from './math'
 import { updateMines } from './mines'
 import { updateFires } from './props'
+import { updateBaits } from './baits'
 import { updateFlowField } from './pathing'
 import { updatePickups } from './pickups'
 import { updatePlayer } from './player'
@@ -52,6 +53,7 @@ export function stepWorld(world: World, command: PlayerCommand, dt: number): voi
   updateBullets(world, simDt)
   updateLobs(world, simDt)
   updateFlowField(world.flow, world.grid, world.player.pos)
+  updateBaits(world, simDt)
   updateEnemies(world, simDt)
   updateBoss(world, simDt)
   updateRings(world, simDt)

@@ -657,6 +657,14 @@ function pickSkill(world: World): SkillSlot | null {
         if (crowd >= 2 || melee) return skill.slot
         break
       }
+      case 'bait': {
+        let crowd = 0
+        for (const enemy of world.enemies) {
+          if (enemy.hp > 0 && enemy.aggro && enemy.kind !== 'boss' && distance(enemy.pos, player.pos) <= AUTOPILOT.crowdRange) crowd += 1
+        }
+        if (crowd >= 3) return skill.slot
+        break
+      }
     }
   }
   return null
