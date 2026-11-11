@@ -5,6 +5,7 @@ import { angleBetween, damageEnemy, killEnemy } from './combat'
 import { interruptEnemy } from './enemies'
 import { reelEnemy } from './status'
 import { spawnPickup } from './pickups'
+import { meleeKegs } from './props'
 import { bodyHeight, centerOf, playerChest } from './terrain'
 import type { Enemy } from './types'
 import { chargeUltimate } from './ultimate'
@@ -63,6 +64,7 @@ export function swingMelee(world: World): void {
     onDamageDealt(world, dealt)
     chargeUltimate(world, dealt, enemy)
   }
+  meleeKegs(world)
   world.stats.melees += 1
   world.stats.meleeHits += targets.length
   world.events.push({ type: 'melee', x: player.pos.x, y: player.pos.y, angle: player.facing, hits: targets.length })

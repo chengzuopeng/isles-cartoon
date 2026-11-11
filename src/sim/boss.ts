@@ -1,3 +1,4 @@
+import { CHAIN } from '../data/chains'
 import { BOSS_ROCK_HITS, getBoss, type BossDef, type BossMoveId, type BossSummon, type GuardDef, type RamDef, type TreadDef } from '../data/bosses'
 import { STORIES } from '../data/dialogue'
 import type { LandmarkId } from '../data/landmarks'
@@ -6,6 +7,7 @@ import { fireEnemyWeapon, weaponOf } from './arsenal'
 import { attackOf } from './attacks'
 import { corridorClear, resolveCircleGrid } from './collision'
 import { angleBetween, damagePlayer, spawnBlast } from './combat'
+import { igniteKeg } from './props'
 import { Tile, blocksMovement, setTile, tileAt } from './grid'
 import { breakLandmark, landmarkCenter } from './landmark-state'
 import { lobPitch, spawnLob } from './lobs'
@@ -454,6 +456,7 @@ function crash(world: World, boss: Enemy, state: BossState, def: BossDef, struck
   const reach = boss.radius + 0.6
   const column = Math.floor(boss.pos.x + state.chargeX * reach)
   const row = Math.floor(boss.pos.y + state.chargeY * reach)
+  igniteKeg(world, row * world.grid.columns + column, CHAIN.chainDelay)
   if (tileAt(world.grid, column, row) === Tile.Rock) {
     const index = row * world.grid.columns + column
     const hits = (world.rocks.get(index) ?? 0) + 1

@@ -13,6 +13,7 @@ import { createLandmarkStates } from './landmark-state'
 import type { BuiltLevel } from './level'
 import type { Vec2 } from './math'
 import { createFlowField, type FlowField } from './pathing'
+import type { Fire } from './props'
 import { createRng, type Rng } from './rng'
 import { RUSH_VARIETY } from '../data/levels/rules'
 import { createSheep } from './sheep'
@@ -111,6 +112,9 @@ export interface World {
   chests: Chest[]
   supplies: Supply[]
   crates: Map<number, number>
+  kegs: Set<number>
+  hay: Set<number>
+  fires: Fire[]
   rocks: Map<number, number>
   landmarks: LandmarkState[]
   sheep: Sheep[]
@@ -200,6 +204,9 @@ export function createWorld(level: BuiltLevel, tuning: Tuning, options: WorldOpt
     chests: [],
     supplies: [],
     crates: new Map(),
+    kegs: new Set(level.kegs),
+    hay: new Set(level.hay),
+    fires: [],
     rocks: new Map(),
     landmarks: createLandmarkStates(level),
     sheep: createSheep(level),

@@ -8,6 +8,7 @@ import { LANDMARKS, type LandmarkId } from '../data/landmarks'
 import type { AreaKind, BladeDef, GridPoint, LevelDef, RegionDef, Theme, WallStyle } from '../data/levels/types'
 import type { ChestTier } from '../data/loot'
 import type { PlayerWeaponId } from '../data/weapons'
+import { HAY_THEMES, KEG } from '../data/props'
 import { Tile, blocksMovement, cellFloor, parseRows, standHeight, tileAt, type Grid } from './grid'
 import { landmarkProblems, placeLandmark, stampLandmarks, type LandmarkPlacement } from './landmarks'
 import type { Vec2 } from './math'
@@ -157,6 +158,8 @@ export interface BuiltLevel {
   alarms: AlarmPlacement[]
   reinforcements: ReinforcePlacement[]
   rushes: RushPlacement[]
+  kegs: number[]
+  hay: number[]
   lamps: LampPlacement[]
   waypoints: (Vec2 | null)[]
   ring: RingPlacement | null
@@ -407,6 +410,8 @@ export function buildLevel(def: LevelDef): BuiltLevel {
     alarms,
     reinforcements,
     rushes,
+    kegs: kegCells(lines, grid.columns),
+    hay: hayCells(grid, areaOfRow, areas),
     lamps,
     waypoints: waypointsOf(grid, areas, exits),
     ring: ringOf(def, grid, areas, boss),
@@ -537,9 +542,41 @@ function nearestPlacement(enemies: EnemyPlacement[], area: number, point: Vec2):
   return best
 }
 
+function kegCells(lines: readonly string[], columns: number): number[] {
+  const cells: number[] = []
+  lines.forEach((line, row) => {
+    for (let column = 0; column < line.length; column++) if (line.charAt(column) === KEG.symbol) cells.push(row * columns + column)
+  })
+  return cells
+}
+
+function hayCells(grid: Grid, areaOfRow: Int16Array, areas: readonly AreaInfo[]): number[] {
+  const cells: number[] = []
+  grid.tiles.forEach((tile, index) => {
+    if (tile !== Tile.Rock) return
+    const theme = areas[areaOfRow[Math.floor(index / grid.columns)]]?.theme
+    if (theme && HAY_THEMES.includes(theme)) cells.push(index)
+  })
+  return cells
+}
+
+function kegProblems(level: BuiltLevel): string[] {
+  const { grid } = level
+  const problems: string[] = []
+  const solid = (column: number, row: number) => blocksMovement(tileAt(grid, column, row))
+  for (const index of level.kegs) {
+    const column = index % grid.columns
+    const row = (index - column) / grid.columns
+    if (Math.hypot(column + 0.5 - level.playerStart.x, row + 0.5 - level.playerStart.y) < KEG.startClear) problems.push(`keg at ${column},${row} is within ${KEG.startClear} m of the start`)
+    if ((solid(column - 1, row) && solid(column + 1, row)) || (solid(column, row - 1) && solid(column, row + 1))) problems.push(`keg at ${column},${row} plugs a one-cell gap`)
+  }
+  return problems
+}
+
 export function validateLevel(level: BuiltLevel): string[] {
   const problems: string[] = []
   const { def, grid } = level
+  problems.push(...kegProblems(level))
   if (def.firstPerson) problems.push(...firstPersonProblems(level))
   if (level.landmarks.length > 0) {
     const base = parseRows(stackAreas(def).lines)

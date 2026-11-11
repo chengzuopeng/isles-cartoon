@@ -1,4 +1,4 @@
-import { CRATE_STACK_HEIGHT, FLOOR_STEP, STEP_HEIGHT, TILE_HEIGHTS, type TileKind } from '../data/heights'
+import { CRATE_STACK_HEIGHT, FLOOR_STEP, KEG_HEIGHT, STEP_HEIGHT, TILE_HEIGHTS, type TileKind } from '../data/heights'
 import type { Vec2 } from './math'
 
 export const Tile = {
@@ -71,6 +71,7 @@ const TERRAIN: Readonly<Record<string, Tile | undefined>> = {
   O: Tile.Boulder,
   c: Tile.Crate,
   K: Tile.Crate,
+  '!': Tile.Crate,
   C: Tile.Cart,
   f: Tile.Fence,
   ',': Tile.Path,
@@ -98,6 +99,7 @@ const TERRAIN: Readonly<Record<string, Tile | undefined>> = {
 
 const RAISED: Readonly<Record<string, number | undefined>> = {
   K: CRATE_STACK_HEIGHT,
+  '!': KEG_HEIGHT,
 }
 
 const MARKERS = new Set(['P', 'E', 'm', 'r', 'b', 't', 'h', 'g', 'B', 'S', '$', 'W', 'R', '+', '<', '>', '^', 'v'])

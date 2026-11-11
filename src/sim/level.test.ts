@@ -693,13 +693,15 @@ describe('level 1-2', () => {
     expect(yard.gates).toHaveLength(4)
   })
 
-  it('makes the boss barn a 32 by 30 hall with six hay pillars to hide behind', () => {
+  it('makes the boss barn a 32 by 30 hall with six hay pillars to hide behind and two powder kegs', () => {
     const barn = level.areas[4]
     const { columns } = grid
     const open: number[][] = []
+    const kegs = new Set(level.kegs)
+    expect(level.kegs.filter((index) => Math.floor(index / columns) >= barn.top && Math.floor(index / columns) < barn.bottom)).toHaveLength(2)
     for (let row = barn.top; row < barn.bottom; row++) {
       for (let column = 0; column < columns; column++) {
-        if (!blocksMovement(tileAt(grid, column, row)) || level.landmarkAt[row * columns + column] >= 0) open.push([column, row])
+        if (!blocksMovement(tileAt(grid, column, row)) || level.landmarkAt[row * columns + column] >= 0 || kegs.has(row * columns + column)) open.push([column, row])
       }
     }
     const hall = open.filter(([, row]) => row > barn.top + 3 && row < barn.bottom - 1)

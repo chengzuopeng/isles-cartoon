@@ -6,6 +6,7 @@ import { onDamageDealt } from './buffs'
 import { lineClear } from './collision'
 import { damageEnemy, damagePlayer, spawnBlast } from './combat'
 import { damageCrate } from './crates'
+import { igniteHay } from './props'
 import { shieldBlocks } from './enemies'
 import { Tile, blocksBullets, cellFloor, cellTop, floorAt, insideGrid, tileAt } from './grid'
 import { hitLandmarkCell } from './landmark-state'
@@ -114,7 +115,9 @@ function advance(world: World, bullet: Bullet, dt: number): boolean {
     }
     const tile = tileAt(grid, column, row)
     if (blocksBullets(tile) && bullet.z < cellTop(grid, column, row)) {
-      if (tile === Tile.Crate && bullet.team === 'player') damageCrate(world, row * grid.columns + column, bullet.damage)
+      const index = row * grid.columns + column
+      if (tile === Tile.Crate && (bullet.team === 'player' || world.kegs.has(index))) damageCrate(world, index, bullet.damage)
+      if (bullet.status === 'burn') igniteHay(world, index)
       if (tile === Tile.Landmark && bullet.team === 'player') hitLandmarkCell(world, row * grid.columns + column, bullet.damage)
       if (bullet.bounces > 0) {
         bounce(world, bullet, fromX, fromY, fromZ, column, row)

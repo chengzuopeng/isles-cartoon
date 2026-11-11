@@ -73,10 +73,10 @@
 .fps-sneak {
   position: absolute;
   left: calc(50% + 22px);
-  top: calc(50% - 30px);
+  top: calc(50% - 38px);
   font-family: var(--comic-font);
   font-weight: 900;
-  font-size: 26px;
+  font-size: 34px;
   line-height: 1;
   color: #ff8a3d;
   -webkit-text-stroke: 0.16em var(--ink);

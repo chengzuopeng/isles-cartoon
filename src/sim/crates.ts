@@ -2,11 +2,16 @@ import { CRATE_AMMO_CHANCE, CRATE_DROP_CHANCE, CRATE_HP, HEAL_SMALL } from '../d
 import { Tile, setTile } from './grid'
 import { invalidateNavigation } from './navigation'
 import { spawnPickup } from './pickups'
+import { igniteKeg } from './props'
 import type { World } from './world'
 
 export function damageCrate(world: World, index: number, amount: number): void {
   const { grid } = world
   if (grid.tiles[index] !== Tile.Crate || amount <= 0) return
+  if (world.kegs.has(index)) {
+    igniteKeg(world, index)
+    return
+  }
   const hp = (world.crates.get(index) ?? CRATE_HP) - amount
   if (hp > 0) {
     world.crates.set(index, hp)

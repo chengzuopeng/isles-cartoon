@@ -30,7 +30,7 @@ export interface EliteState {
   sinceHit: number
 }
 
-export type BlastSource = 'bomber' | 'boss' | 'player'
+export type BlastSource = 'bomber' | 'boss' | 'player' | 'keg'
 
 export type MineCause = 'stepped' | 'shot' | 'crowded'
 
@@ -298,6 +298,7 @@ export interface Blast {
   stun: number
   ignites: boolean
   chainable: boolean
+  keg: number
 }
 
 export interface Ring {
@@ -487,6 +488,9 @@ export type GameEvent =
   | { type: 'smashed'; id: number; kind: EnemyKind; x: number; y: number; z: number }
   | { type: 'combo'; kind: ChainKind; x: number; y: number; z: number }
   | { type: 'vaulted'; x: number; y: number }
+  | { type: 'kegLit'; x: number; y: number; z: number; index: number }
+  | { type: 'hayLit'; x: number; y: number; z: number; index: number }
+  | { type: 'hayBurnt'; x: number; y: number; z: number; index: number }
   | { type: 'enemyBumped'; id: number; x: number; y: number; z: number }
   | { type: 'bomberIgnite'; id: number; x: number; y: number }
   | { type: 'landmarkShaking'; index: number; x: number; y: number }

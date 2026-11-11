@@ -9,6 +9,7 @@ import { attackOf, sameAttack } from './attacks'
 import { absorbDamage } from './buffs'
 import { damageCratesInRadius } from './crates'
 import { armBomber } from './enemies/bomber'
+import { burstKeg, setOffProps } from './props'
 import { floorAt } from './grid'
 import { blastLandmarks } from './landmark-state'
 import { aggro, witnessDeath } from './perception'
@@ -46,6 +47,7 @@ export interface BlastSpec {
   stun?: number
   ignites?: boolean
   chainable?: boolean
+  keg?: number
 }
 
 export function damagePlayer(
@@ -300,6 +302,7 @@ export function spawnBlast(world: World, spec: BlastSpec): Blast {
     stun: spec.stun ?? 0,
     ignites: spec.ignites ?? (round && spec.source !== 'boss'),
     chainable: spec.chainable ?? false,
+    keg: spec.keg ?? -1,
   }
   world.blasts.push(blast)
   return blast
@@ -364,12 +367,13 @@ function detonate(world: World, blast: Blast): void {
       const distance = Math.hypot(dx, dy)
       const length = distance > 1e-6 ? distance : 1
       damageEnemy(world, enemy, blast.enemyDamage, dx / length, dy / length, knockback)
-      if (blast.source !== 'player') friendly = true
+      if (blast.source === 'bomber' || blast.source === 'boss') friendly = true
       if (blast.stun > 0 && enemy.hp > 0) stunEnemy(world, enemy, blast.stun)
       if (blast.source === 'player') chargeUltimate(world, blast.enemyDamage * ultShareOf(world, blast.weapon), enemy)
     }
   }
   if (friendly) world.events.push({ type: 'combo', kind: 'friendly', x: blast.x, y: blast.y, z: blast.z })
+  burstKeg(world, blast)
   if (blast.ignites) setOff(world, blast)
   if (blast.arcWidth <= 0 && blast.gapWidth <= 0 && blast.inner <= 0) {
     damageCratesInRadius(world, blast.x, blast.y, blast.radius, Math.max(blast.playerDamage, blast.enemyDamage))
@@ -392,5 +396,6 @@ function setOff(world: World, blast: Blast): void {
     other.delay = CHAIN.chainDelay
     chained = true
   }
+  if (setOffProps(world, blast)) chained = true
   if (chained) world.events.push({ type: 'combo', kind: 'chain', x: blast.x, y: blast.y, z: blast.z })
 }

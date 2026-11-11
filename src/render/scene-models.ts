@@ -1,5 +1,6 @@
 import { LANDMARKS, LANDMARK_IDS, type Facing, type LandmarkId, type LandmarkMotion, type MotionAxis } from '../data/landmarks'
 import type { Theme } from '../data/levels/types'
+import { HAY_THEMES } from '../data/props'
 import { Tile, tileAt, type Grid } from '../sim/grid'
 import { ALARM_RIGS, LANDMARK_FX, LANDMARK_GLOW, LANDMARK_LAMPS, LANDMARK_OPEN, LANDMARK_SCATTER, PROP_ONE_PART, type HingeRule } from './themes'
 
@@ -61,7 +62,7 @@ export const PROP_MODELS: Readonly<Record<PropKind, PropRule>> = {
     shadow: 'box',
   },
   rock: {
-    model: { ...everywhere('ch1-rock'), farm: 'ch1-haystack', village: 'ch1-haystack' },
+    model: { ...everywhere('ch1-rock'), ...Object.fromEntries(HAY_THEMES.map((theme) => [theme, 'ch1-haystack'])) },
     variants: 3,
     turn: 'quarter',
     scale: [1, 1],
