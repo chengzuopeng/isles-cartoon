@@ -77,8 +77,8 @@ test('1-1 plays in first person: the hero shoots a charger, walks into the barn 
     const world = game.world
     const target = world.enemies.find((enemy) => enemy.area === 0 && enemy.idleMode === 'patrol')!
     const player = world.player
-    player.pos.x = target.pos.x
-    player.pos.y = target.pos.y + 6
+    player.pos.x = target.pos.x + 6
+    player.pos.y = target.pos.y
     player.prev.x = player.pos.x
     player.prev.y = player.pos.y
     const before = target.hp

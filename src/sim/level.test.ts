@@ -9,11 +9,12 @@ import { TRIAL_HARVESTER } from '../data/levels/trial-harvester'
 import { TRIAL_SYSTEMS } from '../data/levels/trial-systems'
 import { TRAINING } from '../data/levels/training'
 import { cellVariant, type AreaDef } from '../data/levels/types'
-import { JUMP_HEIGHT, eyeHeightOf } from '../data/heights'
-import { Tile, blocksBullets, blocksMovement, cellFloor, cellTop, climbable, standHeight, tileAt } from './grid'
+import { JUMP_HEIGHT, bodyHeightOf, eyeHeightOf } from '../data/heights'
+import { Tile, blocksBullets, blocksMovement, cellFloor, cellTop, standHeight, tileAt } from './grid'
 import { getBoss } from '../data/bosses'
 import { createDefaultTuning } from '../data/tuning'
-import { buildLevel, insideRegion, reachableFrom, validateLevel } from './level'
+import { lineClear } from './collision'
+import { buildLevel, climbableFrom, insideRegion, reachableFrom, validateLevel } from './level'
 import { wakeChain } from './level-rules'
 import { idleCommand, stepWorld } from './step'
 import { levelFromAreas } from './testing'
@@ -172,10 +173,12 @@ describe('level 1-1', () => {
   })
 
   it('runs the five areas of the design: town field, windmill slope, threshing yard, field road and the boss field', () => {
-    expect(level.grid.columns).toBe(40)
+    expect(level.grid.columns).toBe(60)
     expect(level.areas.map((area) => area.name)).toEqual(['镇口麦田', '风车坡', '晒谷场', '田埂小路', '收割场'])
+    expect(level.areas.map((area) => area.bottom - area.top)).toEqual([46, 54, 50, 26, 34])
     expect(level.areas.map((area) => area.kind)).toEqual(['normal', 'normal', 'normal', 'normal', 'boss'])
     expect(new Set(level.areas.map((area) => area.theme)).size).toBe(5)
+    expect(level.areas.map((area) => area.walls)).toEqual(['hedge', null, null, null, null])
   })
 
   it('keeps the enemies of the design: chargers first, gunners next, both mixed in the yard, nobody on the road', () => {
@@ -191,19 +194,41 @@ describe('level 1-1', () => {
     expect(level.summonPoints.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('raises the dirt road half a metre above the wheat field, with big haystacks to hide behind and small ones to jump on', () => {
-    expect(floor(18, 0, 10)).toBe(0.5)
-    expect(floor(10, 0, 10)).toBe(0)
-    expect(tile(5, 0, 16)).toBe(Tile.Boulder)
-    expect(cellTop(grid, 5, level.areas[0].top + 16)).toBe(2.5)
-    expect(tile(4, 0, 28)).toBe(Tile.Rock)
-    expect(cellTop(grid, 4, level.areas[0].top + 28)).toBeCloseTo(1.2)
+  it('starts in a lane between three-metre wheat banks, with no enemy in sight and little ground showing', () => {
+    const start = level.playerStart
+    expect(Math.floor(start.y) - level.areas[0].top).toBe(41)
+    expect([7, 8, 13, 14].map((column) => [tile(column, 0, 40), floor(column, 0, 40)])).toEqual([
+      [Tile.Bush, 3],
+      [Tile.Floor, 0],
+      [Tile.Floor, 0],
+      [Tile.Bush, 3],
+    ])
+    const eye = { x: start.x, y: start.y, z: cellFloor(grid, Math.floor(start.x), Math.floor(start.y)) + eyeHeightOf('player') }
+    const seen = level.enemies.filter((enemy) => {
+      const ground = cellFloor(grid, Math.floor(enemy.x), Math.floor(enemy.y))
+      return lineClear(grid, eye, { x: enemy.x, y: enemy.y, z: ground + bodyHeightOf(enemy.kind) - 0.15 }, blocksBullets)
+    })
+    expect(seen).toEqual([])
+    const walk = reachableFrom(grid, start, true)
+    let open = 0
+    let shown = 0
+    for (let row = 0; row < grid.rows; row++) {
+      for (let column = 0; column < grid.columns; column++) {
+        if (walk[row * grid.columns + column] !== 1) continue
+        open++
+        if (lineClear(grid, eye, { x: column + 0.5, y: row + 0.5, z: cellFloor(grid, column, row) + 1 }, blocksBullets)) shown++
+      }
+    }
+    expect(open).toBeGreaterThan(5000)
+    expect(shown / open).toBeLessThan(0.08)
   })
 
-  it('shows the patrolling charger crossing the road ahead without spotting the hero at the start', () => {
+  it('sends the patrolling charger across the field past the mouth of the lane, too far to spot the hero at the start', () => {
     const patrol = level.enemies.find((enemy) => enemy.area === 0 && enemy.idle === 'patrol')!
-    expect([Math.floor(patrol.x), Math.floor(patrol.y) - level.areas[0].top]).toEqual([12, 15])
-    expect(patrol.route.map((point) => Math.floor(point.y) - level.areas[0].top)).toEqual([15, 15])
+    expect([Math.floor(patrol.x), Math.floor(patrol.y) - level.areas[0].top]).toEqual([5, 23])
+    expect(patrol.route.map((point) => Math.floor(point.y) - level.areas[0].top)).toEqual([23, 23])
+    expect(Math.min(...patrol.route.map((point) => point.x))).toBeLessThan(8)
+    expect(Math.max(...patrol.route.map((point) => point.x))).toBeGreaterThan(13)
     expect(Math.hypot(patrol.x - level.playerStart.x, patrol.y - level.playerStart.y)).toBeGreaterThan(createDefaultTuning().grunt.sight)
   })
 
@@ -230,47 +255,55 @@ describe('level 1-1', () => {
     expect(awake()).toEqual(['patrol'])
     expect(world.barks.has('sorry')).toBe(true)
     clear()
-    place(20.5, 24.5)
+    place(31.5, 18.5)
     wait(1)
     expect(awake()).toEqual([])
-    place(31.5, 24.5)
+    place(50.5, 20.5)
     wait(0.5)
     expect(awake()).toEqual(['ambush', 'ambush', 'ambush'])
     clear()
-    place(19.5, 16.5)
+    place(29.5, 14.5)
     wait(1)
     expect(awake()).toEqual([])
-    place(19.5, 12.5)
+    place(33.5, 6.5)
     wait(1)
     expect(awake()).toEqual(['guard', 'guard', 'guard', 'guard'])
   })
 
-  it('climbs the north bank of the river in half-metre steps to a windmill platform two metres above the banks', () => {
-    expect(tile(10, 1, 9)).toBe(Tile.Water)
-    expect(floor(10, 1, 9)).toBe(0)
-    expect(floor(10, 1, 14)).toBe(0.5)
-    expect(floor(8, 1, 9)).toBe(0.5)
-    expect([7, 6, 5, 4].map((row) => floor(10, 1, row))).toEqual([0.5, 1, 1.5, 2])
+  it('crosses the river on two bridges, split by a ridge, and climbs the north bank in half-metre steps', () => {
+    expect(tile(10, 1, 38)).toBe(Tile.Water)
+    expect(floor(10, 1, 38)).toBe(0)
+    expect([12, 46].map((column) => [tile(column, 1, 38), floor(column, 1, 38)])).toEqual([
+      [Tile.Path, 0.5],
+      [Tile.Path, 0.5],
+    ])
+    expect([35, 34, 33, 32].map((row) => floor(10, 1, row))).toEqual([0.5, 1, 1.5, 2])
+    for (let row = 26; row <= 46; row++) expect(tile(31, 1, row) === Tile.Boulder || floor(31, 1, row) === 4.5).toBe(true)
     const windmill = level.landmarks.find((landmark) => landmark.id === 'ch1-windmill')!
-    for (const cell of windmill.cells) expect(grid.floor[cell]).toBe(2.5)
-    for (let column = 27; column <= 38; column++) expect(floor(column, 1, 5) - floor(column, 1, 6)).toBe(1.5)
-    expect(floor(27, 1, 2) - floor(26, 1, 2)).toBe(0.5)
+    for (const cell of windmill.cells) expect(grid.floor[cell]).toBe(3)
+    expect([21, 19, 18].map((row) => floor(45, 1, row))).toEqual([2, 2.5, 3])
     for (const gunner of level.enemies.filter((enemy) => enemy.area === 1 && enemy.kind === 'gunner')) {
       expect(cellFloor(grid, Math.floor(gunner.x), Math.floor(gunner.y))).toBeGreaterThanOrEqual(2)
     }
   })
 
-  it('makes the passage behind the windmill a walk around by the ramp, not a jump up the platform edge', () => {
+  it('keeps the wheat banks and the hill tops out of reach, so they really cut the view', () => {
+    const climb = climbableFrom(grid, level.playerStart)
+    const blocked = (area: number, height: number) => {
+      const cells: number[] = []
+      for (let row = level.areas[area].top; row < level.areas[area].bottom; row++) {
+        for (let column = 1; column < grid.columns - 1; column++) if (!blocksMovement(tileAt(grid, column, row)) && cellFloor(grid, column, row) >= height) cells.push(row * grid.columns + column)
+      }
+      return cells
+    }
+    const banks = blocked(0, 3)
+    const hills = blocked(1, 4.5)
+    expect(banks.length).toBeGreaterThan(500)
+    expect(hills.length).toBeGreaterThan(500)
+    for (const cell of [...banks, ...hills]) expect(climb[cell]).toBe(0)
     const weapon = level.chests.find((chest) => chest.tier === 'weapon')!
     const reachable = reachableFrom(grid, level.playerStart, true)
     expect(reachable[Math.floor(weapon.y) * grid.columns + Math.floor(weapon.x)]).toBe(1)
-    const top = level.areas[1].top
-    for (let column = 25; column <= 38; column++) {
-      const below = Math.max(standHeight(grid, column, top + 6), ...[-1, 0, 1].map((dc) => standHeight(grid, column + dc, top + 7)).filter(Number.isFinite))
-      if (column >= 27) expect(standHeight(grid, column, top + 5) - below).toBeGreaterThan(JUMP_HEIGHT)
-      expect(climbable(tileAt(grid, column, top + 6))).toBe(false)
-    }
-    expect(standHeight(grid, 27, top + 2) - standHeight(grid, 26, top + 2)).toBe(0.5)
   })
 
   it('walls the rare chest at the altar in with boulders too tall to jump, so the only way in is through the grass', () => {
@@ -306,16 +339,27 @@ describe('level 1-1', () => {
     expect(reachable[Math.floor(chest.y) * grid.columns + Math.floor(chest.x)]).toBe(1)
   })
 
-  it('raises the threshing floor a metre over the yard with a walkable ramp on the road side and a jump-up north edge', () => {
-    const top = level.areas[2].top
-    expect(floor(30, 2, 15)).toBe(3)
-    expect(floor(10, 2, 15)).toBe(2)
-    expect([22, 23, 24].map((column) => floor(column, 2, 15))).toEqual([2, 2.5, 3])
-    expect(floor(30, 2, 8) - floor(30, 2, 7)).toBe(1)
+  it('raises the threshing floor a metre over the yard with ramps on the west and east sides and a jump-up north edge', () => {
+    expect(floor(35, 2, 30)).toBe(3)
+    expect(floor(15, 2, 30)).toBe(2)
+    expect([28, 29, 30].map((column) => floor(column, 2, 30))).toEqual([2, 2.5, 3])
+    expect([50, 49, 47].map((column) => floor(column, 2, 32))).toEqual([2, 2.5, 3])
+    expect(floor(35, 2, 24) - floor(35, 2, 23)).toBe(1)
     for (const enemy of level.enemies.filter((item) => item.area === 2 && item.idle !== 'ambush' && item.x > 20)) {
       expect(cellFloor(grid, Math.floor(enemy.x), Math.floor(enemy.y))).toBe(3)
     }
-    expect(top).toBeGreaterThan(0)
+  })
+
+  it('hides the threshing floor from the yard entrance behind a row of big haystacks', () => {
+    const top = level.areas[2].top
+    const eye = { x: 15.5, y: top + 47.5, z: floor(15, 2, 47) + eyeHeightOf('player') }
+    const platform = level.enemies.filter((enemy) => enemy.area === 2 && enemy.idle !== 'ambush' && enemy.x > 20)
+    expect(platform).toHaveLength(5)
+    for (const enemy of platform) {
+      const ground = cellFloor(grid, Math.floor(enemy.x), Math.floor(enemy.y))
+      expect(lineClear(grid, eye, { x: enemy.x, y: enemy.y, z: ground + bodyHeightOf(enemy.kind) - 0.15 }, blocksBullets)).toBe(false)
+    }
+    expect([26, 35, 43].map((row) => tile(20, 2, row))).toEqual([Tile.Boulder, Tile.Boulder, Tile.Boulder])
   })
 
   it('keeps the barn squad and the threshing floor squad from waking each other', () => {
@@ -328,17 +372,19 @@ describe('level 1-1', () => {
     for (const seed of east) expect(wakeChain(level, seed, tuning).some((index) => west.includes(index))).toBe(false)
   })
 
-  it('springs the two yard ambushers from behind haystacks ahead of the road, not behind the hero', () => {
+  it('springs the two yard ambushers from behind a haystack and a wall in the north half, ahead of the road', () => {
     const ambushers = level.enemies.filter((enemy) => enemy.area === 2 && enemy.idle === 'ambush')
     expect(ambushers).toHaveLength(2)
     for (const enemy of ambushers) {
       const column = Math.floor(enemy.x)
       const row = Math.floor(enemy.y)
-      expect(tileAt(grid, column, row + 1)).toBe(Tile.Rock)
-      expect(row - level.areas[2].top).toBeLessThan(12)
+      const near = [-2, -1, 0, 1, 2]
+      const cover = near.flatMap((dr) => near.map((dc) => tileAt(grid, column + dc, row + dr))).filter((cell) => cell === Tile.Boulder || cell === Tile.Wall)
+      expect(cover.length).toBeGreaterThan(0)
+      expect(row - level.areas[2].top).toBeLessThan(20)
     }
-    expect(indexOf(14, 2, 9)).toBeGreaterThanOrEqual(0)
-    expect(indexOf(22, 2, 3)).toBeGreaterThanOrEqual(0)
+    expect(indexOf(22, 2, 15)).toBeGreaterThanOrEqual(0)
+    expect(indexOf(33, 2, 5)).toBeGreaterThanOrEqual(0)
   })
 
   it('hides a chest in the field, a weapon chest behind the windmill, a rare one at the altar and one in the barn, and rests at a campfire before the boss', () => {

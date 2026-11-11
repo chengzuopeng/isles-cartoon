@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Tile, type Grid } from '../sim/grid'
 import type { BuiltLevel } from '../sim/level'
-import { VISUAL_HEIGHTS, buildWalls, isBorder, tuftGeometry } from './fps-level-view'
+import { VISUAL_HEIGHTS, buildWalls, innerNeighbor, isBorder, tuftGeometry } from './fps-level-view'
 
 function grid(rows: string[], floors?: number[][]): Grid {
   const tiles: Record<string, Tile> = { '.': Tile.Floor, '#': Tile.Wall, '~': Tile.Water }
@@ -23,10 +23,10 @@ function grid(rows: string[], floors?: number[][]): Grid {
   return result
 }
 
-function level(target: Grid): BuiltLevel {
+function level(target: Grid, walls: 'hedge' | null = null): BuiltLevel {
   return {
     grid: target,
-    areas: [{ index: 0, name: 'test', theme: 'farm', kind: 'normal', fog: false, top: 0, bottom: target.rows - 1, gates: [] }],
+    areas: [{ index: 0, name: 'test', theme: 'farm', kind: 'normal', walls, fog: false, top: 0, bottom: target.rows - 1, gates: [] }],
     areaOfRow: new Int16Array(target.rows),
   } as unknown as BuiltLevel
 }
@@ -43,6 +43,15 @@ describe('fps level view', () => {
     expect(isBorder(target, 2, 2)).toBe(true)
   })
 
+  it('finds the cell just inside each border cell, to tell whether its fence can be seen', () => {
+    const target = grid(['....', '....', '....'])
+    expect(innerNeighbor(target, 0, 1)).toEqual({ column: 1, row: 1 })
+    expect(innerNeighbor(target, 3, 1)).toEqual({ column: 2, row: 1 })
+    expect(innerNeighbor(target, 2, 0)).toEqual({ column: 2, row: 1 })
+    expect(innerNeighbor(target, 1, 2)).toEqual({ column: 1, row: 1 })
+    expect(innerNeighbor(target, 1, 1)).toBeNull()
+  })
+
   it('raises inner walls to full height and leaves border walls to the fence', () => {
     const walls = buildWalls(level(grid(['#####', '#.#.#', '#####'])))
     const geometry = walls.get('farm')
@@ -57,6 +66,12 @@ describe('fps level view', () => {
     }
     expect(highest).toBe(VISUAL_HEIGHTS.wall)
     expect(lowest).toBeCloseTo(-VISUAL_HEIGHTS.wallSink)
+  })
+
+  it('builds the walls of a hedged area apart from the wooden ones', () => {
+    const walls = buildWalls(level(grid(['#####', '#.#.#', '#####']), 'hedge'))
+    expect([...walls.keys()]).toEqual(['hedge'])
+    expect(quads(walls.get('hedge')!.getAttribute('position').count)).toBe(5)
   })
 
   it('skips the shared face between two neighbouring inner walls', () => {

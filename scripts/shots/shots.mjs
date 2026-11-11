@@ -92,6 +92,9 @@ async function main() {
         player.pos.y = target.at[1]
         player.prev.x = player.pos.x
         player.prev.y = player.pos.y
+        const grid = game.world.grid
+        player.z = grid.floor[Math.floor(player.pos.y) * grid.columns + Math.floor(player.pos.x)]
+        player.prevZ = player.z
         game.advance(0.05)
         game.look(target.yaw, target.pitch)
       }, spot)

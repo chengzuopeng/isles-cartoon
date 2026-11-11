@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { LANDMARKS, type LandmarkMotion } from '../data/landmarks'
-import type { Theme } from '../data/levels/types'
+import type { Theme, WallStyle } from '../data/levels/types'
 import { Tile, cellFloor, tileAt, type Grid } from '../sim/grid'
 import type { BuiltLevel } from '../sim/level'
 import type { GameEvent } from '../sim/types'
@@ -11,7 +11,8 @@ import type { ModelLibrary } from './model-library'
 import { buildBuilding } from './buildings'
 import { buildTerrain, createTerrainMaterials, surfaceHeight, terrainChunks } from './fps-terrain'
 import { STALK_STYLES, createStalkMaterial, stalkGeometry, stalkMatrices } from './stalks'
-import { flowerBatches, flowerHeadGeometry, flowerStemGeometry, pebbleBatches, pebbleGeometry, spikeBatches, spikeGeometry, type DetailBatch, type WallEdge } from './ground-details'
+import { flowerBatches, flowerHeadGeometry, flowerStemGeometry, hedgeTopBatches, hedgeTopGeometry, pebbleBatches, pebbleGeometry, spikeBatches, spikeGeometry, type DetailBatch, type WallEdge } from './ground-details'
+import { hiddenTops, treeDepths, treeLook } from './level-cover'
 import { bakeNode, type NodePart } from './node-parts'
 import {
   BACKDROP_THEMES,
@@ -76,6 +77,12 @@ const WALL_TEXTURES: Readonly<Record<Theme, LineTextureKind>> = {
   factory: 'metal',
 }
 
+export type WallLook = Theme | WallStyle
+
+const WALL_STYLES: Readonly<Record<WallStyle, { color: string; texture: LineTextureKind }>> = {
+  hedge: { color: '#5a9440', texture: 'grass' },
+}
+
 const TILE_PROPS: Readonly<Partial<Record<Tile, PropKind>>> = {
   [Tile.Rock]: 'rock',
   [Tile.Boulder]: 'rock',
@@ -116,8 +123,24 @@ export function isBorder(grid: Grid, column: number, row: number): boolean {
   return column === 0 || row === 0 || column === grid.columns - 1 || row === grid.rows - 1
 }
 
+export function innerNeighbor(grid: Grid, column: number, row: number): { column: number; row: number } | null {
+  if (column === 0) return { column: 1, row }
+  if (column === grid.columns - 1) return { column: grid.columns - 2, row }
+  if (row === 0) return { column, row: 1 }
+  if (row === grid.rows - 1) return { column, row: grid.rows - 2 }
+  return null
+}
+
 function themeOf(level: BuiltLevel, row: number): Theme {
   return level.areas[level.areaOfRow[row]]?.theme ?? 'farm'
+}
+
+function wallStyleOf(level: BuiltLevel, row: number): WallStyle | null {
+  return level.areas[level.areaOfRow[row]]?.walls ?? null
+}
+
+function wallLookOf(level: BuiltLevel, row: number): WallLook {
+  return wallStyleOf(level, row) ?? themeOf(level, row)
 }
 
 class GeometryBuilder {
@@ -162,19 +185,19 @@ function edgeCorners(column: number, row: number, side: (typeof SIDES)[number]):
   return [column, row, column, row + 1]
 }
 
-export function buildWalls(level: BuiltLevel, fromRow = 0, toRow = level.grid.rows): Map<Theme, THREE.BufferGeometry> {
+export function buildWalls(level: BuiltLevel, fromRow = 0, toRow = level.grid.rows): Map<WallLook, THREE.BufferGeometry> {
   const { grid } = level
-  const builders = new Map<Theme, GeometryBuilder>()
+  const builders = new Map<WallLook, GeometryBuilder>()
   const white = new THREE.Color('#ffffff')
   const solid = (column: number, row: number) => column >= 0 && row >= 0 && column < grid.columns && row < grid.rows && tileAt(grid, column, row) === Tile.Wall && !isBorder(grid, column, row)
   for (let row = fromRow; row < Math.min(toRow, grid.rows); row++) {
     for (let column = 0; column < grid.columns; column++) {
       if (!solid(column, row)) continue
-      const theme = themeOf(level, row)
-      let builder = builders.get(theme)
+      const look = wallLookOf(level, row)
+      let builder = builders.get(look)
       if (!builder) {
         builder = new GeometryBuilder()
-        builders.set(theme, builder)
+        builders.set(look, builder)
       }
       const base = cellFloor(grid, column, row)
       const top = base + VISUAL_HEIGHTS.wall
@@ -191,8 +214,8 @@ export function buildWalls(level: BuiltLevel, fromRow = 0, toRow = level.grid.ro
       }
     }
   }
-  const result = new Map<Theme, THREE.BufferGeometry>()
-  for (const [theme, builder] of builders) result.set(theme, builder.build())
+  const result = new Map<WallLook, THREE.BufferGeometry>()
+  for (const [look, builder] of builders) result.set(look, builder.build())
   return result
 }
 
@@ -210,7 +233,7 @@ export function wallEdges(level: BuiltLevel): WallEdge[] {
         const nr = row + side.dr
         if (solid(nc, nr) && Math.abs(cellFloor(grid, nc, nr) - base) < 0.01) continue
         const [x1, z1, x2, z2] = edgeCorners(column, row, side)
-        edges.push({ x1, z1, x2, z2, inX: -side.normal.x, inZ: -side.normal.z, top: base + VISUAL_HEIGHTS.wall, theme, color: PALETTES[theme].wall, row, seed: row * grid.columns + column })
+        edges.push({ x1, z1, x2, z2, inX: -side.normal.x, inZ: -side.normal.z, top: base + VISUAL_HEIGHTS.wall, theme, style: wallStyleOf(level, row), color: PALETTES[theme].wall, row, seed: row * grid.columns + column })
       }
     }
   }
@@ -285,20 +308,21 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   disposables.push(terrain.geometry, terrain.water, terrain.underside, terrainMaterials)
   const groundAt = (x: number, z: number, floor: number) => Math.min(floor, terrain.heightAt(x, z))
 
-  const wallMaterials = new Map<Theme, THREE.Material>()
+  const wallMaterials = new Map<WallLook, THREE.Material>()
   for (let index = 0; index * LEVEL_CULL.chunkRows < grid.rows; index++) {
     const range = bandRange(index)
-    for (const [theme, geometry] of buildWalls(level, range.near, range.far)) {
-      let material = wallMaterials.get(theme)
+    for (const [look, geometry] of buildWalls(level, range.near, range.far)) {
+      let material = wallMaterials.get(look)
       if (!material) {
-        material = toonMaterial({ color: PALETTES[theme].wall, map: lineTexture(WALL_TEXTURES[theme]) })
-        wallMaterials.set(theme, material)
+        const style = look in WALL_STYLES ? WALL_STYLES[look as WallStyle] : { color: PALETTES[look as Theme].wall, texture: WALL_TEXTURES[look as Theme] }
+        material = toonMaterial({ color: style.color, map: lineTexture(style.texture) })
+        wallMaterials.set(look, material)
         disposables.push(material)
       }
       const mesh = new THREE.Mesh(geometry, material)
       mesh.castShadow = true
       mesh.receiveShadow = true
-      mesh.name = `walls-${theme}`
+      mesh.name = `walls-${look}`
       group.add(mesh)
       culled.push({ object: mesh, ...range })
       disposables.push(geometry)
@@ -340,6 +364,14 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   const stalkSpots = new Map<string, { theme: Theme; band: number; matrices: THREE.Matrix4[] }>()
   const gateParts = has('ch1-gate')
   const crateModel = has('crate')
+  const hidden = hiddenTops(level)
+  const depths = treeDepths(grid)
+  const fenceUnseen = (column: number, row: number) => {
+    const inner = innerNeighbor(grid, column, row)
+    if (!inner) return false
+    const tile = tileAt(grid, inner.column, inner.row)
+    return tile === Tile.Wall || tile === Tile.Tree || hidden[inner.row * grid.columns + inner.column] === 1
+  }
 
   for (let row = 0; row < grid.rows; row++) {
     const theme = themeOf(level, row)
@@ -364,6 +396,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
         })
       }
       if (tile === Tile.Fence || (tile === Tile.Wall && border)) {
+        if (border && fenceUnseen(column, row)) continue
         place('fence-post', fenceParts.post, x, floor, z, 0, 1.15, fenceScale, 1.15, false)
         const links = linksOf(grid, column, row, border ? borderJoins(column, row) : fenceJoins)
         for (const [direction, linked] of Object.entries(links)) {
@@ -413,6 +446,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       }
       const kind = TILE_PROPS[tile]
       if (!kind) continue
+      if (hidden[row * grid.columns + column] === 1) continue
       const stalks = kind === 'bush' ? STALK_STYLES[theme] : undefined
       if (stalks) {
         const key = `${theme}#${band(row)}`
@@ -432,6 +466,12 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       }
       const fit = PROP_FIT[kind] ?? 1
       const s = propScale(kind, column, row) * fit
+      if (kind === 'tree') {
+        const look = treeLook(depths[row * grid.columns + column], column, row)
+        if (!look) continue
+        place(id, models.parts(id as ModelId), x, groundAt(x, z, floor) - 0.06, z, propYaw(kind, column, row), s * look.scale, s * look.scale, s * look.scale, look.shadow, look.ink)
+        continue
+      }
       place(id, models.parts(id as ModelId), x, groundAt(x, z, floor) - (kind === 'cart' ? 0 : 0.06), z, propYaw(kind, column, row), s, s, s, kind !== 'bush')
     }
   }
@@ -479,7 +519,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   for (let row = 0; row < grid.rows; row++) {
     if (!TUFT_THEMES.has(themeOf(level, row))) continue
     for (let column = 0; column < grid.columns; column++) {
-      if (tileAt(grid, column, row) !== Tile.Floor || isBorder(grid, column, row)) continue
+      if (tileAt(grid, column, row) !== Tile.Floor || isBorder(grid, column, row) || hidden[row * grid.columns + column] === 1) continue
       const count = cellHash(column, row, 11) < TUFT.denseShare ? TUFT.dense : TUFT.sparse
       for (let k = 0; k < count; k++) {
         const tx = column + 0.15 + cellHash(column, row, 20 + k) * 0.7
@@ -538,11 +578,14 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     }
   }
   const surface = (x: number, z: number) => terrain.heightAt(x, z)
-  const flowers = flowerBatches(grid, (row) => themeOf(level, row), surface, band, (column, row) => isBorder(grid, column, row))
+  const unseen = (column: number, row: number) => hidden[row * grid.columns + column] === 1
+  const flowers = flowerBatches(grid, (row) => themeOf(level, row), surface, band, (column, row) => isBorder(grid, column, row) || unseen(column, row))
   addDetails('flower-stems', flowers, flowerStemGeometry(), toonMaterial({ vertexColors: true, side: THREE.DoubleSide }), false, false)
   addDetails('flower-heads', flowers, flowerHeadGeometry(), toonMaterial({ side: THREE.DoubleSide }), false)
-  addDetails('pebbles', pebbleBatches(grid, surface, band), pebbleGeometry(), toonMaterial({}), false)
-  addDetails('palisade-tips', spikeBatches(wallEdges(level), band), spikeGeometry(), toonMaterial({}), true)
+  addDetails('pebbles', pebbleBatches(grid, surface, band, unseen), pebbleGeometry(), toonMaterial({}), false)
+  const edges = wallEdges(level)
+  addDetails('palisade-tips', spikeBatches(edges, band), spikeGeometry(), toonMaterial({}), true)
+  addDetails('hedge-tops', hedgeTopBatches(edges, band), hedgeTopGeometry(), toonMaterial({}), true)
 
   const exitMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#9ff6ff').multiplyScalar(1.1), transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide })
   const exitGeometry = new THREE.CylinderGeometry(0.32, 0.42, 4.5, 20, 1, true)

@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import type { Theme } from '../data/levels/types'
 import { Tile, parseRows, tileAt } from '../sim/grid'
-import { GROUND_DETAIL, flowerBatches, pebbleBatches, spikeBatches, type DetailBatch, type WallEdge } from './ground-details'
+import { GROUND_DETAIL, flowerBatches, hedgeTopBatches, pebbleBatches, spikeBatches, type DetailBatch, type WallEdge } from './ground-details'
 
 const ROWS = Array.from({ length: 40 }, (_, row) => (row % 2 === 0 ? '.'.repeat(30) : ','.repeat(30)))
 const FLAT = () => 0
@@ -51,12 +51,35 @@ describe('ground details', () => {
   })
 
   it('lines the top of wooden walls with tips and leaves the other walls plain', () => {
-    const edge = (theme: Theme): WallEdge => ({ x1: 0, z1: 0, x2: 2, z2: 0, inX: 0, inZ: 1, top: 3, theme, color: '#b48a5e', row: 0, seed: 1 })
+    const edge = (theme: Theme): WallEdge => ({ x1: 0, z1: 0, x2: 2, z2: 0, inX: 0, inZ: 1, top: 3, theme, style: null, color: '#b48a5e', row: 0, seed: 1 })
     const wooden = all(spikeBatches([edge('farm')], () => 0))
     expect(wooden).toHaveLength(2 * GROUND_DETAIL.spike.perMeter)
     const tip = new THREE.Vector3().setFromMatrixPosition(wooden[0])
     expect(tip.y).toBeCloseTo(3 - 0.02)
     expect(tip.z).toBeCloseTo(GROUND_DETAIL.spike.inset)
     expect(all(spikeBatches([edge('meadow')], () => 0))).toHaveLength(0)
+  })
+
+  it('crowns hedges with leafy clumps instead of wooden tips', () => {
+    const hedge: WallEdge = { x1: 0, z1: 0, x2: 3, z2: 0, inX: 0, inZ: 1, top: 3, theme: 'farm', style: 'hedge', color: '#b48a5e', row: 0, seed: 7 }
+    expect(all(spikeBatches([hedge], () => 0))).toHaveLength(0)
+    const clumps = all(hedgeTopBatches([hedge], () => 0))
+    expect(clumps).toHaveLength(Math.round(3 * GROUND_DETAIL.hedge.perMeter))
+    for (const clump of clumps) {
+      const at = new THREE.Vector3().setFromMatrixPosition(clump)
+      expect(at.y).toBeCloseTo(3 - GROUND_DETAIL.hedge.sink)
+      expect(at.z).toBeCloseTo(GROUND_DETAIL.hedge.inset)
+      expect(at.x).toBeGreaterThan(0)
+      expect(at.x).toBeLessThan(3)
+    }
+    expect(all(hedgeTopBatches([{ ...hedge, style: null }], () => 0))).toHaveLength(0)
+  })
+
+  it('leaves out pebbles on paths nobody can see', () => {
+    const everywhere = all(pebbleBatches(grid, FLAT, () => 0))
+    const half = all(pebbleBatches(grid, FLAT, () => 0, (column) => column < 15))
+    expect(half.length).toBeGreaterThan(0)
+    expect(half.length).toBeLessThan(everywhere.length)
+    for (const matrix of half) expect(cellOf(matrix)[0]).toBeGreaterThanOrEqual(15)
   })
 })

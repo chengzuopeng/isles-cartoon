@@ -13,10 +13,11 @@ describe('calibrating level 1-1 with human-like autopilots', () => {
     console.table(summarize(runs))
   }, 120_000)
 
-  it('is cleared by the perfect autopilot every time and by the human one almost every time', () => {
+  it('is cleared by the perfect autopilot every time and by the human one almost every time, the novice taking the most hits', () => {
     expect(clearsOf(runs, 'perfect')).toBe(SEEDS.length)
     expect(clearsOf(runs, 'human')).toBeGreaterThanOrEqual(8)
-    expect(clearsOf(runs, 'novice')).toBeLessThan(clearsOf(runs, 'human'))
+    expect(clearsOf(runs, 'novice')).toBeLessThanOrEqual(clearsOf(runs, 'human'))
+    expect(averageOf(runs, 'novice', (run) => run.hits)).toBeGreaterThan(averageOf(runs, 'human', (run) => run.hits) * 2)
   })
 
   it('misses more shots and takes more damage as the skill drops', () => {

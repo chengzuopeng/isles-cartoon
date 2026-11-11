@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { Theme } from '../data/levels/types'
+import type { Theme, WallStyle } from '../data/levels/types'
 import { Tile, tileAt, type Grid } from '../sim/grid'
 import { cellHash } from './scene-models'
 
@@ -7,6 +7,7 @@ export const GROUND_DETAIL = {
   flower: { chance: 0.2, extra: 0.4, height: [0.3, 0.46] as const, spread: 0.95, head: 0.2, colors: ['#fff4dc', '#ffd84a', '#ff9ec7', '#a9d4ff', '#ffb36b'] as const },
   pebble: { chance: 0.32, extra: 0.45, size: [0.05, 0.12] as const, colors: ['#b9ad95', '#a39783', '#cfc4ab', '#8f8576'] as const },
   spike: { perMeter: 3, radius: 0.15, height: 0.42, inset: 0.16, jitter: 0.25 },
+  hedge: { perMeter: 1.7, radius: [0.36, 0.56] as const, inset: 0.24, sink: 0.14, colors: ['#5f9a44', '#4f8a3a', '#6aa84c', '#578f3e'] as const },
 } as const
 
 export const FLOWER_THEMES: ReadonlySet<Theme> = new Set(['farm', 'meadow', 'forest'])
@@ -66,6 +67,10 @@ export function spikeGeometry(): THREE.BufferGeometry {
   return new THREE.ConeGeometry(1, 1, 5).translate(0, 0.5, 0)
 }
 
+export function hedgeTopGeometry(): THREE.BufferGeometry {
+  return new THREE.IcosahedronGeometry(1, 1)
+}
+
 export function flowerBatches(grid: Grid, themeOf: (row: number) => Theme, ground: Ground, bandOf: (row: number) => number, skip: (column: number, row: number) => boolean): Map<number, DetailBatch> {
   const batches = new Map<number, DetailBatch>()
   const { flower } = GROUND_DETAIL
@@ -97,7 +102,7 @@ export function flowerBatches(grid: Grid, themeOf: (row: number) => Theme, groun
   return batches
 }
 
-export function pebbleBatches(grid: Grid, ground: Ground, bandOf: (row: number) => number): Map<number, DetailBatch> {
+export function pebbleBatches(grid: Grid, ground: Ground, bandOf: (row: number) => number, skip: (column: number, row: number) => boolean = () => false): Map<number, DetailBatch> {
   const batches = new Map<number, DetailBatch>()
   const { pebble } = GROUND_DETAIL
   const matrix = new THREE.Matrix4()
@@ -107,7 +112,7 @@ export function pebbleBatches(grid: Grid, ground: Ground, bandOf: (row: number) 
   const euler = new THREE.Euler()
   for (let row = 0; row < grid.rows; row++) {
     for (let column = 0; column < grid.columns; column++) {
-      if (tileAt(grid, column, row) !== Tile.Path) continue
+      if (tileAt(grid, column, row) !== Tile.Path || skip(column, row)) continue
       if (cellHash(column, row, 601) >= pebble.chance) continue
       const count = 1 + (cellHash(column, row, 602) < pebble.extra ? 2 : 0)
       for (let k = 0; k < count; k++) {
@@ -136,6 +141,7 @@ export interface WallEdge {
   inZ: number
   top: number
   theme: Theme
+  style: WallStyle | null
   color: string
   row: number
   seed: number
@@ -149,7 +155,7 @@ export function spikeBatches(edges: readonly WallEdge[], bandOf: (row: number) =
   const rotation = new THREE.Quaternion()
   const scale = new THREE.Vector3()
   for (const edge of edges) {
-    if (!SPIKE_THEMES.has(edge.theme)) continue
+    if (edge.style !== null || !SPIKE_THEMES.has(edge.theme)) continue
     const length = Math.hypot(edge.x2 - edge.x1, edge.z2 - edge.z1)
     const count = Math.max(1, Math.round(length * spike.perMeter))
     for (let k = 0; k < count; k++) {
@@ -163,6 +169,33 @@ export function spikeBatches(edges: readonly WallEdge[], bandOf: (row: number) =
       const batch = batchOf(batches, bandOf(edge.row))
       batch.matrices.push(matrix.compose(position, rotation, scale).clone())
       batch.colors.push(new THREE.Color(edge.color))
+    }
+  }
+  return batches
+}
+
+export function hedgeTopBatches(edges: readonly WallEdge[], bandOf: (row: number) => number): Map<number, DetailBatch> {
+  const batches = new Map<number, DetailBatch>()
+  const { hedge } = GROUND_DETAIL
+  const matrix = new THREE.Matrix4()
+  const position = new THREE.Vector3()
+  const rotation = new THREE.Quaternion()
+  const scale = new THREE.Vector3()
+  for (const edge of edges) {
+    if (edge.style !== 'hedge') continue
+    const length = Math.hypot(edge.x2 - edge.x1, edge.z2 - edge.z1)
+    const count = Math.max(1, Math.round(length * hedge.perMeter))
+    for (let k = 0; k < count; k++) {
+      const t = (k + 0.2 + cellHash(edge.seed, k, 711) * 0.6) / count
+      const radius = hedge.radius[0] + cellHash(edge.seed, k, 712) * (hedge.radius[1] - hedge.radius[0])
+      const x = edge.x1 + (edge.x2 - edge.x1) * t + edge.inX * hedge.inset
+      const z = edge.z1 + (edge.z2 - edge.z1) * t + edge.inZ * hedge.inset
+      position.set(x, edge.top - hedge.sink, z)
+      rotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), cellHash(edge.seed, k, 713) * Math.PI * 2)
+      scale.set(radius, radius * 0.8, radius)
+      const batch = batchOf(batches, bandOf(edge.row))
+      batch.matrices.push(matrix.compose(position, rotation, scale).clone())
+      batch.colors.push(new THREE.Color(pick(hedge.colors, cellHash(edge.seed, k, 714))))
     }
   }
   return batches

@@ -254,12 +254,12 @@ describe('bridges and gates', () => {
         }
       }
     }
-    expect(bridges).toHaveLength(24)
-    expect(new Set(bridges.map(([, row]) => row))).toEqual(new Set([8, 9, 10, 11]))
-    expect(new Set(bridges.map(([column]) => column))).toEqual(new Set([7, 8, 9, 30, 31, 32]))
-    expect(bridges.find(([column, row]) => column === 7 && row === 8)?.[2]).toEqual([180])
-    expect(bridges.find(([column, row]) => column === 8 && row === 8)?.[2]).toEqual([])
-    expect(bridges.find(([column, row]) => column === 9 && row === 8)?.[2]).toEqual([0])
+    expect(bridges).toHaveLength(36)
+    expect(new Set(bridges.map(([, row]) => row))).toEqual(new Set([36, 37, 38, 39, 40, 41]))
+    expect(new Set(bridges.map(([column]) => column))).toEqual(new Set([11, 12, 13, 45, 46, 47]))
+    expect(bridges.find(([column, row]) => column === 11 && row === 36)?.[2]).toEqual([180])
+    expect(bridges.find(([column, row]) => column === 12 && row === 36)?.[2]).toEqual([])
+    expect(bridges.find(([column, row]) => column === 13 && row === 36)?.[2]).toEqual([0])
   })
 
   it('lays a bridge east to west over a river that runs north to south', () => {
@@ -301,10 +301,10 @@ describe('bridges and gates', () => {
     }
     expect(ends.sort()).toEqual(
       [
-        [7, 8, 180],
-        [9, 11, 0],
-        [30, 8, 180],
-        [32, 11, 0],
+        [11, 36, 180],
+        [13, 41, 0],
+        [45, 36, 180],
+        [47, 41, 0],
       ].sort(),
     )
     const ford = parseRows(['#~.~#', '#~,~#', '#~.~#']).grid

@@ -78,6 +78,8 @@ export interface BladeDef {
 
 export type AreaKind = 'normal' | 'lock' | 'boss' | 'destroy'
 
+export type WallStyle = 'hedge'
+
 export interface BossTuningDef {
   maxHp?: number
   damage?: number
@@ -87,6 +89,7 @@ export interface AreaDef {
   name: string
   theme: Theme
   kind?: AreaKind
+  walls?: WallStyle
   idle?: IdleMode
   patrols?: readonly PatrolDef[]
   elites?: readonly EliteDef[]

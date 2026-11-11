@@ -5,7 +5,7 @@ import type { ClueId } from '../data/clues'
 import type { AffixId } from '../data/elites'
 import type { IdleMode } from '../data/enemies'
 import { LANDMARKS, type LandmarkId } from '../data/landmarks'
-import type { AreaKind, BladeDef, GridPoint, LevelDef, RegionDef, Theme } from '../data/levels/types'
+import type { AreaKind, BladeDef, GridPoint, LevelDef, RegionDef, Theme, WallStyle } from '../data/levels/types'
 import type { ChestTier } from '../data/loot'
 import type { PlayerWeaponId } from '../data/weapons'
 import { Tile, blocksMovement, cellFloor, parseRows, standHeight, tileAt, type Grid } from './grid'
@@ -21,6 +21,7 @@ export interface AreaInfo {
   name: string
   theme: Theme
   kind: AreaKind
+  walls: WallStyle | null
   fog: boolean
   top: number
   bottom: number
@@ -234,6 +235,7 @@ export function buildLevel(def: LevelDef): BuiltLevel {
     name: area.name,
     theme: area.theme,
     kind: area.kind ?? 'normal',
+    walls: area.walls ?? null,
     fog: area.fog !== undefined,
     top: 0,
     bottom: 0,
