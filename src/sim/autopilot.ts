@@ -1,4 +1,5 @@
-import { AUTOPILOT, AUTOPILOT_SKILLS, type AutopilotSkillId } from '../data/autopilot'
+import type { CardId } from '../data/supply-cards'
+import { AUTOPILOT_CARD_ORDER, AUTOPILOT, AUTOPILOT_SKILLS, type AutopilotSkillId } from '../data/autopilot'
 import { getBoss, type BossDef } from '../data/bosses'
 import { CONVEYOR } from '../data/conveyors'
 import { MAX_PITCH, WEAK_POINTS, eyeHeightOf } from '../data/heights'
@@ -271,6 +272,7 @@ export function createAutopilot(options: AutopilotOptions = {}): Autopilot {
 
       if (command.fire && world.mines.length > 0 && mineInLine(world, command.aimX, command.aimY)) command.fire = false
 
+      if (world.offer) command.pick = pickCardIndex(world.offer)
       const loots = pickLoot(world, hiddenChests(world), options.onward ? world.areaIndex : 0, lootKey)
       const loot = loots[0] ?? null
       lootKey = loot?.key ?? null
@@ -1340,4 +1342,12 @@ function distance(a: Vec2, b: Vec2): number {
 function normalize(x: number, y: number): Vec2 | null {
   const length = Math.hypot(x, y)
   return length < 1e-6 ? null : { x: x / length, y: y / length }
+}
+
+function pickCardIndex(offer: readonly CardId[]): number {
+  let best = 0
+  for (let index = 1; index < offer.length; index++) {
+    if (AUTOPILOT_CARD_ORDER.indexOf(offer[index]) < AUTOPILOT_CARD_ORDER.indexOf(offer[best])) best = index
+  }
+  return best
 }

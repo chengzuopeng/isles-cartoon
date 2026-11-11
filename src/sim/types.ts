@@ -1,6 +1,7 @@
 import type { AttackCause } from '../data/attacks'
 import type { BossHazard, BossMoveId } from '../data/bosses'
 import type { ChainKind } from '../data/chains'
+import type { CardId } from '../data/supply-cards'
 import type { ClueId } from '../data/clues'
 import type { BarkDisplay, SpeakerId } from '../data/dialogue'
 import type { AffixId } from '../data/elites'
@@ -461,6 +462,7 @@ export interface PlayerCommand {
   jump: boolean
   dash: boolean
   melee: boolean
+  pick?: number | null
 }
 
 export type GameEvent =
@@ -507,6 +509,8 @@ export type GameEvent =
   | { type: 'circuit'; skill: SkillId }
   | { type: 'reflected'; x: number; y: number; z: number }
   | { type: 'parried'; x: number; y: number; z: number }
+  | { type: 'cardsOffered'; cards: CardId[] }
+  | { type: 'cardTaken'; card: CardId }
   | { type: 'baitThrown'; x: number; y: number; count: number }
   | { type: 'baitLanded'; x: number; y: number; z: number }
   | { type: 'baitEaten'; x: number; y: number; z: number; burst: boolean }

@@ -1,3 +1,4 @@
+import type { CardId } from './supply-cards'
 export type AutopilotSkillId = 'perfect' | 'human' | 'novice'
 
 export type AutopilotSkill = {
@@ -102,3 +103,5 @@ export const AUTOPILOT_SIEGE_LEVELS: readonly string[] = ['1-3', '1-5']
 export const AUTOPILOT_ONWARD_LEVELS: readonly string[] = ['1-5']
 
 export const AUTOPILOT_KITE_LEVELS: readonly string[] = ['1-5']
+
+export const AUTOPILOT_CARD_ORDER: readonly CardId[] = ['might', 'leech', 'frenzy', 'charge', 'swift', 'shield']

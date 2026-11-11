@@ -1,3 +1,4 @@
+import { CARD } from '../data/supply-cards'
 import { MILESTONE } from '../data/progression'
 import { hasMilestone } from './stats'
 import { BUFFS, type BuffId } from '../data/loot'
@@ -49,8 +50,9 @@ export function absorbDamage(world: World, amount: number): number {
 
 export function onDamageDealt(world: World, amount: number): void {
   const { player } = world
-  if (!player.alive || amount <= 0 || !hasBuff(player, 'leech')) return
-  healPlayer(world, amount * BUFFS.leech.value)
+  if (!player.alive || amount <= 0) return
+  const share = (hasBuff(player, 'leech') ? BUFFS.leech.value : 0) + (world.cards.includes('leech') ? CARD.leech : 0)
+  if (share > 0) healPlayer(world, amount * share)
 }
 
 export function healPlayer(world: World, amount: number): number {

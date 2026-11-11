@@ -1145,3 +1145,79 @@
   font-size: 11px;
   opacity: 0.7;
 }
+
+.supply-cards {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 30;
+  pointer-events: auto;
+}
+
+.supply-cards.visible {
+  display: flex;
+}
+
+.supply-cards-title {
+  padding: 6px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.supply-cards-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.supply-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 150px;
+  padding: 12px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 4px 4px 0 rgba(29, 23, 20, 0.85);
+  cursor: pointer;
+}
+
+.supply-card-key {
+  font-family: var(--comic-font);
+  font-size: 22px;
+  font-weight: 900;
+  color: #d5392e;
+}
+
+.supply-card-name {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.supply-card-text {
+  font-size: 13px;
+  text-align: center;
+}
+
+.supply-taken {
+  position: absolute;
+  left: 24px;
+  bottom: 118px;
+  color: var(--paper);
+  font-weight: 800;
+  -webkit-text-stroke: 0.12em var(--ink);
+  paint-order: stroke fill;
+  pointer-events: none;
+}

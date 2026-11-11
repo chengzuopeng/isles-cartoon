@@ -34,6 +34,8 @@ import { GRASS_EYE_HEIGHT, loadLookSettings, saveLookSettings } from './input/lo
 import { RESIDENT_MODEL_IDS, VIEWMODEL_MODEL_IDS, type ModelId } from './render/asset-urls'
 import { createEffects } from './render/effects'
 import { createPropFires } from './render/prop-fires'
+import { createSupplyCards } from './ui/supply-cards'
+import { takeCard } from './sim/pickups'
 import { createBaitViews } from './render/bait-views'
 import { createEntityViews, type EntityViews, type ViewFlags } from './render/entity-views'
 import { createFpsLevelView, type FpsLevelView } from './render/fps-level-view'
@@ -246,6 +248,7 @@ const models = createModelLibrary(gltfSource(stage))
 const effects = createEffects(stage.scene)
 const propFires = createPropFires(effects)
 const baitViews = createBaitViews(stage.scene)
+const supplyCards = createSupplyCards(container, pickCard)
 const sfx = createSfx()
 const music = createMusic()
 const soundtrack = createSoundtrackState()
@@ -515,6 +518,8 @@ async function readyLevel(id: string): Promise<boolean> {
 function resetScene(): void {
   if (!interluding) dialogue.stop()
   world = newWorld()
+  supplyCards.hide()
+  supplyCards.setTaken([])
   autopilot = pilot()
   settled = false
   logged = false
@@ -852,8 +857,17 @@ function step(): void {
   clearEdges()
 }
 
+function pickCard(index: number): void {
+  if (!takeCard(world, index)) return
+  supplyCards.hide()
+  supplyCards.setTaken(world.cards)
+  dispatchEvents()
+}
+
 function simulate(steps: number): void {
-  if (screen === 'play' && !map.isOpen() && !paused && !frozen && !dialogue.isOpen()) {
+  if (world.offer && !supplyCards.isOpen() && screen === 'play') supplyCards.show(world.offer)
+  if (!world.offer && supplyCards.isOpen()) supplyCards.hide()
+  if (screen === 'play' && !map.isOpen() && !paused && !frozen && !dialogue.isOpen() && !world.offer) {
     for (let i = 0; i < steps; i++) step()
   }
   if (screen !== 'play') clearEdges()
@@ -875,6 +889,10 @@ function handleKeys(): void {
       input.requestLock()
       void startLevel(levelDef.id)
     }
+    return
+  }
+  if (world.offer && screen === 'play') {
+    for (let index = 0; index < world.offer.length; index++) if (input.pressed(`Digit${index + 1}`)) pickCard(index)
     return
   }
   if (results.isOpen()) {

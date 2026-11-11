@@ -1,3 +1,5 @@
+import { CARD, CARD_ORDER, type CardId } from '../data/supply-cards'
+import { hasBadge } from './badges'
 import { MILESTONE } from '../data/progression'
 import { hasMilestone } from './stats'
 import {
@@ -137,6 +139,8 @@ export function updatePickups(world: World, command: PlayerCommand, dt: number):
   }
   world.pickups.length = kept
   if (!active) return
+  if (world.offer && command.pick !== undefined && command.pick !== null) takeCard(world, command.pick)
+  updateCardShield(world, dt)
   useSupplies(world)
   if (command.interact) interact(world)
 }
@@ -336,14 +340,52 @@ function takeWeapon(world: World, pickup: Pickup): void {
 
 function useSupplies(world: World): void {
   const { player } = world
-  if (player.hp >= player.maxHp) return
+  const cards = cardsLeft(world)
+  if (player.hp >= player.maxHp && cards.length === 0) return
   for (const supply of world.supplies) {
-    if (supply.used) continue
+    if (supply.used || world.offer) continue
     if (Math.hypot(supply.pos.x - player.pos.x, supply.pos.y - player.pos.y) > SUPPLY_RADIUS + player.radius) continue
     supply.used = true
     const amount = healPlayer(world, player.maxHp * SUPPLY_HEAL)
     world.events.push({ type: 'supplyUsed', x: supply.pos.x, y: supply.pos.y, amount })
+    offerCards(world, cards)
   }
+}
+
+function cardsLeft(world: World): CardId[] {
+  return CARD_ORDER.filter((id) => !world.cards.includes(id))
+}
+
+function offerCards(world: World, pool: CardId[]): void {
+  const count = Math.min(pool.length, hasBadge(world, 'apprentice') ? CARD.apprenticeOffer : CARD.offer)
+  if (count <= 0) return
+  const left = [...pool]
+  const offer: CardId[] = []
+  for (let i = 0; i < count; i++) offer.push(left.splice(world.lootRng.int(left.length), 1)[0])
+  world.offer = offer
+  world.events.push({ type: 'cardsOffered', cards: [...offer] })
+}
+
+export function takeCard(world: World, index: number): boolean {
+  const offer = world.offer
+  if (!offer || index < 0 || index >= offer.length) return false
+  const card = offer[index]
+  world.offer = null
+  world.cards.push(card)
+  if (card === 'shield') {
+    world.cardShield = CARD.shieldEvery
+    world.player.armor = Math.max(world.player.armor, CARD.shieldAmount)
+  }
+  world.events.push({ type: 'cardTaken', card })
+  return true
+}
+
+export function updateCardShield(world: World, dt: number): void {
+  if (!world.cards.includes('shield')) return
+  world.cardShield -= dt
+  if (world.cardShield > 0) return
+  world.cardShield += CARD.shieldEvery
+  world.player.armor = Math.max(world.player.armor, CARD.shieldAmount)
 }
 
 function pickWeighted(rng: Rng, weights: Record<DropType, number>): DropType {

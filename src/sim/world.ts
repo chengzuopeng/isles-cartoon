@@ -14,6 +14,7 @@ import type { BuiltLevel } from './level'
 import type { Vec2 } from './math'
 import { createFlowField, type FlowField } from './pathing'
 import type { Bait } from './baits'
+import type { CardId } from '../data/supply-cards'
 import type { Fire } from './props'
 import { createRng, type Rng } from './rng'
 import { RUSH_VARIETY } from '../data/levels/rules'
@@ -117,6 +118,9 @@ export interface World {
   hay: Set<number>
   fires: Fire[]
   baits: Bait[]
+  cards: CardId[]
+  offer: CardId[] | null
+  cardShield: number
   rocks: Map<number, number>
   landmarks: LandmarkState[]
   sheep: Sheep[]
@@ -210,6 +214,9 @@ export function createWorld(level: BuiltLevel, tuning: Tuning, options: WorldOpt
     hay: new Set(level.hay),
     fires: [],
     baits: [],
+    cards: [],
+    offer: null,
+    cardShield: 0,
     rocks: new Map(),
     landmarks: createLandmarkStates(level),
     sheep: createSheep(level),

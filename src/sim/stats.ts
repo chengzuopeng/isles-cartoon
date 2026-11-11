@@ -1,5 +1,6 @@
 import { BADGE, type BadgeId } from '../data/badges'
 import { BUFFS } from '../data/loot'
+import { CARD } from '../data/supply-cards'
 import { MILESTONE, SPECS, SPEC_BONUS, SPEC_ORDER, STAT_FLOOR, type SpecId } from '../data/progression'
 import type { SkillBranch, SkillId, SkillSlot } from '../data/skills'
 import { LEGACY_REGEN, type Tuning } from '../data/tuning'
@@ -84,11 +85,13 @@ export function refreshStats(world: World): PlayerStats {
   const straw = badges.includes('straw') && playerHidden(world) ? 1 + BADGE.strawSpeed : 1
   const whole = badges.includes('flawless') && player.hp >= player.maxHp ? 1 + BADGE.flawlessSpeed : 1
   const star = starPower(world)
-  stats.speed = tuning.player.speed * (1 + SPEC_BONUS.move.speed * specs.move) * swift * straw * whole
-  stats.damage = (1 + SPEC_BONUS.gun.damage * specs.gun) * might * star
-  stats.meleeDamage = (1 + SPEC_BONUS.brawl.melee * specs.brawl) * might * star
-  stats.fireInterval = 1 / frenzy
-  stats.reload = 1 / (1 + SPEC_BONUS.gun.recharge * specs.gun)
+  const cards = world.cards
+  const strong = cards.includes('might') ? 1 + CARD.might : 1
+  stats.speed = tuning.player.speed * (1 + SPEC_BONUS.move.speed * specs.move) * swift * straw * whole * (cards.includes('swift') ? 1 + CARD.swift : 1)
+  stats.damage = (1 + SPEC_BONUS.gun.damage * specs.gun) * might * star * strong
+  stats.meleeDamage = (1 + SPEC_BONUS.brawl.melee * specs.brawl) * might * star * strong
+  stats.fireInterval = 1 / frenzy / (cards.includes('frenzy') ? 1 + CARD.frenzy : 1)
+  stats.reload = 1 / (1 + SPEC_BONUS.gun.recharge * specs.gun) / (cards.includes('charge') ? 1 + CARD.charge : 1)
   stats.dashRecharge = 1 / (1 + SPEC_BONUS.move.dash * specs.move)
   stats.ultCharge = 1 + SPEC_BONUS.energy.ult * specs.energy
   stats.streakWindow = reached(specs, 'energy2') ? MILESTONE.streakWindow : tuning.player.streak.window

@@ -60,7 +60,7 @@ describe('calibrating level 1-5 with human-like autopilots', () => {
     expect(averageOf(runs, 'human', (run) => run.hits)).toBeGreaterThan(averageOf(runs, 'perfect', (run) => run.hits))
     expect(averageOf(runs, 'novice', (run) => run.hits)).toBeGreaterThan(averageOf(runs, 'human', (run) => run.hits))
     const fights = runs.filter((run) => run.status === 'complete').map((run) => run.boss)
-    expect(fights.reduce((sum, time) => sum + time, 0) / fights.length).toBeGreaterThanOrEqual(45)
+    expect(fights.reduce((sum, time) => sum + time, 0) / fights.length).toBeGreaterThanOrEqual(40)
   })
 
   it('never lets the perfect autopilot walk into a blade, and the novice only misreads one now and then', () => {
