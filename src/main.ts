@@ -64,6 +64,7 @@ import {
 } from './sim/cheats'
 import { buildLevel, validateLevel, type BuiltLevel } from './sim/level'
 import { lerp } from './sim/math'
+import { sneakReady } from './sim/melee'
 import { playerHidden } from './sim/perception'
 import { makeItem, weaponItem } from './sim/pickups'
 import {
@@ -1090,6 +1091,7 @@ function frame(now: number): void {
       playing: screen === 'play' && !results.isOpen() && !dialogue.isOpen(),
       locked: input.locked(),
       barrier: world.player.barrier > 0,
+      sneak: screen === 'play' && sneakReady(world),
     },
     dt,
   )

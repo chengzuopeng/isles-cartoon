@@ -29,8 +29,10 @@ function setup(rows = FIELD, heights?: string[]): World {
   return createWorld(levelFromAreas([{ name: 'yard', theme: 'meadow', rows, heights }]), tuning)
 }
 
-function add(world: World, kind: MinionKind, x: number, y: number): Enemy {
+function add(world: World, kind: MinionKind, x: number, y: number, fighting = false): Enemy {
   const enemy = createEnemy(world, kind, { x, y }, 0)
+  enemy.aggro = fighting
+  if (fighting) enemy.alert = 'combat'
   world.enemies.push(enemy)
   return enemy
 }
@@ -72,7 +74,7 @@ function combos(events: GameEvent[]): string[] {
 describe('frozen robots shatter', () => {
   it('smashes a frozen charger at full health with one swing and drops food', () => {
     const world = setup()
-    const grunt = add(world, 'grunt', world.player.pos.x + 1.2, world.player.pos.y)
+    const grunt = add(world, 'grunt', world.player.pos.x + 1.2, world.player.pos.y, true)
     freezeEnemy(world, grunt, 1.5)
     const events = run(world, DT, { melee: true })
     expect(grunt.hp).toBe(0)
@@ -223,7 +225,7 @@ describe('knocked off a ledge', () => {
     const world = setup(LEDGE, HIGH)
     world.player.pos = { x: 3.5, y: 3.5 }
     world.player.z = 3
-    const gunner = add(world, 'gunner', 5.3, 3.5)
+    const gunner = add(world, 'gunner', 5.3, 3.5, true)
     expect(gunner.z).toBe(3)
     const events = run(world, 1.2, { melee: true })
     expect(gunner.z).toBe(0)
@@ -246,7 +248,7 @@ describe('knocked off a ledge', () => {
     const world = setup(LEDGE, low)
     world.player.pos = { x: 3.5, y: 3.5 }
     world.player.z = 0.5
-    const gunner = add(world, 'gunner', 5.3, 3.5)
+    const gunner = add(world, 'gunner', 5.3, 3.5, true)
     const before = gunner.hp
     const events = run(world, 1, { melee: true })
     expect(combos(events)).not.toContain('fall')

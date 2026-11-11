@@ -24,6 +24,7 @@ export type PlayerTuning = {
   meleeKnockback: number
   meleeCooldown: number
   crumbleAt: number
+  sneakEliteShare: number
 }
 
 export type GruntTuning = {
@@ -93,6 +94,7 @@ export type PerceptionTuning = {
   alertThroughWalls: number
   activationRadius: number
   fovDeg: number
+  blindDeg: number
   proximity: number
   noiseRadius: number
   noticeSeconds: number
@@ -231,6 +233,7 @@ export function createDefaultTuning(): Tuning {
       meleeKnockback: 3.5,
       meleeCooldown: 0.6,
       crumbleAt: 0.3,
+      sneakEliteShare: 0.5,
     },
     grunt: {
       speed: 4.3,
@@ -293,6 +296,7 @@ export function createDefaultTuning(): Tuning {
       alertThroughWalls: 5.1,
       activationRadius: 38.4,
       fovDeg: 140,
+      blindDeg: 120,
       proximity: 4,
       noiseRadius: 9.6,
       noticeSeconds: 0.55,

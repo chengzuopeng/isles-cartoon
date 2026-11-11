@@ -54,14 +54,21 @@ describe('vision', () => {
     expect(guard.aggro).toBe(false)
   })
 
-  it('always feels a player who walks right up to it', () => {
+  it('always feels a player who walks right up to it, unless the player comes from behind', () => {
     const { world } = setup(['##########', '#P.....m.#', '##########'])
     const guard = only(world)
-    guard.facing = guard.baseFacing = 0
+    guard.facing = guard.baseFacing = Math.PI / 2
     world.tuning.perception.sweepDeg = 0
     place(world, 6, 1.5)
     stepWorld(world, idle(), DT)
     expect(guard.aggro).toBe(true)
+    const { world: other } = setup(['##########', '#P.....m.#', '##########'])
+    const turned = only(other)
+    turned.facing = turned.baseFacing = 0
+    other.tuning.perception.sweepDeg = 0
+    place(other, 6, 1.5)
+    stepWorld(other, idle(), DT)
+    expect(turned.aggro).toBe(false)
   })
 })
 

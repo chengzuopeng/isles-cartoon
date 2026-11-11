@@ -32,6 +32,7 @@ export type TipId =
   | 'friendly'
   | 'chainBlast'
   | 'fall'
+  | 'sneak'
 
 export const TIPS: Readonly<Record<TipId, string>> = {
   controls: 'WASD 移动，鼠标看，按住左键射击；Shift 冲刺，空格跳',
@@ -67,6 +68,7 @@ export const TIPS: Readonly<Record<TipId, string>> = {
   friendly: '自爆兵和炸弹也会炸到机器人自己，把它们引到敌群里',
   chainBlast: '爆炸会引爆旁边的自爆兵，一个接一个',
   fall: '把机器人从高处打下去，它会摔晕，可以直接砸散',
+  sneak: '从背后摸到没发现你的机器人身边，准星旁出现「砸！」时按右键，一下砸散，不会惊动别人',
 }
 
 export const TIP_SECONDS = 6

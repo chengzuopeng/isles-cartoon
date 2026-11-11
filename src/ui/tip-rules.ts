@@ -19,6 +19,7 @@ const COMBO_TIPS: Readonly<Record<ChainKind, TipId>> = {
   friendly: 'friendly',
   chain: 'chainBlast',
   fall: 'fall',
+  sneak: 'sneak',
 }
 
 const KIND_TIPS: Partial<Record<Enemy['kind'], TipId>> = {

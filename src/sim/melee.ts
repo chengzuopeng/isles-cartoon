@@ -3,6 +3,7 @@ import { onDamageDealt } from './buffs'
 import { lineClear } from './collision'
 import { angleBetween, damageEnemy, killEnemy } from './combat'
 import { interruptEnemy } from './enemies'
+import { reelEnemy } from './status'
 import { spawnPickup } from './pickups'
 import { bodyHeight, centerOf, playerChest } from './terrain'
 import type { Enemy } from './types'
@@ -41,6 +42,10 @@ export function swingMelee(world: World): void {
   const push = tuning.player.meleeKnockback * tuning.feel.knockbackDecay
   for (const enemy of targets) {
     if (enemy.hp <= 0) continue
+    if (unaware(enemy)) {
+      sneak(world, enemy)
+      continue
+    }
     if (enemy.kind !== 'boss' && (crumbling(world, enemy) || enemy.hp <= damage)) {
       smash(world, enemy)
       continue
@@ -61,6 +66,33 @@ export function swingMelee(world: World): void {
   world.stats.melees += 1
   world.stats.meleeHits += targets.length
   world.events.push({ type: 'melee', x: player.pos.x, y: player.pos.y, angle: player.facing, hits: targets.length })
+}
+
+export function unaware(enemy: Enemy): boolean {
+  return enemy.kind !== 'boss' && enemy.hp > 0 && !enemy.aggro
+}
+
+export function sneakReady(world: World): boolean {
+  return world.player.alive && world.player.meleeCooldown === 0 && meleeTargets(world).some(unaware)
+}
+
+function sneak(world: World, enemy: Enemy): void {
+  const { player, tuning } = world
+  world.stats.sneaks += 1
+  world.events.push({ type: 'combo', kind: 'sneak', x: enemy.pos.x, y: enemy.pos.y, z: enemy.z })
+  if (!enemy.elite) {
+    smash(world, enemy)
+    return
+  }
+  const dx = enemy.pos.x - player.pos.x
+  const dy = enemy.pos.y - player.pos.y
+  const length = Math.hypot(dx, dy) || 1
+  const before = enemy.hp
+  damageEnemy(world, enemy, enemy.maxHp * tuning.player.sneakEliteShare, dx / length, dy / length, 0, { z: enemy.z + bodyHeight(enemy) / 2, crit: false })
+  if (enemy.hp > 0) reelEnemy(world, enemy, tuning.feel.reelSeconds)
+  const dealt = Math.max(0, before - Math.max(0, enemy.hp))
+  onDamageDealt(world, dealt)
+  chargeUltimate(world, dealt, enemy)
 }
 
 export function smash(world: World, enemy: Enemy): void {

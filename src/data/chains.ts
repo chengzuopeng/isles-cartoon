@@ -1,4 +1,4 @@
-export type ChainKind = 'shatter' | 'fuse' | 'pileup' | 'friendly' | 'chain' | 'fall'
+export type ChainKind = 'shatter' | 'fuse' | 'pileup' | 'friendly' | 'chain' | 'fall' | 'sneak'
 
 export const CHAIN = {
   pileupPush: 2,
@@ -19,4 +19,5 @@ export const CHAIN_WORDS: Readonly<Record<ChainKind, string>> = {
   friendly: '自己人！',
   chain: '连环爆！',
   fall: '摔下去了！',
+  sneak: '偷袭！',
 }

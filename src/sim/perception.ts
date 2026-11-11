@@ -29,7 +29,10 @@ export function canSeePlayer(world: World, enemy: Enemy, sight: number): boolean
   let range = playerHidden(world) ? Math.min(sight, world.tuning.perception.bushSight) : sight
   if (!enemy.aggro && distance > FOG.sight && fogBetween(world, enemy.pos, player.pos)) range = Math.min(range, FOG.sight)
   if (distance > range) return false
-  if (!enemy.aggro && distance > world.tuning.perception.proximity && !inView(world, enemy, Math.atan2(dy, dx))) return false
+  if (!enemy.aggro) {
+    const angle = Math.atan2(dy, dx)
+    if (distance > world.tuning.perception.proximity ? !inView(world, enemy, angle) : behind(world, enemy, angle)) return false
+  }
   return lineClear(grid, eyeOf(enemy), playerChest(player), blocksSight)
 }
 
@@ -69,6 +72,14 @@ export function inView(world: World, enemy: Enemy, angle: number): boolean {
   while (diff > Math.PI) diff -= Math.PI * 2
   while (diff < -Math.PI) diff += Math.PI * 2
   return Math.abs(diff) <= half
+}
+
+export function behind(world: World, enemy: Enemy, angle: number): boolean {
+  const blind = (world.tuning.perception.blindDeg * Math.PI) / 360
+  let diff = angle - enemy.facing
+  while (diff > Math.PI) diff -= Math.PI * 2
+  while (diff < -Math.PI) diff += Math.PI * 2
+  return Math.abs(diff) > Math.PI - blind
 }
 
 export function aggro(world: World, enemy: Enemy, hops = world.tuning.ai.alertHops): void {

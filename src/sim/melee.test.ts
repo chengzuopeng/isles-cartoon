@@ -60,6 +60,8 @@ function run(world: World, seconds: number): void {
 
 function add(world: World, kind: MinionKind, x: number, y: number): Enemy {
   const enemy = createEnemy(world, kind, { x, y }, 0)
+  enemy.aggro = true
+  enemy.alert = 'combat'
   world.enemies.push(enemy)
   return enemy
 }

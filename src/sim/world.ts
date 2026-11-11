@@ -71,6 +71,7 @@ export interface RunStats {
   melees: number
   meleeHits: number
   smashes: number
+  sneaks: number
   dashes: number
   jumps: number
   foodHealed: number
@@ -281,6 +282,7 @@ export function createRunStats(): RunStats {
     melees: 0,
     meleeHits: 0,
     smashes: 0,
+    sneaks: 0,
     dashes: 0,
     jumps: 0,
     foodHealed: 0,

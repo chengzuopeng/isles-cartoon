@@ -13,6 +13,7 @@ export interface OverlayState {
   playing: boolean
   locked: boolean
   barrier: boolean
+  sneak: boolean
 }
 
 export interface FpsOverlay {
@@ -45,6 +46,7 @@ export function createFpsOverlay(container: HTMLElement, scene: HTMLElement): Fp
   cross.innerHTML = CROSSHAIR
   const marker = element('div', 'fps-hitmarker', root)
   const kill = element('div', 'fps-kill', root, '×')
+  const sneak = element('div', 'fps-sneak', root, '砸！')
   const arcs = element('div', 'fps-arcs', root)
   const panel = element('div', 'fps-health', root)
   const hpTrack = element('div', 'fps-hp-track', panel)
@@ -94,6 +96,7 @@ export function createFpsOverlay(container: HTMLElement, scene: HTMLElement): Fp
       root.classList.toggle('hidden', !state.playing)
       under.classList.toggle('hidden', !state.playing)
       cross.classList.toggle('dim', !state.alive)
+      sneak.classList.toggle('on', state.sneak && state.alive)
       markerTime = Math.max(0, markerTime - dt)
       killTime = Math.max(0, killTime - dt)
       syncStyle(marker, 'opacity', markerTime > 0 ? '1' : '0')

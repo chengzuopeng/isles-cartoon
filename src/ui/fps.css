@@ -70,6 +70,30 @@
   opacity: 0.25;
 }
 
+.fps-sneak {
+  position: absolute;
+  left: calc(50% + 22px);
+  top: calc(50% - 30px);
+  font-family: var(--comic-font);
+  font-weight: 900;
+  font-size: 26px;
+  line-height: 1;
+  color: #ff8a3d;
+  -webkit-text-stroke: 0.16em var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0.07em 0.09em 0 var(--ink);
+  transform: rotate(-8deg) scale(0.6);
+  opacity: 0;
+  transition: opacity 0.12s, transform 0.12s;
+  pointer-events: none;
+  user-select: none;
+}
+
+.fps-sneak.on {
+  opacity: 1;
+  transform: rotate(-8deg) scale(1);
+}
+
 .fps-hitmarker {
   position: absolute;
   left: 50%;
