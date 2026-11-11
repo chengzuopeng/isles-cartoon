@@ -9,6 +9,7 @@
 - 2026-11-03：检查点 A 按默认定下（眼高 1.5 米等，见 [检查点 A](docs/plan/checkpoint-a.md)），进入阶段 2，先做 1-2 牧场（[设计稿](docs/design/levels/1-2.md)）
 - 2026-11-04：1-2 灰盒搭好（第一人称布局、木箱堆、能走进去的饲料棚），下一步做 1-2 的新机制
 - 2026-11-11：用户嫌 1-1 一进去就一览无余，1-1 换成 60 × 210 米的新地图，用田坎、山坡、树篱和弯路切成一个个场面（[地图重做](docs/design/levels/1-1-layout.md)）
+- 2026-11-11：画地图和检验视线的脚本整理成 `pnpm map`（[地图工具](docs/tech/map-tools.md)）；照同样的原则出了 1-2 新布局的[建议稿](docs/design/levels/1-2-layout.md)，等用户看，关卡数据还没改
 
 ## 命令
 
@@ -24,6 +25,7 @@
 | `pnpm e2e:update` | 改了整备界面的样式后重新生成截图基线 |
 | `pnpm perf <命令…>` | 性能测量（自己在 5291 端口起开发服务器）：`spots` 到重点位置量 draw call、三角形、帧时间，`startup` 启动到整备界面出现和 1-1 准备好的时间、启动后内存，`enter` 进关的时间和进关后第一帧，`leak` 反复进关、重开后的资源数和内存，`stutter` 自动驾驶从进关打到通关看卡顿，`all` 依次全跑；要用关卡的默认只跑 1-1。命令和选项见 `docs/tech/performance.md`「测法」 |
 | `pnpm shots` | 截图巡检：到 `scripts/shots/spots.json` 里的固定机位各截一张图（自己在 5292 端口起开发服务器；截图时逻辑冻住，敌人不动），`--out` 指定目录，`--compare <上次的目录>` 算每张图和上次相比变了多少像素，`--spots` 只截一部分 |
+| `pnpm map <命令> <关卡…>` | 地图工具，不起服务器、不开页面：`draw` 画俯视图并算从起点和沿主路的视线、跑关卡校验，`compare` 现在和草稿并排，`play` 自动驾驶三档各跑几局，`text` 打印字符画，`emit` 把草稿写成关卡数据。关卡写 id（`1-2`）或草稿（`scripts/map/sketches/*.mjs`）。用法见 `docs/tech/map-tools.md` |
 | `./scripts/build-assets.sh` | 把 `art/` 里的原图处理成 `public/assets/` 下的运行时资源（天空无缝拼接、抠图、裁切） |
 
 在 Claude Code 桌面版里，如果会话最早是在主仓库开的，内置浏览器的 `preview_start` 只认主仓库的 `.claude/launch.json`，起的会是主仓库的服务器。这时在后台跑 `pnpm exec vite --port 5280 --strictPort`，再用 `preview_start` 的 `url` 打开 http://localhost:5280。浏览器面板隐藏时页面不刷新，帧率和 GPU 计时都不准。
@@ -46,6 +48,7 @@
 | `art/reference/` | 从主仓库拷来的设定图，出新图时用 `-i` 附上，保证造型一致。来源见 `art/README.md` |
 | `art/scenes/`、`art/ui/`、`art/bosses/` | 本仓库生成的原图和提示词 |
 | `scripts/codex-image.sh` | 用 Codex 出图，带重试和额度检查 |
+| `scripts/map/` | 地图工具：`map.mjs` 入口，`lib/` 画图、拼页、草稿画笔、写关卡文件，`sketches/` 放还没落地的布局草稿；测量的算法在 `src/sim/level-survey.ts` |
 | `.claude/skills/` | Three.js 参考 skill，用法见下文「项目内 skill」 |
 
 ## 规则

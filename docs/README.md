@@ -3,7 +3,7 @@
 | 目录 | 内容 |
 |---|---|
 | [design/](design/) | 策划：愿景、玩法、画风、样机关卡、设定摘要 |
-| [tech/](tech/) | 技术：架构、墨线渲染管线、性能 |
+| [tech/](tech/) | 技术：架构、墨线渲染管线、性能、自动驾驶、地图工具 |
 | [plan/](plan/) | 计划：路线图 |
 | [decisions/](decisions/) | 决策记录（ADR）：一个决策一个文件，编号递增；已采纳的不改，推翻时新开一篇并注明替代了哪篇 |
 | [reference/](reference/) | 参考资料 |
@@ -29,12 +29,14 @@
   - [关卡 1-1 出发（第一人称完整版）](design/levels/1-1.md)
   - [1-1 地图重做：为什么一览无余，改成了什么样](design/levels/1-1-layout.md)（2026-11-11 落地）
   - [关卡 1-2 牧场（第一人称版）](design/levels/1-2.md)（灰盒和新机制做完）
+  - [1-2 地图重做：新布局](design/levels/1-2-layout.md)（建议稿，等用户看）
   - [设定摘要](design/setting.md)
 - 技术
   - [技术架构](tech/architecture.md)
   - [墨线渲染管线](tech/rendering.md)
   - [性能](tech/performance.md)
   - [自动驾驶和机器人测试](tech/autopilot.md)
+  - [地图工具：`pnpm map`](tech/map-tools.md)
 - [路线图](plan/roadmap.md)
   - [检查点 A：试玩 1-1](plan/checkpoint-a.md)
 - 决策
