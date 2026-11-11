@@ -96,6 +96,7 @@ export interface RushPlacement {
   area: number
   points: Vec2[]
   enemies: BossSummon[]
+  variants: BossSummon[][]
   left: number
   standing: number
 }
@@ -369,6 +370,7 @@ export function buildLevel(def: LevelDef): BuiltLevel {
         area: index,
         points: rush.at.map(local),
         enemies: rush.enemies.map((squad) => ({ ...squad })),
+        variants: [rush.enemies, ...(rush.variants ?? [])].map((recipe) => recipe.map((squad) => ({ ...squad }))),
         left: rush.left,
         standing: enemies.filter((enemy) => enemy.area === index).length,
       })

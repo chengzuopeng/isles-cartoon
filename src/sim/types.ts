@@ -321,6 +321,7 @@ export interface SpawnMarker {
   kind: MinionKind
   area: number
   summoned: boolean
+  affixes?: AffixId[]
 }
 
 export type PickupItem =

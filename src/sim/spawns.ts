@@ -1,4 +1,5 @@
-import { RUSH } from '../data/levels/rules'
+import { AFFIX_ORDER } from '../data/elites'
+import { RUSH, RUSH_VARIETY } from '../data/levels/rules'
 import { resolveCircleGrid } from './collision'
 import { aggro } from './perception'
 import type { MinionKind, SpawnMarker } from './types'
@@ -14,7 +15,7 @@ export function updateSpawns(world: World, dt: number): void {
   }
   world.spawns = pending
   for (const marker of ready) {
-    const enemy = createEnemy(world, marker.kind, marker.pos, marker.area, { summoned: marker.summoned })
+    const enemy = createEnemy(world, marker.kind, marker.pos, marker.area, { summoned: marker.summoned, affixes: marker.affixes })
     world.enemies.push(enemy)
     world.events.push({ type: 'enemySpawned', id: enemy.id, x: enemy.pos.x, y: enemy.pos.y })
     aggro(world, enemy, 0)
@@ -36,9 +37,11 @@ export function updateRushes(world: World): void {
     const begun = engaged || (world.areaIndex === rush.area && standing < rush.standing)
     if (!begun || standing + pending > rush.left) return
     world.rushed[index] = true
+    const recipe = world.eliteChance > 0 && rush.variants.length > 1 ? rush.variants[world.rng.int(rush.variants.length)] : rush.enemies
+    const first = world.spawns.length
     let slot = 0
     let count = 0
-    for (const squad of rush.enemies) {
+    for (const squad of recipe) {
       for (let i = 0; i < Math.max(0, Math.round(squad.count)); i++) {
         const point = rush.points[slot % rush.points.length]
         const delay = RUSH.warning + slot * RUSH.gap
@@ -49,7 +52,17 @@ export function updateRushes(world: World): void {
       }
     }
     if (count > 0) world.events.push({ type: 'rush', area: rush.area, count })
+    promoteOne(world, world.spawns.slice(first))
   })
+}
+
+function promoteOne(world: World, markers: SpawnMarker[]): void {
+  if (world.eliteChance <= 0 || world.elitesAdded >= RUSH_VARIETY.maxElites) return
+  const candidates = markers.filter((marker) => (RUSH_VARIETY.eliteKinds as readonly MinionKind[]).includes(marker.kind))
+  if (candidates.length === 0 || world.rng.next() >= world.eliteChance) return
+  const marker = candidates[world.rng.int(candidates.length)]
+  marker.affixes = [AFFIX_ORDER[world.rng.int(AFFIX_ORDER.length)]]
+  world.elitesAdded += 1
 }
 
 export function updateWaves(world: World, dt: number): void {

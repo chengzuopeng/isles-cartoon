@@ -77,12 +77,14 @@ import {
   levelUnlocked,
   loadoutOf,
   markInterlude,
+  nextSeed,
   pendingInterlude,
   resetSkills,
   respec,
   sanitizeProfile,
   settleRun,
   skillBlock,
+  variedRun,
   xpScaleFor,
   xpToNext,
   type Profile,
@@ -422,13 +424,18 @@ function pilot(): ReturnType<typeof createAutopilot> {
 }
 
 function newWorld(): World {
-  seed += 1
+  if (training) seed += 1
+  else {
+    seed = nextSeed(profile, levelDef.id)
+    persist()
+  }
   return createWorld(level, tuning, {
     seed,
     debug,
     difficulty: settings.difficulty,
     loadout: loadoutOf(profile),
     xpScale: training ? 1 : xpScaleFor(profile, levelDef.id),
+    varied: !training && variedRun(profile, levelDef.id, settings.difficulty),
   })
 }
 

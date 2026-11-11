@@ -52,6 +52,7 @@ export interface Profile {
   records: Record<string, LevelRecord>
   clues: ClueId[]
   interludes: string[]
+  plays: Record<string, number>
 }
 
 export type SkillBlock = 'maxed' | 'chapter' | 'noPoints'
@@ -101,6 +102,7 @@ export function createProfile(): Profile {
     records: {},
     clues: [],
     interludes: [],
+    plays: {},
   }
 }
 
@@ -236,6 +238,22 @@ export function loadoutOf(profile: Profile): Loadout {
 
 export function recordOf(profile: Profile, levelId: string): LevelRecord | undefined {
   return profile.records[levelId]
+}
+
+export function nextSeed(profile: Profile, levelId: string): number {
+  const plays = (profile.plays[levelId] ?? 0) + 1
+  profile.plays[levelId] = plays
+  return seedOf(levelId, plays)
+}
+
+export function seedOf(levelId: string, plays: number): number {
+  let hash = 2166136261
+  for (let i = 0; i < levelId.length; i++) hash = Math.imul(hash ^ levelId.charCodeAt(i), 16777619)
+  return ((hash >>> 0) + plays * 7919) % 2147483647 || 1
+}
+
+export function variedRun(profile: Profile, levelId: string, difficulty: string): boolean {
+  return isReplay(profile, levelId) || difficulty === 'hard'
 }
 
 export function isReplay(profile: Profile, levelId: string): boolean {
@@ -389,6 +407,12 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (Array.isArray(raw.clues)) {
     const kept = raw.clues.filter((id): id is ClueId => typeof id === 'string' && isClueId(id))
     profile.clues = CLUE_ORDER.filter((id) => kept.includes(id))
+  }
+  if (isRecord(raw.plays)) {
+    for (const [id, value] of Object.entries(raw.plays)) {
+      const plays = clampInt(value, 0, 1e9, 0)
+      if (plays > 0) profile.plays[id] = plays
+    }
   }
   if (Array.isArray(raw.interludes)) {
     const seen = raw.interludes as unknown[]

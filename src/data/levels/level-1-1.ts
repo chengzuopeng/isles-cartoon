@@ -409,7 +409,7 @@ export const LEVEL_1_1: LevelDef = {
       patrols: [{ from: [5, 23], points: [[23, 23]] }],
       ambush: [[46, 18], [53, 23], [46, 23]],
       landmarks: [{ id: 'ch1-town-gate', at: [6, 44] }],
-      rushes: [{ at: [[45, 0], [46, 0], [47, 0], [48, 1], [46, 1]], enemies: [{ kind: 'grunt', count: 5 }], left: 3 }],
+      rushes: [{ at: [[45, 0], [46, 0], [47, 0], [48, 1], [46, 1]], enemies: [{ kind: 'grunt', count: 5 }], variants: [[{ kind: 'grunt', count: 3 }, { kind: 'gunner', count: 1 }], [{ kind: 'grunt', count: 2 }, { kind: 'gunner', count: 2 }]], left: 3 }],
       heights: FIELD_HEIGHTS,
       rows: FIELD_ROWS,
     },
@@ -424,6 +424,7 @@ export const LEVEL_1_1: LevelDef = {
         {
           at: [[13, 0], [14, 0], [15, 0], [16, 0], [14, 1], [15, 1]],
           enemies: [{ kind: 'grunt', count: 6 }],
+          variants: [[{ kind: 'grunt', count: 4 }, { kind: 'gunner', count: 1 }], [{ kind: 'grunt', count: 3 }, { kind: 'gunner', count: 2 }]],
           left: 6,
         },
       ],
@@ -437,8 +438,8 @@ export const LEVEL_1_1: LevelDef = {
       ambush: [[22, 15], [33, 5]],
       landmarks: [{ id: 'ch1-barn', at: [3, 30] }],
       rushes: [
-        { at: [[46, 0], [47, 0], [48, 0], [47, 1]], enemies: [{ kind: 'grunt', count: 4 }], left: 6 },
-        { at: [[55, 26], [55, 30], [54, 36], [53, 22]], enemies: [{ kind: 'grunt', count: 4 }], left: 2 },
+        { at: [[46, 0], [47, 0], [48, 0], [47, 1]], enemies: [{ kind: 'grunt', count: 4 }], variants: [[{ kind: 'grunt', count: 2 }, { kind: 'gunner', count: 1 }], [{ kind: 'grunt', count: 3 }, { kind: 'gunner', count: 1 }]], left: 6 },
+        { at: [[55, 26], [55, 30], [54, 36], [53, 22]], enemies: [{ kind: 'grunt', count: 4 }], variants: [[{ kind: 'grunt', count: 2 }, { kind: 'gunner', count: 1 }], [{ kind: 'grunt', count: 3 }, { kind: 'gunner', count: 1 }]], left: 2 },
       ],
       heights: YARD_HEIGHTS,
       rows: YARD_ROWS,

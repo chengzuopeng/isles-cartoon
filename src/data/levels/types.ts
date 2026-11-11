@@ -65,6 +65,7 @@ export interface ReinforceDef {
 export interface RushDef {
   at: readonly GridPoint[]
   enemies: readonly BossSummon[]
+  variants?: readonly (readonly BossSummon[])[]
   left: number
 }
 

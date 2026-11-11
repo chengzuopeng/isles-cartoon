@@ -438,7 +438,7 @@ export const LEVEL_1_2: LevelDef = {
         { id: 'ch1-wheat-ears', at: [39, 25] },
         { id: 'ch1-wheat-ears', at: [40, 12], variant: 2 },
       ],
-      rushes: [{ at: [[38, 2], [40, 2], [41, 3]], enemies: [{ kind: 'bomber', count: 4 }], left: 1 }],
+      rushes: [{ at: [[38, 2], [40, 2], [41, 3]], enemies: [{ kind: 'bomber', count: 4 }], variants: [[{ kind: 'bomber', count: 2 }, { kind: 'grunt', count: 2 }], [{ kind: 'bomber', count: 3 }, { kind: 'grunt', count: 1 }]], left: 1 }],
       heights: ENTRANCE_HEIGHTS,
       rows: ENTRANCE_ROWS,
     },
@@ -459,11 +459,13 @@ export const LEVEL_1_2: LevelDef = {
         {
           at: [[45, 2], [47, 2], [46, 3], [48, 3]],
           enemies: [{ kind: 'grunt', count: 3 }, { kind: 'bomber', count: 2 }],
+          variants: [[{ kind: 'grunt', count: 2 }, { kind: 'bomber', count: 3 }], [{ kind: 'grunt', count: 3 }, { kind: 'bomber', count: 1 }, { kind: 'gunner', count: 1 }]],
           left: 4,
         },
         {
           at: [[6, 13], [5, 14], [7, 15]],
           enemies: [{ kind: 'grunt', count: 3 }, { kind: 'bomber', count: 2 }],
+          variants: [[{ kind: 'grunt', count: 2 }, { kind: 'bomber', count: 3 }], [{ kind: 'grunt', count: 3 }, { kind: 'bomber', count: 1 }, { kind: 'gunner', count: 1 }]],
           left: 1,
         },
       ],
@@ -483,10 +485,11 @@ export const LEVEL_1_2: LevelDef = {
       loot: [{ at: [53, 15], weapon: 'shotgun' }],
       clues: [{ id: 'iou', dropBy: 'firstTarget' }],
       rushes: [
-        { at: [[7, 44], [7, 47], [7, 50]], enemies: [{ kind: 'grunt', count: 5 }], left: 8 },
+        { at: [[7, 44], [7, 47], [7, 50]], enemies: [{ kind: 'grunt', count: 5 }], variants: [[{ kind: 'grunt', count: 3 }, { kind: 'bomber', count: 2 }], [{ kind: 'grunt', count: 4 }, { kind: 'gunner', count: 1 }]], left: 8 },
         {
           at: [[20, 2], [23, 2], [21, 3], [22, 4]],
           enemies: [{ kind: 'grunt', count: 3 }, { kind: 'bomber', count: 3 }],
+          variants: [[{ kind: 'grunt', count: 4 }, { kind: 'bomber', count: 2 }], [{ kind: 'grunt', count: 2 }, { kind: 'bomber', count: 3 }, { kind: 'gunner', count: 1 }]],
           left: 4,
         },
       ],

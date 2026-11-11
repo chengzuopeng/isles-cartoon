@@ -14,6 +14,7 @@ import type { BuiltLevel } from './level'
 import type { Vec2 } from './math'
 import { createFlowField, type FlowField } from './pathing'
 import { createRng, type Rng } from './rng'
+import { RUSH_VARIETY } from '../data/levels/rules'
 import { createSheep } from './sheep'
 import { createLoadout, createStats, magazineFor, maxHpFor, type Loadout, type PlayerStats } from './stats'
 import { createStatus } from './status'
@@ -119,6 +120,8 @@ export interface World {
   alarms: AlarmState[]
   reinforced: boolean[]
   rushed: boolean[]
+  eliteChance: number
+  elitesAdded: number
   lamps: boolean[]
   mines: Mine[]
   blades: BladeState[]
@@ -159,6 +162,7 @@ export interface WorldOptions {
   loadout?: Loadout
   xpScale?: number
   difficulty?: DifficultyId
+  varied?: boolean
 }
 
 const LOOT_SEED_SALT = 0x9e3779b9
@@ -205,6 +209,8 @@ export function createWorld(level: BuiltLevel, tuning: Tuning, options: WorldOpt
     alarms: createAlarmStates(level),
     reinforced: level.reinforcements.map(() => false),
     rushed: level.rushes.map(() => false),
+    eliteChance: options.varied ? (options.difficulty === 'hard' ? RUSH_VARIETY.hardElite : RUSH_VARIETY.replayElite) : 0,
+    elitesAdded: 0,
     lamps: level.lamps.map(() => false),
     mines: [],
     blades: createBladeStates(level),
