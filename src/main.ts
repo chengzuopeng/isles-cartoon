@@ -65,6 +65,7 @@ import {
 import { buildLevel, validateLevel, type BuiltLevel } from './sim/level'
 import { lerp } from './sim/math'
 import { sneakReady } from './sim/melee'
+import { dashGauge } from './sim/player'
 import { playerHidden } from './sim/perception'
 import { makeItem, weaponItem } from './sim/pickups'
 import {
@@ -1092,7 +1093,7 @@ function frame(now: number): void {
     {
       hp: world.player.hp,
       maxHp: world.player.maxHp,
-      dashReady: 1 - Math.min(1, world.player.dashCooldown / 3),
+      dashReady: dashGauge(world),
       meleeReady: 1 - Math.min(1, world.player.meleeCooldown / 0.6),
       alive: world.player.alive,
       playing: screen === 'play' && !results.isOpen() && !dialogue.isOpen(),

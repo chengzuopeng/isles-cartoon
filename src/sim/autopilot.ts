@@ -21,7 +21,7 @@ import { clamp, type Vec2, type Vec3 } from './math'
 import { crumbling } from './melee'
 import { mineRadius, mineRule } from './mines'
 import { tileIndex } from './navigation'
-import { threatNearby } from './player'
+import { dashReady, threatNearby } from './player'
 import { createRng } from './rng'
 import { concussionTarget, rankOf } from './skills'
 import { playerSpeedFactor } from './status'
@@ -345,7 +345,7 @@ export function createAutopilot(options: AutopilotOptions = {}): Autopilot {
       if (ring === 'jump' && player.grounded) command.jump = true
       else if (step && move && wantsJump(world, step) && step.x * move.x + step.y * move.y > 0.7) command.jump = true
 
-      if (player.dashCooldown === 0 && command.skill === null && !command.jump) {
+      if (dashReady(player) && command.skill === null && !command.jump) {
         if (ring === 'dash') {
           const center = ringCenter(world)
           if (center) {

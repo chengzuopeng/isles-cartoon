@@ -17,7 +17,11 @@ export type PlayerTuning = {
   gravity: number
   dashDistance: number
   dashTime: number
-  dashCooldown: number
+  dashCharges: number
+  dashRecharge: number
+  dashShove: number
+  vaultHeight: number
+  vaultTime: number
   meleeRange: number
   meleeArcDeg: number
   meleeDamage: number
@@ -211,7 +215,7 @@ export const LEGACY_REGEN = { delay: 3, perSecond: 130 } as const
 export function createDefaultTuning(): Tuning {
   return {
     player: {
-      speed: 6,
+      speed: 7,
       radius: 0.35,
       maxHp: 1000,
       regenDelay: 5,
@@ -226,7 +230,11 @@ export function createDefaultTuning(): Tuning {
       gravity: 22,
       dashDistance: 5,
       dashTime: 0.25,
-      dashCooldown: 3,
+      dashCharges: 2,
+      dashRecharge: 2,
+      dashShove: 1.5,
+      vaultHeight: 1.2,
+      vaultTime: 0.25,
       meleeRange: 2,
       meleeArcDeg: 80,
       meleeDamage: 150,

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createDefaultTuning } from '../data/tuning'
 import { damagePlayer } from './combat'
+import { dashGauge } from './player'
 import { stepWorld } from './step'
 import { levelFromAreas } from './testing'
 import type { GameEvent, PlayerCommand } from './types'
-import { createWorld, type World } from './world'
+import { createEnemy, createWorld, type World } from './world'
 
 const DT = 1 / 60
 const WIDE = ['##############################', '#............................#', '#....P.......................#', '#............................#', '##############################']
@@ -113,7 +114,7 @@ describe('steps and ledges', () => {
     const world = scene(['##########', '#P..o....#', '##########'])
     const { player } = world
     place(world, 3.5, 1.5)
-    run(world, 0.5, { moveX: 1 })
+    run(world, 0.2, { moveX: 1 })
     expect(player.pos.x).toBeLessThan(4)
     expect(player.z).toBe(0)
     run(world, DT, { moveX: 1, jump: true })
@@ -136,7 +137,7 @@ describe('steps and ledges', () => {
 })
 
 describe('dash', () => {
-  it('covers five metres in a quarter second without taking damage, then waits three seconds', () => {
+  it('covers five metres in a quarter second without taking damage', () => {
     const world = scene(WIDE)
     const { player, tuning } = world
     const start = player.pos.x
@@ -149,20 +150,67 @@ describe('dash', () => {
     run(world, tuning.player.dashTime)
     expect(player.pos.x - start).toBeCloseTo(tuning.player.dashDistance, 1)
     expect(player.invulnerable).toBeLessThan(1e-9)
-    expect(player.dashCooldown).toBeGreaterThan(tuning.player.dashCooldown - 0.4)
-    const early = run(world, DT, { moveX: -1, dash: true })
-    expect(early.some((event) => event.type === 'dashed')).toBe(false)
-    run(world, tuning.player.dashCooldown)
-    const again = run(world, DT, { moveX: -1, dash: true })
-    expect(again.some((event) => event.type === 'dashed')).toBe(true)
+  })
+
+  it('holds two charges that come back one every two seconds', () => {
+    const world = scene(WIDE)
+    const { player, tuning } = world
+    expect(player.dashCharges).toBe(2)
+    expect(dashGauge(world)).toBe(1)
+    run(world, DT, { moveX: 1, dash: true })
+    expect(run(world, DT, { moveX: 1, dash: true }).some((event) => event.type === 'dashed')).toBe(false)
+    run(world, tuning.player.dashTime)
+    expect(run(world, DT, { moveX: -1, dash: true }).some((event) => event.type === 'dashed')).toBe(true)
+    run(world, tuning.player.dashTime)
+    expect(player.dashCharges).toBe(0)
+    expect(dashGauge(world)).toBeLessThan(0.5)
+    expect(run(world, DT, { moveX: 1, dash: true }).some((event) => event.type === 'dashed')).toBe(false)
+    run(world, tuning.player.dashRecharge - 2 * tuning.player.dashTime)
+    expect(player.dashCharges).toBe(1)
+    run(world, tuning.player.dashRecharge)
+    expect(player.dashCharges).toBe(2)
     expect(world.stats.dashes).toBe(2)
+  })
+
+  it('shoves a robot it dashes into and leaves it reeling, once every few seconds', () => {
+    const world = scene(WIDE)
+    const { player } = world
+    const grunt = createEnemy(world, 'grunt', { x: player.pos.x + 2, y: player.pos.y }, 0)
+    world.enemies.push(grunt)
+    world.tuning.grunt.speed = 0
+    const events = run(world, world.tuning.player.dashTime + DT, { moveX: 1, dash: true })
+    expect(events.some((event) => event.type === 'enemyBumped' && event.id === grunt.id)).toBe(true)
+    expect(grunt.status.dazed).toBeGreaterThan(0)
+    expect(grunt.aggro).toBe(true)
+    expect(grunt.status.painRest).toBeGreaterThan(3)
+  })
+
+  it('vaults a waist-high rock after pushing into it for a moment', () => {
+    const world = scene(['##########', '#........#', '#.P.o....#', '#........#', '##########'])
+    const { player } = world
+    const events = run(world, 1.2, { moveX: 1 })
+    expect(events.some((event) => event.type === 'vaulted')).toBe(true)
+    expect(player.pos.x).toBeGreaterThan(4)
+  })
+
+  it('does not vault a fence or a wall', () => {
+    for (const rows of [
+      ['##########', '#........#', '#.Pf.....#', '#........#', '##########'],
+      ['##########', '#........#', '#.P#.....#', '#........#', '##########'],
+    ]) {
+      const world = scene(rows)
+      const events = run(world, 1.2, { moveX: 1 })
+      expect(events.some((event) => event.type === 'vaulted')).toBe(false)
+      expect(world.player.pos.x).toBeLessThan(3)
+    }
   })
 
   it('dashes where the player looks when no direction is held', () => {
     const world = scene(['########', '#......#', '#......#', '#......#', '#......#', '#......#', '#......#', '#..P...#', '########'])
     const { player } = world
     const start = player.pos.y
-    run(world, 0.4, { aimX: player.pos.x, aimY: player.pos.y - 20, dash: true })
+    run(world, DT, { aimX: player.pos.x, aimY: player.pos.y - 20, dash: true })
+    run(world, 0.4, { aimX: player.pos.x, aimY: player.pos.y - 20 })
     expect(start - player.pos.y).toBeCloseTo(world.tuning.player.dashDistance, 1)
   })
 })

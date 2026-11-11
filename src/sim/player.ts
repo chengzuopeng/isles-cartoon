@@ -3,15 +3,15 @@ import type { PlayerWeaponId } from '../data/weapons'
 import { activeWeaponId, firePattern, weaponOf } from './arsenal'
 import { consumesAmmo } from './buffs'
 import { climberTest, resolveCircle, supportHeight } from './collision'
-import { floorAt } from './grid'
+import { climbable, floorAt, standHeight, supportsStanding, tileAt } from './grid'
 import { spawnLob } from './lobs'
 import { clamp, decay, type Vec2 } from './math'
 import { swingMelee } from './melee'
-import { emitNoise } from './perception'
+import { aggro, emitNoise } from './perception'
 import { refreshStats } from './stats'
-import { playerDisabled, playerSpeedFactor } from './status'
-import { SUPPORT_SHARE, playerReach } from './terrain'
-import type { PlayerCommand, WeaponSlot } from './types'
+import { playerDisabled, playerSpeedFactor, reelEnemy } from './status'
+import { SUPPORT_SHARE, heightsOverlap, playerReach } from './terrain'
+import type { Player, PlayerCommand, WeaponSlot } from './types'
 import type { World } from './world'
 
 export function updatePlayer(world: World, command: PlayerCommand, dt: number): void {
@@ -26,14 +26,15 @@ export function updatePlayer(world: World, command: PlayerCommand, dt: number): 
   if (aimX * aimX + aimY * aimY > 0.0001) player.facing = Math.atan2(aimY, aimX)
   player.pitch = clamp(Number.isFinite(command.pitch) ? command.pitch : 0, -MAX_PITCH, MAX_PITCH)
 
-  player.dashCooldown = Math.max(0, player.dashCooldown - dt)
+  rechargeDash(world, dt)
   player.meleeCooldown = Math.max(0, player.meleeCooldown - dt)
   const free = !playerDisabled(player)
-  if (command.dash && free && player.dashCooldown === 0) dash(world, command)
+  if (command.dash && free && dashReady(player)) dash(world, command)
   if (command.jump && free && player.grounded) jump(world)
 
   let moveX = player.knock.x * dt
   let moveY = player.knock.y * dt
+  const rolling = player.rollTime > 0
   if (player.rollTime > 0) {
     const step = Math.min(dt, player.rollTime)
     moveX += player.rollDirX * player.rollSpeed * step
@@ -49,6 +50,8 @@ export function updatePlayer(world: World, command: PlayerCommand, dt: number): 
   decay(player.knock, tuning.feel.knockbackDecay, dt)
   player.stagger = Math.max(0, player.stagger - dt)
   movePlayer(world, moveX, moveY, dt)
+  if (rolling) shoveEnemies(world)
+  else if (free) vault(world, command, dt)
 
   if (command.slot) selectSlot(world, command.slot)
 
@@ -124,9 +127,80 @@ function dash(world: World, command: PlayerCommand): void {
   player.rollDirY = dirY
   player.rollSpeed = tuning.player.dashDistance / time
   player.invulnerable = Math.max(player.invulnerable, time)
-  player.dashCooldown = tuning.player.dashCooldown
+  player.dashCharges -= 1
+  if (player.dashRecharge <= 0) player.dashRecharge = tuning.player.dashRecharge
+  player.rammed = []
   world.stats.dashes += 1
   world.events.push({ type: 'dashed', x: player.pos.x, y: player.pos.y, angle: Math.atan2(dirY, dirX) })
+}
+
+export function dashReady(player: Player): boolean {
+  return player.dashCharges > 0 && player.rollTime <= 0
+}
+
+export function dashGauge(world: World): number {
+  const { player, tuning } = world
+  const full = Math.max(1, tuning.player.dashCharges)
+  if (player.dashCharges >= full) return 1
+  const partial = 1 - player.dashRecharge / Math.max(0.05, tuning.player.dashRecharge)
+  return Math.min(1, (player.dashCharges + Math.max(0, partial)) / full)
+}
+
+function rechargeDash(world: World, dt: number): void {
+  const { player, tuning } = world
+  if (player.dashCharges >= tuning.player.dashCharges) {
+    player.dashRecharge = 0
+    return
+  }
+  player.dashRecharge -= dt
+  if (player.dashRecharge > 0) return
+  player.dashCharges += 1
+  player.dashRecharge = player.dashCharges < tuning.player.dashCharges ? player.dashRecharge + tuning.player.dashRecharge : 0
+}
+
+function shoveEnemies(world: World): void {
+  const { player, tuning } = world
+  const push = tuning.player.dashShove * tuning.feel.knockbackDecay
+  for (const enemy of world.enemies) {
+    if (enemy.hp <= 0 || enemy.kind === 'boss' || enemy.kind === 'turret' || player.rammed.includes(enemy.id)) continue
+    if (!heightsOverlap(world, enemy)) continue
+    const dx = enemy.pos.x - player.pos.x
+    const dy = enemy.pos.y - player.pos.y
+    const reach = player.radius + enemy.radius + 0.15
+    if (dx * dx + dy * dy > reach * reach) continue
+    player.rammed.push(enemy.id)
+    enemy.knock.x += player.rollDirX * push
+    enemy.knock.y += player.rollDirY * push
+    if (enemy.status.painRest <= 0) {
+      reelEnemy(world, enemy, tuning.feel.bumpDaze)
+      enemy.status.painRest = tuning.feel.reelCooldown
+    }
+    aggro(world, enemy)
+    world.events.push({ type: 'enemyBumped', id: enemy.id, x: enemy.pos.x, y: enemy.pos.y, z: enemy.z })
+  }
+}
+
+function vault(world: World, command: PlayerCommand, dt: number): void {
+  const { player, grid, tuning } = world
+  const length = Math.hypot(command.moveX, command.moveY)
+  if (!player.grounded || length < 0.1) {
+    player.vaultTime = 0
+    return
+  }
+  const probe = player.radius + 0.25
+  const column = Math.floor(player.pos.x + (command.moveX / length) * probe)
+  const row = Math.floor(player.pos.y + (command.moveY / length) * probe)
+  const tile = tileAt(grid, column, row)
+  const rise = climbable(tile) && supportsStanding(tile) ? standHeight(grid, column, row) - player.z : Infinity
+  if (rise <= STEP_HEIGHT + 1e-4 || rise > tuning.player.vaultHeight + 1e-4) {
+    player.vaultTime = 0
+    return
+  }
+  player.vaultTime += dt
+  if (player.vaultTime < tuning.player.vaultTime) return
+  player.vaultTime = 0
+  jump(world)
+  world.events.push({ type: 'vaulted', x: player.pos.x, y: player.pos.y })
 }
 
 function jump(world: World): void {

@@ -87,7 +87,10 @@ export interface Player extends Body {
   pitch: number
   vz: number
   grounded: boolean
-  dashCooldown: number
+  dashCharges: number
+  dashRecharge: number
+  rammed: number[]
+  vaultTime: number
   meleeCooldown: number
   primary: PlayerWeaponId
   magazine: number
@@ -483,6 +486,7 @@ export type GameEvent =
   | { type: 'melee'; x: number; y: number; angle: number; hits: number }
   | { type: 'smashed'; id: number; kind: EnemyKind; x: number; y: number; z: number }
   | { type: 'combo'; kind: ChainKind; x: number; y: number; z: number }
+  | { type: 'vaulted'; x: number; y: number }
   | { type: 'enemyBumped'; id: number; x: number; y: number; z: number }
   | { type: 'bomberIgnite'; id: number; x: number; y: number }
   | { type: 'landmarkShaking'; index: number; x: number; y: number }
