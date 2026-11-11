@@ -11,7 +11,7 @@ import type { World } from './world'
 
 export function crumbling(world: World, enemy: Enemy): boolean {
   if (enemy.kind === 'boss' || enemy.hp <= 0) return false
-  return enemy.hp < enemy.maxHp * world.tuning.player.crumbleAt || enemy.status.dazed > 0
+  return enemy.hp < enemy.maxHp * world.tuning.player.crumbleAt || enemy.status.dazed > 0 || enemy.status.frozen > 0
 }
 
 export function foodOf(enemy: Enemy): FoodKind {
@@ -65,6 +65,7 @@ export function swingMelee(world: World): void {
 
 export function smash(world: World, enemy: Enemy): void {
   const { x, y } = enemy.pos
+  if (enemy.status.frozen > 0) world.events.push({ type: 'combo', kind: 'shatter', x, y, z: enemy.z })
   const left = Math.max(0, enemy.hp)
   const dx = x - world.player.pos.x
   const dy = y - world.player.pos.y

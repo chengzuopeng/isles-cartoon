@@ -1,5 +1,6 @@
 import type { AttackCause } from '../data/attacks'
 import type { BossHazard, BossMoveId } from '../data/bosses'
+import type { ChainKind } from '../data/chains'
 import type { ClueId } from '../data/clues'
 import type { BarkDisplay, SpeakerId } from '../data/dialogue'
 import type { AffixId } from '../data/elites'
@@ -205,6 +206,9 @@ export interface Enemy extends Body {
   flank: number
   engaged: boolean
   summoned: boolean
+  airborne: boolean
+  vz: number
+  fallFrom: number
   status: StatusState
   elite: EliteState | null
   boss: BossState | null
@@ -264,6 +268,7 @@ export interface Lob {
   total: number
   radius: number
   damage: number
+  enemyDamage: number
   knockback: number
   attack: Attack | null
 }
@@ -288,6 +293,8 @@ export interface Blast {
   attack: Attack | null
   weapon: WeaponId | null
   stun: number
+  ignites: boolean
+  chainable: boolean
 }
 
 export interface Ring {
@@ -474,6 +481,7 @@ export type GameEvent =
   | { type: 'shockwave'; x: number; y: number; radius: number }
   | { type: 'melee'; x: number; y: number; angle: number; hits: number }
   | { type: 'smashed'; id: number; kind: EnemyKind; x: number; y: number; z: number }
+  | { type: 'combo'; kind: ChainKind; x: number; y: number; z: number }
   | { type: 'enemyBumped'; id: number; x: number; y: number; z: number }
   | { type: 'bomberIgnite'; id: number; x: number; y: number }
   | { type: 'landmarkShaking'; index: number; x: number; y: number }

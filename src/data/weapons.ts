@@ -385,6 +385,7 @@ export function createWeapons(): Record<WeaponId, WeaponDef> {
       knockback: 6,
       explodeRadius: 1.6,
       splash: 160,
+      enemyDamage: 240,
     },
     strawFan: {
       ...BASE,
@@ -462,6 +463,7 @@ export function createWeapons(): Record<WeaponId, WeaponDef> {
       knockback: 6,
       explodeRadius: 1.5,
       splash: 170,
+      enemyDamage: 255,
     },
     chiefCannon: {
       ...BASE,
@@ -509,6 +511,7 @@ export function createWeapons(): Record<WeaponId, WeaponDef> {
       knockback: 7,
       explodeRadius: 1.2,
       splash: 200,
+      enemyDamage: 300,
     },
     tankRam: {
       ...BASE,

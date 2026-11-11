@@ -6,12 +6,12 @@ export type SfxWord = 'pa' | 'kuang' | 'hong' | 'dang' | 'ding' | 'clatter'
 
 const WORD_FILES: Readonly<Record<SfxWord, number>> = { pa: 1, kuang: 2, hong: 3, dang: 4, ding: 5, clatter: 6 }
 const WORD_SIZE: Readonly<Record<SfxWord, number>> = { pa: 0.9, kuang: 1.1, hong: 1.5, dang: 0.95, ding: 1.05, clatter: 1.25 }
-export type SayTone = 'crit' | 'shield' | 'stun' | 'streak'
+export type SayTone = 'crit' | 'shield' | 'stun' | 'streak' | 'combo'
 
 const LIFE = 0.75
 const LIMIT = 12
 const SAY_FONT = 0.36
-const SAY_LIFT: Readonly<Record<SayTone, number>> = { crit: 0.3, shield: 0.3, stun: 0.3, streak: 0.72 }
+const SAY_LIFT: Readonly<Record<SayTone, number>> = { crit: 0.3, shield: 0.3, stun: 0.3, streak: 0.72, combo: 0.5 }
 
 interface Pop {
   root: HTMLElement

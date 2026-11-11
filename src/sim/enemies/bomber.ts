@@ -23,24 +23,32 @@ function act(world: World, enemy: Enemy): Vec2 {
   if (enemy.state === 'arming' || !player.alive) return still()
   const distance = Math.hypot(player.pos.x - enemy.pos.x, player.pos.y - enemy.pos.y)
   if (distance <= config.triggerRange && enemy.cooldown === 0) {
-    const fuse = weaponOf(world, 'fuse')
-    setState(enemy, 'arming')
-    spawnBlast(world, {
-      x: enemy.pos.x,
-      y: enemy.pos.y,
-      z: enemy.z,
-      radius: fuse.radius,
-      delay: fuse.windup,
-      playerDamage: fuse.damage,
-      enemyDamage: fuse.enemyDamage,
-      source: 'bomber',
-      ownerId: enemy.id,
-      attack: attackOf(enemy, 'fuse'),
-    })
-    world.events.push({ type: 'enemyWindup', id: enemy.id })
+    armBomber(world, enemy)
     return still()
   }
   return pursue(world, enemy, config.speed)
+}
+
+export function armBomber(world: World, enemy: Enemy): boolean {
+  if (enemy.kind !== 'bomber' || enemy.hp <= 0 || enemy.state === 'arming') return false
+  if (world.blasts.some((blast) => blast.ownerId === enemy.id)) return false
+  const fuse = weaponOf(world, 'fuse')
+  setState(enemy, 'arming')
+  spawnBlast(world, {
+    x: enemy.pos.x,
+    y: enemy.pos.y,
+    z: enemy.z,
+    radius: fuse.radius,
+    delay: fuse.windup,
+    playerDamage: fuse.damage,
+    enemyDamage: fuse.enemyDamage,
+    source: 'bomber',
+    ownerId: enemy.id,
+    attack: attackOf(enemy, 'fuse'),
+    chainable: true,
+  })
+  world.events.push({ type: 'enemyWindup', id: enemy.id })
+  return true
 }
 
 function interrupt(world: World, enemy: Enemy): void {

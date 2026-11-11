@@ -26,6 +26,12 @@ export type TipId =
   | 'lamp'
   | 'blade'
   | 'conveyor'
+  | 'shatter'
+  | 'burnFuse'
+  | 'pileup'
+  | 'friendly'
+  | 'chainBlast'
+  | 'fall'
 
 export const TIPS: Readonly<Record<TipId, string>> = {
   controls: 'WASD 移动，鼠标看，按住左键射击；Shift 冲刺，空格跳',
@@ -55,6 +61,12 @@ export const TIPS: Readonly<Record<TipId, string>> = {
   lamp: '按 F 点亮驱雾灯',
   blade: '地上亮红线，刀片马上扫过来，先躲进麦丛',
   conveyor: '传送带会推着你走，Boss 战里也会用到',
+  shatter: '冻住的机器人一砸就碎，照样掉吃的',
+  burnFuse: '自爆兵一着火就点引信：离它远点，或者让它在同伴堆里炸开',
+  pileup: '冲锋兵冲锋会撞翻挡路的同伴，被撞的会踉跄，上去砸散',
+  friendly: '自爆兵和炸弹也会炸到机器人自己，把它们引到敌群里',
+  chainBlast: '爆炸会引爆旁边的自爆兵，一个接一个',
+  fall: '把机器人从高处打下去，它会摔晕，可以直接砸散',
 }
 
 export const TIP_SECONDS = 6

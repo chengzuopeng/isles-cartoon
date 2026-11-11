@@ -1,3 +1,4 @@
+import type { ChainKind } from '../data/chains'
 import { TIP_FIGHT_RANGE, TIP_NEAR, TIP_SEE_TURRET, type TipId } from '../data/tips'
 import { lineClear, segmentClear } from '../sim/collision'
 import { beltAt } from '../sim/conveyors'
@@ -10,6 +11,15 @@ import { penDoorway } from '../sim/pickups'
 import { centerOf, playerEye } from '../sim/terrain'
 import type { Enemy, GameEvent } from '../sim/types'
 import type { World } from '../sim/world'
+
+const COMBO_TIPS: Readonly<Record<ChainKind, TipId>> = {
+  shatter: 'shatter',
+  fuse: 'burnFuse',
+  pileup: 'pileup',
+  friendly: 'friendly',
+  chain: 'chainBlast',
+  fall: 'fall',
+}
 
 const KIND_TIPS: Partial<Record<Enemy['kind'], TipId>> = {
   gunner: 'gunner',
@@ -38,6 +48,8 @@ export function tipForEvent(world: World, event: GameEvent): TipId | null {
       return event.item.type === 'buff' ? 'buff' : null
     case 'enemyCharge':
       return 'rush'
+    case 'combo':
+      return COMBO_TIPS[event.kind]
     case 'enemyAlerted': {
       const enemy = world.enemies.find((item) => item.id === event.id)
       if (!enemy) return null

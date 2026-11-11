@@ -25,6 +25,7 @@ import { HEAL_SMALL, type BuffId, type DropType } from './data/loot'
 import type { TrackId } from './data/music'
 import type { AttributeId } from './data/progression'
 import { SLOT_UNLOCK_LEVEL, type SkillId, type SkillSlot } from './data/skills'
+import { CHAIN_WORDS } from './data/chains'
 import { createDefaultTuning, type Tuning } from './data/tuning'
 import type { PlayerWeaponId } from './data/weapons'
 import { createFpsInput } from './input/fps-input'
@@ -917,6 +918,9 @@ function dispatch(event: GameEvent): void {
       break
     case 'stunned':
       words.say('打断！', 'stun', event.x, event.y, world.player.z + 1.6, 0.9)
+      break
+    case 'combo':
+      words.say(CHAIN_WORDS[event.kind], 'combo', event.x, event.y, event.z + 1.9, 1.15)
       break
     case 'enemyBumped':
       wordAt('kuang', event.x, event.y, event.z + 1.3, 0.9)

@@ -675,6 +675,11 @@
   text-shadow: 0.07em 0.09em 0 #d5392e, 0.12em 0.15em 0 var(--ink);
 }
 
+.sfx-say-combo {
+  color: #ff8a3d;
+  text-shadow: 0.07em 0.09em 0 #7a2f3a, 0.12em 0.15em 0 var(--ink);
+}
+
 .fps-mode .bark-bar {
   border: 3px solid var(--ink);
   border-radius: 6px;

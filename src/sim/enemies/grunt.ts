@@ -1,11 +1,14 @@
+import { CHAIN } from '../../data/chains'
 import { weaponOf } from '../arsenal'
 import { attackOf } from '../attacks'
 import { corridorClear } from '../collision'
 import { damagePlayer } from '../combat'
+import { reelEnemy } from '../status'
 import type { Vec2 } from '../math'
 import { heightsOverlap } from '../terrain'
 import type { Enemy } from '../types'
 import type { World } from '../world'
+import { armBomber } from './bomber'
 import { interruptMelee, meleeReach, setState, still, strike, type EnemyBehavior } from './kit'
 import { approach, orbit, predict } from './tactics'
 
@@ -84,6 +87,11 @@ function dash(world: World, enemy: Enemy): Vec2 {
       return finish(world, enemy)
     }
   }
+  const victim = rammed(world, enemy, dirX, dirY)
+  if (victim) {
+    pileup(world, enemy, victim, dirX, dirY)
+    return finish(world, enemy)
+  }
   const traveled = Math.hypot(enemy.pos.x - enemy.dashFrom.x, enemy.pos.y - enemy.dashFrom.y)
   const probe = enemy.radius + BLOCK_PROBE
   const ahead = { x: enemy.pos.x + dirX * probe, y: enemy.pos.y + dirY * probe }
@@ -103,4 +111,29 @@ function finish(world: World, enemy: Enemy): Vec2 {
     world.events.push({ type: 'stunned', id: enemy.id, x: enemy.pos.x, y: enemy.pos.y })
   }
   return still()
+}
+
+function rammed(world: World, enemy: Enemy, dirX: number, dirY: number): Enemy | null {
+  for (const other of world.enemies) {
+    if (other === enemy || other.hp <= 0 || other.kind === 'boss' || other.kind === 'turret') continue
+    if (Math.abs(other.z - enemy.z) > 1) continue
+    const dx = other.pos.x - enemy.pos.x
+    const dy = other.pos.y - enemy.pos.y
+    const distance = Math.hypot(dx, dy)
+    if (distance > enemy.radius + other.radius) continue
+    if (dx * dirX + dy * dirY < distance * CHAIN.pileupCone) continue
+    return other
+  }
+  return null
+}
+
+function pileup(world: World, enemy: Enemy, victim: Enemy, dirX: number, dirY: number): void {
+  const push = CHAIN.pileupPush * world.tuning.feel.knockbackDecay
+  victim.knock.x += dirX * push
+  victim.knock.y += dirY * push
+  reelEnemy(world, victim, CHAIN.pileupReel)
+  armBomber(world, victim)
+  enemy.dashHit = false
+  world.events.push({ type: 'enemyBumped', id: victim.id, x: victim.pos.x, y: victim.pos.y, z: victim.z })
+  world.events.push({ type: 'combo', kind: 'pileup', x: victim.pos.x, y: victim.pos.y, z: victim.z })
 }

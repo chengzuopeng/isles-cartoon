@@ -3,6 +3,7 @@ import type { StatusKind } from '../data/weapons'
 import { hazardAttack } from './attacks'
 import { damageEnemy, damagePlayer } from './combat'
 import { interruptEnemy } from './enemies'
+import { armBomber } from './enemies/bomber'
 import type { Enemy, Player, StatusState } from './types'
 import type { World } from './world'
 
@@ -27,6 +28,7 @@ export function applyStatusHit(world: World, enemy: Enemy, hit: StatusHit): void
     case 'burn':
       status.burn = Math.max(status.burn, hit.statusDuration)
       status.burnDps = Math.max(status.burnDps, hit.statusPower)
+      lightFuse(world, enemy)
       break
     case 'chill':
       status.chillTime = hit.statusDuration
@@ -90,6 +92,7 @@ export function updateEnemyStatus(world: World, enemy: Enemy, dt: number): void 
     }
   }
   if (status.burn <= 0) return
+  lightFuse(world, enemy)
   status.burn -= dt
   status.burnTick += dt
   if (status.burnTick >= BURN_TICK) {
@@ -101,6 +104,11 @@ export function updateEnemyStatus(world: World, enemy: Enemy, dt: number): void 
     status.burnDps = 0
     status.burnTick = 0
   }
+}
+
+function lightFuse(world: World, enemy: Enemy): void {
+  if (enemy.kind !== 'bomber' || !armBomber(world, enemy)) return
+  world.events.push({ type: 'combo', kind: 'fuse', x: enemy.pos.x, y: enemy.pos.y, z: enemy.z })
 }
 
 export function disabled(enemy: Enemy): boolean {

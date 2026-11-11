@@ -1,4 +1,5 @@
 import { getBoss } from '../data/bosses'
+import { CHAIN } from '../data/chains'
 import { BLAST_REACH, bodyHeightOf } from '../data/heights'
 import { ELITE } from '../data/elites'
 import { ELITE_WEIGHTS } from '../data/loot'
@@ -7,6 +8,7 @@ import type { WeaponId } from '../data/weapons'
 import { attackOf, sameAttack } from './attacks'
 import { absorbDamage } from './buffs'
 import { damageCratesInRadius } from './crates'
+import { armBomber } from './enemies/bomber'
 import { floorAt } from './grid'
 import { blastLandmarks } from './landmark-state'
 import { aggro, witnessDeath } from './perception'
@@ -42,6 +44,8 @@ export interface BlastSpec {
   attack?: Attack | null
   weapon?: WeaponId | null
   stun?: number
+  ignites?: boolean
+  chainable?: boolean
 }
 
 export function damagePlayer(
@@ -199,6 +203,7 @@ function eliteDeath(world: World, enemy: Enemy): void {
       source: 'bomber',
       ownerId: 0,
       attack: attackOf(enemy, 'volatile'),
+      chainable: true,
     })
   }
   if (affixes.includes('splitter') && enemy.kind !== 'boss' && enemy.kind !== 'turret') {
@@ -240,6 +245,7 @@ function detonateBomber(world: World, bomber: Enemy): void {
     source: 'bomber',
     ownerId: bomber.id,
     attack: attackOf(bomber, 'fuse'),
+    chainable: true,
   })
 }
 
@@ -271,6 +277,7 @@ function defeatBoss(world: World, boss: Enemy): void {
 }
 
 export function spawnBlast(world: World, spec: BlastSpec): Blast {
+  const round = (spec.inner ?? 0) <= 0 && (spec.arcWidth ?? 0) <= 0 && (spec.gapWidth ?? 0) <= 0
   const blast: Blast = {
     id: world.nextId++,
     x: spec.x,
@@ -291,6 +298,8 @@ export function spawnBlast(world: World, spec: BlastSpec): Blast {
     attack: spec.attack ?? null,
     weapon: spec.weapon ?? null,
     stun: spec.stun ?? 0,
+    ignites: spec.ignites ?? (round && spec.source !== 'boss'),
+    chainable: spec.chainable ?? false,
   }
   world.blasts.push(blast)
   return blast
@@ -343,6 +352,7 @@ function detonate(world: World, blast: Blast): void {
     const length = distance > 1e-6 ? distance : 1
     damagePlayer(world, blast.playerDamage, dx / length, distance > 1e-6 ? dy / length : 1, knockback, blast.attack, { x: blast.x, y: blast.y })
   }
+  let friendly = false
   if (blast.enemyDamage > 0) {
     for (const enemy of world.enemies) {
       if (enemy.hp <= 0 || enemy.id === blast.ownerId) continue
@@ -354,14 +364,33 @@ function detonate(world: World, blast: Blast): void {
       const distance = Math.hypot(dx, dy)
       const length = distance > 1e-6 ? distance : 1
       damageEnemy(world, enemy, blast.enemyDamage, dx / length, dy / length, knockback)
+      if (blast.source !== 'player') friendly = true
       if (blast.stun > 0 && enemy.hp > 0) stunEnemy(world, enemy, blast.stun)
       if (blast.source === 'player') chargeUltimate(world, blast.enemyDamage * ultShareOf(world, blast.weapon), enemy)
     }
   }
+  if (friendly) world.events.push({ type: 'combo', kind: 'friendly', x: blast.x, y: blast.y, z: blast.z })
+  if (blast.ignites) setOff(world, blast)
   if (blast.arcWidth <= 0 && blast.gapWidth <= 0 && blast.inner <= 0) {
     damageCratesInRadius(world, blast.x, blast.y, blast.radius, Math.max(blast.playerDamage, blast.enemyDamage))
     blastLandmarks(world, blast)
   }
   const owner = world.enemies.find((enemy) => enemy.id === blast.ownerId)
   if (owner && owner.kind === 'bomber' && owner.hp > 0) killEnemy(world, owner, false, false)
+}
+
+function setOff(world: World, blast: Blast): void {
+  let chained = false
+  for (const enemy of world.enemies) {
+    if (enemy.kind !== 'bomber' || enemy.hp <= 0 || enemy.id === blast.ownerId) continue
+    if (!insideBlast(blast, enemy.pos.x, enemy.pos.y, enemy.radius) || !blastReaches(blast, enemy.z, bodyHeight(enemy))) continue
+    if (armBomber(world, enemy)) chained = true
+  }
+  for (const other of world.blasts) {
+    if (!other.chainable || other.delay <= CHAIN.chainDelay) continue
+    if (!insideBlast(blast, other.x, other.y, 0) || !blastReaches(blast, other.z, 0)) continue
+    other.delay = CHAIN.chainDelay
+    chained = true
+  }
+  if (chained) world.events.push({ type: 'combo', kind: 'chain', x: blast.x, y: blast.y, z: blast.z })
 }

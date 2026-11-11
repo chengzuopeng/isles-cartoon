@@ -39,6 +39,10 @@ export function walkerTest(grid: Grid, z: number): CellTest {
   return (column, row) => blocksMovement(tileAt(grid, column, row)) || Math.abs(cellFloor(grid, column, row) - z) > STEP_HEIGHT + HEIGHT_SLACK
 }
 
+export function dropTest(grid: Grid, z: number): CellTest {
+  return (column, row) => blocksMovement(tileAt(grid, column, row)) || cellFloor(grid, column, row) > z + STEP_HEIGHT + HEIGHT_SLACK
+}
+
 export function climberTest(grid: Grid, reach: number): CellTest {
   return (column, row) => standHeight(grid, column, row) > reach + HEIGHT_SLACK
 }

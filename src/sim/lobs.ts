@@ -49,6 +49,7 @@ export function spawnLob(
     total: flight ?? Math.max(LOB_ARC.minFlight, distance / Math.max(0.1, weapon.speed)),
     radius: weapon.explodeRadius,
     damage: weapon.splash * damageScale,
+    enemyDamage: weapon.enemyDamage * damageScale,
     knockback: weapon.knockback,
     attack,
   }
@@ -92,7 +93,7 @@ export function updateLobs(world: World, dt: number): void {
       radius: lob.radius,
       delay: 0,
       playerDamage: lob.team === 'enemy' ? lob.damage : 0,
-      enemyDamage: lob.team === 'player' ? lob.damage : 0,
+      enemyDamage: lob.team === 'player' ? lob.damage : lob.enemyDamage,
       source: lob.team === 'player' ? 'player' : 'bomber',
       ownerId: 0,
       attack: lob.attack,

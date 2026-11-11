@@ -1,5 +1,6 @@
+import { CHAIN } from '../data/chains'
 import { CHEST_HEIGHT, STEP_HEIGHT, bodyHeightOf, eyeHeightOf, muzzleHeightOf } from '../data/heights'
-import { climberTest, resolveCircle, walkerTest } from './collision'
+import { climberTest, dropTest, resolveCircle, walkerTest } from './collision'
 import { blocksMovement, cellFloor, tileAt } from './grid'
 import type { Vec3 } from './math'
 import type { Enemy, Player } from './types'
@@ -46,9 +47,13 @@ export function resolvePlayer(world: World): void {
   resolveCircle(player.pos, player.radius, climberTest(world.grid, playerReach(player)))
 }
 
+export function looseBody(enemy: Enemy): boolean {
+  return enemy.airborne || Math.hypot(enemy.knock.x, enemy.knock.y) >= CHAIN.looseKnock
+}
+
 export function settleWalker(world: World, enemy: Enemy): void {
   const { grid } = world
-  resolveCircle(enemy.pos, enemy.radius, walkerTest(grid, enemy.z))
+  resolveCircle(enemy.pos, enemy.radius, looseBody(enemy) ? dropTest(grid, enemy.z) : walkerTest(grid, enemy.z))
   const column = Math.floor(enemy.pos.x)
   const row = Math.floor(enemy.pos.y)
   if (blocksMovement(tileAt(grid, column, row))) return

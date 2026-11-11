@@ -1,10 +1,14 @@
+import { CHAIN } from '../../data/chains'
+import { STEP_HEIGHT } from '../../data/heights'
 import { ELITE } from '../../data/elites'
 import { runForAlarm } from '../alarms'
 import { bossBlocks } from '../boss'
 import { decay, type Vec2 } from '../math'
+import { damageEnemy } from '../combat'
+import { cellFloor } from '../grid'
 import { aggro, canSeePlayer, sightOf, watchPlayer } from '../perception'
 import { disabled, reelEnemy, speedFactor, updateEnemyStatus } from '../status'
-import { settleWalker } from '../terrain'
+import { looseBody, settleWalker } from '../terrain'
 import type { AlertState, Enemy } from '../types'
 import type { World } from '../world'
 import { calm } from './calm'
@@ -114,8 +118,31 @@ function integrate(world: World, enemy: Enemy, move: Vec2, dt: number): void {
   enemy.pos.x += (move.x * factor + enemy.knock.x) * dt
   enemy.pos.y += (move.y * factor + enemy.knock.y) * dt
   bump(world, enemy)
+  const loose = looseBody(enemy)
   decay(enemy.knock, world.tuning.feel.knockbackDecay, dt)
   settleWalker(world, enemy)
+  if (loose) fall(world, enemy, dt)
+}
+
+function fall(world: World, enemy: Enemy, dt: number): void {
+  const floor = cellFloor(world.grid, Math.floor(enemy.pos.x), Math.floor(enemy.pos.y))
+  if (!enemy.airborne) {
+    if (floor >= enemy.z - STEP_HEIGHT - 1e-4) return
+    enemy.airborne = true
+    enemy.vz = 0
+    enemy.fallFrom = enemy.z
+  }
+  enemy.vz -= CHAIN.gravity * dt
+  enemy.z += enemy.vz * dt
+  if (enemy.z > floor) return
+  enemy.z = floor
+  enemy.vz = 0
+  enemy.airborne = false
+  const drop = enemy.fallFrom - floor
+  if (drop < CHAIN.fallMin) return
+  world.events.push({ type: 'combo', kind: 'fall', x: enemy.pos.x, y: enemy.pos.y, z: floor })
+  damageEnemy(world, enemy, CHAIN.fallDamage * drop, 0, 0, 0)
+  if (enemy.hp > 0) reelEnemy(world, enemy, CHAIN.fallReel)
 }
 
 function bump(world: World, enemy: Enemy): void {
