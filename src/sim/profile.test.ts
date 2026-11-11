@@ -119,7 +119,7 @@ describe('skills', () => {
     expect(profile.skills).toEqual({ concussion: 1 })
     expect(profile.equipped).toEqual({ q: 'concussion', e: null })
     expect(skillPointsLeft(profile)).toBe(0)
-    expect(loadoutOf(profile).skills).toEqual([{ slot: 'q', id: 'concussion', rank: 1 }])
+    expect(loadoutOf(profile).skills).toEqual([{ slot: 'q', id: 'concussion', rank: 1, branch: 'a' }])
   })
 
   it('earns a skill point every two levels', () => {
@@ -153,8 +153,8 @@ describe('skills', () => {
     expect(profile.equipped).toEqual({ q: 'shockwave', e: 'concussion' })
     expect(learnSkill(profile, 'concussion')).toBe(true)
     expect(loadoutOf(profile).skills).toEqual([
-      { slot: 'q', id: 'shockwave', rank: 1 },
-      { slot: 'e', id: 'concussion', rank: 2 },
+      { slot: 'q', id: 'shockwave', rank: 1, branch: 'a' },
+      { slot: 'e', id: 'concussion', rank: 2, branch: 'a' },
     ])
   })
 

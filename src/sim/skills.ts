@@ -1,6 +1,6 @@
 import { eyeHeightOf } from '../data/heights'
 import { MILESTONE } from '../data/progression'
-import { CONCUSSION_MIN, SKILLS, type BarrierRank, type ConcussionRank, type ShockwaveRank, type SkillId } from '../data/skills'
+import { BOMBLET, CONCUSSION_MIN, SKILLS, type BarrierRank, type ConcussionRank, type ShockwaveRank, type SkillBranch, type SkillDef, type SkillId } from '../data/skills'
 import { damageEnemy, spawnBlast } from './combat'
 import { interruptEnemy } from './enemies'
 import { blocksMovement, floorAt, tileAt } from './grid'
@@ -9,12 +9,16 @@ import { playerDisabled, stunEnemy } from './status'
 import type { PlayerCommand, SkillRuntime } from './types'
 import type { World } from './world'
 
+export function rankFor<Rank>(def: SkillDef<Rank>, rank: number, branch: SkillBranch = 'a'): Rank {
+  return rank >= 3 && branch === 'b' ? def.branchB : rankOf(def.ranks, rank)
+}
+
 export function rankOf<Rank>(ranks: readonly [Rank, Rank, Rank], rank: number): Rank {
   return ranks[Math.min(ranks.length, Math.max(1, Math.round(rank))) - 1]
 }
 
 export function skillCooldownOf(world: World, skill: SkillRuntime): number {
-  return rankOf<{ cooldown: number }>(SKILLS[skill.id].ranks, skill.rank).cooldown * world.playerStats.skillCooldown
+  return rankFor<{ cooldown: number }>(SKILLS[skill.id] as SkillDef<{ cooldown: number }>, skill.rank, skill.branch).cooldown * world.playerStats.skillCooldown
 }
 
 export function updateSkills(world: World, command: PlayerCommand, dt: number): void {
@@ -26,7 +30,12 @@ export function updateSkills(world: World, command: PlayerCommand, dt: number): 
     player.barrierTime -= dt
     if (player.barrierTime <= 0) {
       player.barrierTime = 0
+      if (player.barrier > 0 && player.barrierBurst > 0) {
+        world.events.push({ type: 'barrierBroken', x: player.pos.x, y: player.pos.y, radius: player.barrierBurst })
+        pushEnemies(world, player.barrierBurst, barrierBurstKnockback(), 0, 0)
+      }
       player.barrier = 0
+      player.barrierReflect = false
     }
   }
   if (!command.skill || !player.alive || world.status !== 'playing' || playerDisabled(player)) return
@@ -40,13 +49,13 @@ function cast(world: World, skill: SkillRuntime, command: PlayerCommand): void {
   skill.cooldown = skillCooldownOf(world, skill)
   switch (skill.id) {
     case 'concussion':
-      throwConcussion(world, rankOf<ConcussionRank>(SKILLS.concussion.ranks, skill.rank), command)
+      throwConcussion(world, rankFor(SKILLS.concussion, skill.rank, skill.branch), command)
       break
     case 'barrier':
-      raiseBarrier(world, rankOf<BarrierRank>(SKILLS.barrier.ranks, skill.rank))
+      raiseBarrier(world, rankFor(SKILLS.barrier, skill.rank, skill.branch))
       break
     case 'shockwave':
-      shockwave(world, rankOf<ShockwaveRank>(SKILLS.shockwave.ranks, skill.rank))
+      shockwave(world, rankFor(SKILLS.shockwave, skill.rank, skill.branch))
       break
   }
   world.events.push({ type: 'skillCast', skill: skill.id, x: player.pos.x, y: player.pos.y })
@@ -84,7 +93,26 @@ function throwConcussion(world: World, rank: ConcussionRank, command: PlayerComm
     ownerId: 0,
     stun: rank.stun,
     skill: 'concussion',
+    daze: rank.daze,
   })
+  for (let i = 0; i < rank.bomblets; i++) {
+    const angle = yaw + (i / rank.bomblets) * Math.PI * 2
+    const x = target.x + Math.cos(angle) * BOMBLET.spread
+    const y = target.y + Math.sin(angle) * BOMBLET.spread
+    spawnBlast(world, {
+      x,
+      y,
+      z: floorAt(world.grid, x, y),
+      radius: BOMBLET.radius,
+      delay: rank.flight + BOMBLET.delay,
+      playerDamage: 0,
+      enemyDamage: BOMBLET.damage * world.playerStats.damage,
+      source: 'player',
+      ownerId: 0,
+      stun: BOMBLET.stun,
+      skill: 'concussion',
+    })
+  }
 }
 
 function raiseBarrier(world: World, rank: BarrierRank): void {
@@ -92,12 +120,35 @@ function raiseBarrier(world: World, rank: BarrierRank): void {
   player.barrier = rank.absorb
   player.barrierTime = rank.duration
   player.barrierBurst = rank.burstRadius
+  player.barrierReflect = rank.reflect
 }
 
 function shockwave(world: World, rank: ShockwaveRank): void {
   const { player } = world
-  closeCircuit(world, 'shockwave', pushEnemies(world, rank.radius, rank.knockback, rank.damage * world.playerStats.damage, rank.stun))
+  const struck = rank.pullTo > 0 ? pullEnemies(world, rank) : pushEnemies(world, rank.radius, rank.knockback, rank.damage * world.playerStats.damage, rank.stun)
+  closeCircuit(world, 'shockwave', struck)
   world.events.push({ type: 'shockwave', x: player.pos.x, y: player.pos.y, radius: rank.radius })
+}
+
+function pullEnemies(world: World, rank: ShockwaveRank): number {
+  const { player } = world
+  const decay = world.tuning.feel.knockbackDecay
+  let struck = 0
+  for (const enemy of world.enemies) {
+    if (enemy.hp <= 0 || enemy.kind === 'boss' || enemy.kind === 'turret') continue
+    const dx = player.pos.x - enemy.pos.x
+    const dy = player.pos.y - enemy.pos.y
+    const distance = Math.hypot(dx, dy)
+    if (distance > rank.radius + enemy.radius || distance < 1e-6) continue
+    interruptEnemy(world, enemy)
+    const travel = Math.max(0, distance - rank.pullTo)
+    enemy.knock.x = (dx / distance) * travel * decay
+    enemy.knock.y = (dy / distance) * travel * decay
+    if (rank.damage > 0) damageEnemy(world, enemy, rank.damage * world.playerStats.damage, 0, 0, 0)
+    if (enemy.hp > 0 && rank.stun > 0) stunEnemy(world, enemy, rank.stun)
+    struck += 1
+  }
+  return struck
 }
 
 export function closeCircuit(world: World, id: SkillId, struck: number): void {

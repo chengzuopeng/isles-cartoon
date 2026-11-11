@@ -23,6 +23,7 @@ import {
   SKILL_SLOTS,
   SLOT_UNLOCK_LEVEL,
   STARTER_SKILL,
+  type SkillBranch,
   type SkillId,
   type SkillSlot,
 } from '../data/skills'
@@ -49,6 +50,7 @@ export interface Profile {
   points: number
   specs: SpecRanks
   skills: Partial<Record<SkillId, number>>
+  branches: Partial<Record<SkillId, SkillBranch>>
   equipped: Record<SkillSlot, SkillId | null>
   chapter: number
   records: Record<string, LevelRecord>
@@ -103,6 +105,7 @@ export function createProfile(): Profile {
     specs: emptySpecs(),
     skills: { [STARTER_SKILL]: 1 },
     equipped: { q: STARTER_SKILL, e: null },
+    branches: {},
     chapter: 1,
     records: {},
     clues: [],
@@ -228,6 +231,12 @@ export function equipSkill(profile: Profile, id: SkillId, slot: SkillSlot): bool
   return true
 }
 
+export function setBranch(profile: Profile, id: SkillId, branch: SkillBranch): boolean {
+  if (skillRank(profile, id) < SKILL_MAX_RANK || (profile.branches[id] ?? 'a') === branch) return false
+  profile.branches[id] = branch
+  return true
+}
+
 export function resetSkills(profile: Profile): void {
   profile.skills = {}
   profile.equipped = { q: null, e: null }
@@ -237,7 +246,7 @@ export function loadoutOf(profile: Profile): Loadout {
   const skills: EquippedSkill[] = []
   for (const slot of SKILL_SLOTS) {
     const id = profile.equipped[slot]
-    if (id && slotUnlocked(profile, slot) && skillRank(profile, id) > 0) skills.push({ slot, id, rank: skillRank(profile, id) })
+    if (id && slotUnlocked(profile, slot) && skillRank(profile, id) > 0) skills.push({ slot, id, rank: skillRank(profile, id), branch: profile.branches[id] ?? 'a' })
   }
   return createLoadout({ ...profile.specs }, skills, profile.carry && profile.weapons.includes(profile.carry) ? profile.carry : null)
 }
@@ -400,6 +409,9 @@ export function sanitizeProfile(raw: unknown): Profile {
   }
   if (skillPointsSpent(profile) > skillPointsTotal(profile.level)) profile.skills = {}
   if (!knowsSkill(profile)) profile.skills[STARTER_SKILL] = 1
+  if (isRecord(raw.branches)) {
+    for (const id of SKILL_ORDER) if (raw.branches[id] === 'b') profile.branches[id] = 'b'
+  }
   if (isRecord(raw.equipped)) {
     for (const slot of SKILL_SLOTS) {
       const saved = raw.equipped[slot]

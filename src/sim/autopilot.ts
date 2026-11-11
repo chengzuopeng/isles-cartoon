@@ -23,7 +23,7 @@ import { mineRadius, mineRule } from './mines'
 import { tileIndex } from './navigation'
 import { dashReady, threatNearby } from './player'
 import { createRng } from './rng'
-import { concussionTarget, rankOf } from './skills'
+import { concussionTarget, rankFor } from './skills'
 import { playerSpeedFactor } from './status'
 import { idleCommand } from './step'
 import { bodyHeight, centerOf, playerChest, playerEye } from './terrain'
@@ -623,7 +623,7 @@ function pickSkill(world: World): SkillSlot | null {
     if (skill.cooldown > 0) continue
     switch (skill.id) {
       case 'concussion': {
-        const rank = rankOf(SKILLS.concussion.ranks, skill.rank)
+        const rank = rankFor(SKILLS.concussion, skill.rank, skill.branch)
         const landing = concussionTarget(world, rank.range)
         let caught = 0
         let charging = false
@@ -645,7 +645,7 @@ function pickSkill(world: World): SkillSlot | null {
         break
       }
       case 'shockwave': {
-        const radius = rankOf(SKILLS.shockwave.ranks, skill.rank).radius
+        const radius = rankFor(SKILLS.shockwave, skill.rank, skill.branch).radius
         let crowd = 0
         let melee = false
         for (const enemy of world.enemies) {

@@ -7,7 +7,7 @@ import type { AffixId } from '../data/elites'
 import type { IdleMode, MinionKind } from '../data/enemies'
 import type { LandmarkId } from '../data/landmarks'
 import type { BuffId, ChestTier, FoodKind } from '../data/loot'
-import type { SkillId, SkillSlot } from '../data/skills'
+import type { SkillBranch, SkillId, SkillSlot } from '../data/skills'
 import type { PlayerWeaponId, StatusKind, WeaponId } from '../data/weapons'
 import type { Vec2 } from './math'
 
@@ -59,6 +59,7 @@ export interface SkillRuntime {
   slot: SkillSlot
   id: SkillId
   rank: number
+  branch: SkillBranch
   cooldown: number
 }
 
@@ -128,6 +129,7 @@ export interface Player extends Body {
   barrier: number
   barrierTime: number
   barrierBurst: number
+  barrierReflect: boolean
   ultimate: number
   ultShots: number
   ultTimer: number
@@ -307,6 +309,7 @@ export interface Blast {
   chainable: boolean
   keg: number
   skill: SkillId | null
+  daze: boolean
 }
 
 export interface Ring {
@@ -498,6 +501,7 @@ export type GameEvent =
   | { type: 'vaulted'; x: number; y: number }
   | { type: 'grazed'; x: number; y: number }
   | { type: 'circuit'; skill: SkillId }
+  | { type: 'reflected'; x: number; y: number; z: number }
   | { type: 'kegLit'; x: number; y: number; z: number; index: number }
   | { type: 'hayLit'; x: number; y: number; z: number; index: number }
   | { type: 'hayBurnt'; x: number; y: number; z: number; index: number }

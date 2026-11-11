@@ -17,7 +17,7 @@ import { blastLandmarks } from './landmark-state'
 import { aggro, witnessDeath } from './perception'
 import { rollEnemyDrop, rollItem, spawnPickup } from './pickups'
 import { barrierBurstKnockback, pushEnemies } from './skills'
-import { feelPain, stunEnemy } from './status'
+import { feelPain, reelEnemy, stunEnemy } from './status'
 import type { Vec2 } from './math'
 import { hasMilestone } from './stats'
 import { bodyHeight } from './terrain'
@@ -52,6 +52,7 @@ export interface BlastSpec {
   chainable?: boolean
   keg?: number
   skill?: SkillId | null
+  daze?: boolean
 }
 
 export function damagePlayer(
@@ -320,6 +321,7 @@ export function spawnBlast(world: World, spec: BlastSpec): Blast {
     chainable: spec.chainable ?? false,
     keg: spec.keg ?? -1,
     skill: spec.skill ?? null,
+    daze: spec.daze ?? false,
   }
   world.blasts.push(blast)
   return blast
@@ -387,7 +389,10 @@ function detonate(world: World, blast: Blast): void {
       damageEnemy(world, enemy, blast.enemyDamage, dx / length, dy / length, knockback)
       if (blast.source === 'bomber' || blast.source === 'boss') friendly = true
       struck += 1
-      if (blast.stun > 0 && enemy.hp > 0) stunEnemy(world, enemy, blast.stun)
+      if (blast.stun > 0 && enemy.hp > 0) {
+        if (blast.daze) reelEnemy(world, enemy, blast.stun)
+        else stunEnemy(world, enemy, blast.stun)
+      }
       if (blast.source === 'player') chargeUltimate(world, blast.enemyDamage * ultShareOf(world, blast.weapon), enemy)
     }
   }

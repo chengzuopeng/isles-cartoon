@@ -1052,3 +1052,41 @@
 .spec-column.maxed .spec-rank {
   color: #ffd04a;
 }
+
+.skill-forks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.skill-fork {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  white-space: normal;
+  opacity: 0.6;
+}
+
+.skill-fork.picked {
+  opacity: 0.85;
+}
+
+.skill-fork.on {
+  opacity: 1;
+  outline: 2px solid #ffd04a;
+}
+
+.skill-fork:disabled {
+  cursor: default;
+}
+
+.skill-fork-name {
+  font-weight: 800;
+  color: #ffd04a;
+}
+
+.skill-fork-text {
+  font-size: 12px;
+}

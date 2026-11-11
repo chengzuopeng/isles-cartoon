@@ -6,6 +6,8 @@ import { onDamageDealt } from './buffs'
 import { lineClear } from './collision'
 import { damageEnemy, damagePlayer, spawnBlast } from './combat'
 import { MILESTONE } from '../data/progression'
+
+const REFLECT_FRONT = 0.5
 import { damageCrate } from './crates'
 import { hasMilestone } from './stats'
 import { igniteHay } from './props'
@@ -167,6 +169,7 @@ function advance(world: World, bullet: Bullet, dt: number): boolean {
         }
       }
     } else if (hitsPlayer(world, bullet)) {
+      if (reflect(world, bullet)) continue
       damagePlayer(world, bullet.damage, bullet.dirX, bullet.dirY, bullet.knockback, bullet.attack, bullet.origin)
       if (bullet.status !== 'none') applyStatusToPlayer(world, bullet)
       if (bullet.explodeRadius > 0) explode(world, bullet, bullet.pos.x, bullet.pos.y)
@@ -198,6 +201,24 @@ export function criticalHit(bullet: Bullet, target: Enemy): boolean {
   const eye = target.z + eyeHeightOf(heightKey(target))
   if (Math.abs(bullet.z - eye) > EYE_CRIT.band) return false
   return bullet.dirX * Math.cos(target.facing) + bullet.dirY * Math.sin(target.facing) < EYE_CRIT.facing
+}
+
+function reflect(world: World, bullet: Bullet): boolean {
+  const { player } = world
+  if (player.barrier <= 0 || !player.barrierReflect || bullet.explodeRadius > 0) return false
+  if (bullet.dirX * Math.cos(player.facing) + bullet.dirY * Math.sin(player.facing) > -REFLECT_FRONT) return false
+  bullet.team = 'player'
+  bullet.dirX = -bullet.dirX
+  bullet.dirY = -bullet.dirY
+  bullet.vz = -bullet.vz
+  bullet.traveled = 0
+  bullet.origin = { x: bullet.pos.x, y: bullet.pos.y }
+  bullet.attack = null
+  bullet.hits = []
+  bullet.pos.x += bullet.dirX * (player.radius + bullet.radius + 0.1)
+  bullet.pos.y += bullet.dirY * (player.radius + bullet.radius + 0.1)
+  world.events.push({ type: 'reflected', x: bullet.pos.x, y: bullet.pos.y, z: bullet.z })
+  return true
 }
 
 function recycleAmmo(world: World, bullet: Bullet): void {

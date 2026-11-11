@@ -1,6 +1,6 @@
 import { BUFFS } from '../data/loot'
 import { MILESTONE, SPECS, SPEC_BONUS, SPEC_ORDER, STAT_FLOOR, type SpecId } from '../data/progression'
-import type { SkillId, SkillSlot } from '../data/skills'
+import type { SkillBranch, SkillId, SkillSlot } from '../data/skills'
 import { LEGACY_REGEN, type Tuning } from '../data/tuning'
 import type { PlayerWeaponId } from '../data/weapons'
 import { hasBuff } from './buffs'
@@ -14,6 +14,7 @@ export interface EquippedSkill {
   slot: SkillSlot
   id: SkillId
   rank: number
+  branch?: SkillBranch
 }
 
 export interface Loadout {

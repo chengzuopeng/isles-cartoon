@@ -85,6 +85,7 @@ import {
   resetSkills,
   respec,
   sanitizeProfile,
+  setBranch,
   setCarry,
   settleRun,
   skillBlock,
@@ -285,6 +286,7 @@ const prep = createPrepScreen(container, {
   onRespec: resetPoints,
   onLearn: (id) => changeSkills(() => learnSkill(profile, id)),
   onEquip: (id, slot) => changeSkills(() => equipSkill(profile, id, slot)),
+  onBranch: (id, branch) => changeSkills(() => setBranch(profile, id, branch)),
   onResetSkills: () =>
     changeSkills(() => {
       resetSkills(profile)
@@ -695,7 +697,7 @@ function changeSkills(change: () => boolean): void {
   persist()
   sfx.cue('allocate')
   prep.refresh(profile)
-  if (screen === 'play') world.player.skills = loadoutOf(profile).skills.map((skill) => ({ ...skill, cooldown: 0 }))
+  if (screen === 'play') world.player.skills = loadoutOf(profile).skills.map((skill) => ({ ...skill, branch: skill.branch ?? 'a', cooldown: 0 }))
 }
 
 function devLearn(id: SkillId): void {

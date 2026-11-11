@@ -2,7 +2,7 @@ import { CHALLENGES, type ChallengeId } from '../data/challenges'
 import { CHAPTERS } from '../data/chapters'
 import { DIFFICULTIES, DIFFICULTY_ORDER, type DifficultyId } from '../data/difficulty'
 import type { SpecId } from '../data/progression'
-import type { SkillId, SkillSlot } from '../data/skills'
+import type { SkillBranch, SkillId, SkillSlot } from '../data/skills'
 import type { PlayerWeaponId } from '../data/weapons'
 import { assetUrl, type SceneId } from '../render/asset-urls'
 import { clueBook, recordOf, seenInterludes, spentPoints, type Profile } from '../sim/profile'
@@ -32,6 +32,7 @@ export interface PrepScreenOptions {
   onRespec(): void
   onLearn(id: SkillId): void
   onEquip(id: SkillId, slot: SkillSlot): void
+  onBranch(id: SkillId, branch: SkillBranch): void
   onResetSkills(): void
   onCarry(id: PlayerWeaponId | null): void
   onSettings(): void
@@ -108,7 +109,7 @@ export function createPrepScreen(container: HTMLElement, options: PrepScreenOpti
   const cards = createAttributeCards(panel, options.onAllocate, options.onRefund)
   const tools = element('div', 'prep-tools', panel)
   const respec = button(tools, 'ghost', '重置专精（免费）', options.onRespec)
-  const skills = createSkillCards(panel, { onLearn: options.onLearn, onEquip: options.onEquip, onReset: options.onResetSkills })
+  const skills = createSkillCards(panel, { onLearn: options.onLearn, onEquip: options.onEquip, onBranch: options.onBranch, onReset: options.onResetSkills })
   const rack = createWeaponRack(panel, options.onCarry)
   const difficulty = element('div', 'prep-difficulty', panel)
   element('span', 'prep-difficulty-label', difficulty, '难度')

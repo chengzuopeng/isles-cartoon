@@ -1,4 +1,4 @@
-import { SKILLS, SKILL_ORDER, SKILL_POINT_EVERY, SKILL_SLOTS, SLOT_UNLOCK_LEVEL, type SkillId, type SkillSlot } from '../data/skills'
+import { SKILLS, SKILL_ORDER, SKILL_POINT_EVERY, SKILL_SLOTS, SLOT_UNLOCK_LEVEL, type SkillBranch, type SkillId, type SkillSlot } from '../data/skills'
 import { assetUrl } from '../render/asset-urls'
 import { skillBlock, skillPointsLeft, skillPointsSpent, skillRank, slotUnlocked, type Profile } from '../sim/profile'
 import { icon } from './assets'
@@ -7,6 +7,7 @@ import { button, element } from './dom'
 export interface SkillCardsOptions {
   onLearn(id: SkillId): void
   onEquip(id: SkillId, slot: SkillSlot): void
+  onBranch(id: SkillId, branch: SkillBranch): void
   onReset(): void
 }
 
@@ -18,6 +19,7 @@ export interface SkillCards {
 interface SkillView {
   pips: HTMLSpanElement[]
   lines: HTMLDivElement[]
+  forks: Map<SkillBranch, HTMLButtonElement>
   learn: HTMLButtonElement
   equip: Map<SkillSlot, HTMLButtonElement>
 }
@@ -40,11 +42,19 @@ export function createSkillCards(parent: HTMLElement, options: SkillCardsOptions
     const pipRow = element('span', 'skill-pips', head)
     const pips = [0, 1, 2].map(() => element('span', 'skill-pip', pipRow))
     const lines = def.lines.map((line, index) => element('div', 'skill-line', card, `${index + 1} 级：${line}`))
+    const forkRow = element('div', 'skill-forks', card)
+    const forks = new Map<SkillBranch, HTMLButtonElement>()
+    for (const branch of ['a', 'b'] as const) {
+      const fork = button(forkRow, 'ghost small skill-fork', '', () => options.onBranch(id, branch))
+      element('span', 'skill-fork-name', fork, `3 级 ${branch.toUpperCase()} · ${def.branches[branch].name}`)
+      element('span', 'skill-fork-text', fork, def.branches[branch].line)
+      forks.set(branch, fork)
+    }
     const actions = element('div', 'skill-actions', card)
     const learn = button(actions, 'small', '', () => options.onLearn(id))
     const equip = new Map<SkillSlot, HTMLButtonElement>()
     for (const slot of SKILL_SLOTS) equip.set(slot, button(actions, 'ghost small', '', () => options.onEquip(id, slot)))
-    views.set(id, { pips, lines, learn, equip })
+    views.set(id, { pips, lines, forks, learn, equip })
   }
 
   return {
@@ -65,6 +75,12 @@ export function createSkillCards(parent: HTMLElement, options: SkillCardsOptions
         const rank = skillRank(profile, id)
         view.pips.forEach((pip, index) => pip.classList.toggle('on', index < rank))
         view.lines.forEach((line, index) => line.classList.toggle('on', index < rank))
+        const chosen = profile.branches[id] ?? 'a'
+        for (const [branch, fork] of view.forks) {
+          fork.classList.toggle('on', rank >= 3 && branch === chosen)
+          fork.classList.toggle('picked', branch === chosen)
+          fork.disabled = rank < 3 || branch === chosen
+        }
         const block = skillBlock(profile, id)
         view.learn.disabled = block !== null
         view.learn.textContent =
