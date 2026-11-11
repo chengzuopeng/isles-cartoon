@@ -103,6 +103,7 @@ describe('attribute points', () => {
 
   it('keeps skill cooldown closed until a skill is learned', () => {
     const profile = createProfile()
+    resetSkills(profile)
     profile.points = 1
     expect(allocationBlock(profile, 'cooldown')).toBe('skill')
     profile.skills.concussion = 1
@@ -123,17 +124,25 @@ describe('attribute points', () => {
 })
 
 describe('skills', () => {
-  it('earns a skill point every three levels', () => {
+  it('starts with the concussion grenade on Q without spending an earned point', () => {
     const profile = createProfile()
+    expect(profile.skills).toEqual({ concussion: 1 })
+    expect(profile.equipped).toEqual({ q: 'concussion', e: null })
+    expect(skillPointsLeft(profile)).toBe(0)
+    expect(loadoutOf(profile).skills).toEqual([{ slot: 'q', id: 'concussion', rank: 1 }])
+  })
+
+  it('earns a skill point every two levels', () => {
+    const profile = createProfile()
+    profile.level = 2
+    expect(skillPointsLeft(profile)).toBe(1)
     profile.level = 8
-    expect(skillPointsLeft(profile)).toBe(2)
+    expect(skillPointsLeft(profile)).toBe(4)
   })
 
   it('learns, upgrades and equips skills into unlocked slots', () => {
     const profile = createProfile()
-    profile.level = 7
-    expect(learnSkill(profile, 'concussion')).toBe(true)
-    expect(profile.equipped.q).toBe('concussion')
+    profile.level = 3
     expect(learnSkill(profile, 'shockwave')).toBe(true)
     expect(profile.equipped).toEqual({ q: 'concussion', e: null })
     expect(learnSkill(profile, 'barrier')).toBe(false)
@@ -142,18 +151,16 @@ describe('skills', () => {
     expect(profile.equipped).toEqual({ q: 'shockwave', e: null })
   })
 
-  it('opens the E slot at level 8 and fills it with a learned skill', () => {
+  it('opens the E slot at level 4 and fills it with a learned skill', () => {
     const profile = createProfile()
-    profile.level = 7
-    learnSkill(profile, 'concussion')
+    profile.level = 3
     learnSkill(profile, 'shockwave')
     equipSkill(profile, 'shockwave', 'q')
     expect(slotUnlocked(profile, 'e')).toBe(false)
     grantXp(profile, xpToNext(profile.level))
-    expect(profile.level).toBe(8)
+    expect(profile.level).toBe(4)
     expect(slotUnlocked(profile, 'e')).toBe(true)
     expect(profile.equipped).toEqual({ q: 'shockwave', e: 'concussion' })
-    grantXp(profile, xpToNext(profile.level))
     expect(learnSkill(profile, 'concussion')).toBe(true)
     expect(loadoutOf(profile).skills).toEqual([
       { slot: 'q', id: 'shockwave', rank: 1 },
@@ -169,22 +176,30 @@ describe('skills', () => {
     expect(learnSkill(profile, 'barrier')).toBe(false)
   })
 
-  it('resets skills for free', () => {
+  it('resets skills for free, the starting point included', () => {
     const profile = createProfile()
-    profile.level = 6
+    profile.level = 4
     learnSkill(profile, 'concussion')
     learnSkill(profile, 'barrier')
     resetSkills(profile)
-    expect(skillPointsLeft(profile)).toBe(2)
+    expect(skillPointsLeft(profile)).toBe(3)
     expect(profile.equipped).toEqual({ q: null, e: null })
   })
 
-  it('drops skills a save cannot afford and ignores unknown ones', () => {
+  it('drops skills a save cannot afford, ignores unknown ones and hands back the starting grenade', () => {
     const profile = sanitizeProfile({ level: 3, skills: { concussion: 3, fly: 2 }, equipped: { q: 'concussion', e: 'fly' } })
-    expect(profile.skills).toEqual({})
-    expect(profile.equipped).toEqual({ q: null, e: null })
+    expect(profile.skills).toEqual({ concussion: 1 })
+    expect(profile.equipped).toEqual({ q: 'concussion', e: null })
     const fine = sanitizeProfile({ level: 6, skills: { concussion: 1 }, equipped: { q: 'concussion', e: 'concussion' } })
     expect(fine.equipped).toEqual({ q: 'concussion', e: null })
+  })
+
+  it('gives old saves without any skill the starting grenade and fills open slots', () => {
+    const empty = sanitizeProfile({ level: 2, skills: {}, equipped: { q: null, e: null } })
+    expect(empty.skills).toEqual({ concussion: 1 })
+    expect(empty.equipped).toEqual({ q: 'concussion', e: null })
+    const two = sanitizeProfile({ level: 9, skills: { barrier: 1, shockwave: 2 }, equipped: { q: 'barrier', e: null } })
+    expect(two.equipped).toEqual({ q: 'barrier', e: 'shockwave' })
   })
 })
 

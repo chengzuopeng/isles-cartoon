@@ -1,4 +1,4 @@
-import { SKILLS, SKILL_ORDER, SKILL_SLOTS, SLOT_UNLOCK_LEVEL, type SkillId, type SkillSlot } from '../data/skills'
+import { SKILLS, SKILL_ORDER, SKILL_POINT_EVERY, SKILL_SLOTS, SLOT_UNLOCK_LEVEL, type SkillId, type SkillSlot } from '../data/skills'
 import { assetUrl } from '../render/asset-urls'
 import { skillBlock, skillPointsLeft, skillPointsSpent, skillRank, slotUnlocked, type Profile } from '../sim/profile'
 import { icon } from './assets'
@@ -51,7 +51,7 @@ export function createSkillCards(parent: HTMLElement, options: SkillCardsOptions
     root,
     render(profile) {
       const points = skillPointsLeft(profile)
-      title.textContent = `技能 · 可用技能点 ${points}（每 3 级 1 点）`
+      title.textContent = `技能 · 可用技能点 ${points}（每 ${SKILL_POINT_EVERY} 级 1 点）`
       title.classList.toggle('has-points', points > 0)
       reset.disabled = skillPointsSpent(profile) === 0
       slotsLine.textContent = SKILL_SLOTS.map((slot) => {

@@ -2,7 +2,7 @@ import { Pane, type FolderApi } from 'tweakpane'
 import type { BossDef } from '../data/bosses'
 import { ENEMY_NAMES, MINION_KINDS, type MinionKind } from '../data/enemies'
 import { BUFFS, BUFF_ORDER, type BuffId, type DropType } from '../data/loot'
-import { SKILLS, SKILL_ORDER, type SkillId } from '../data/skills'
+import { SKILLS, SKILL_ORDER, SLOT_UNLOCK_LEVEL, type SkillId } from '../data/skills'
 import { createDefaultTuning, type Tuning } from '../data/tuning'
 import { SPECIAL_WEAPONS, type PlayerWeaponId, type WeaponDef } from '../data/weapons'
 import type { LookSettings } from '../input/look-settings'
@@ -238,7 +238,7 @@ export function createTuningPanel(tuning: Tuning, state: DevState, actions: DevA
   for (const id of SKILL_ORDER) {
     skills.addButton({ title: `学会 / 升级：${SKILLS[id].name}` }).on('click', () => actions.learnSkill(id))
   }
-  skills.addButton({ title: '解锁 E 槽（直接升到 8 级）' }).on('click', () => actions.unlockSlotE())
+  skills.addButton({ title: `解锁 E 槽（直接升到 ${SLOT_UNLOCK_LEVEL.e} 级）` }).on('click', () => actions.unlockSlotE())
   skills.addButton({ title: '大招充满' }).on('click', () => actions.chargeUltimate())
   skills.addButton({ title: '清空技能' }).on('click', () => actions.resetSkills())
   const growth = dev.addFolder({ title: '成长与存档', expanded: false })

@@ -14,14 +14,18 @@ import {
   type AttributeId,
 } from '../data/progression'
 import {
+  FREE_SKILL_POINTS,
+  RETIRED_SKILLS,
   SKILLS,
   SKILL_MAX_RANK,
   SKILL_ORDER,
   SKILL_POINT_EVERY,
   SKILL_SLOTS,
   SLOT_UNLOCK_LEVEL,
+  STARTER_SKILL,
   type SkillId,
-  type SkillSlot, RETIRED_SKILLS } from '../data/skills'
+  type SkillSlot,
+} from '../data/skills'
 import type { RunRating } from './rating'
 import { createLoadout, emptyRanks, type AttributeRanks, type EquippedSkill, type Loadout } from './stats'
 import type { World } from './world'
@@ -91,8 +95,8 @@ export function createProfile(): Profile {
     xp: 0,
     points: 0,
     attributes: emptyRanks(),
-    skills: {},
-    equipped: { q: null, e: null },
+    skills: { [STARTER_SKILL]: 1 },
+    equipped: { q: STARTER_SKILL, e: null },
     chapter: 1,
     records: {},
     clues: [],
@@ -167,7 +171,7 @@ export function skillRank(profile: Profile, id: SkillId): number {
 }
 
 export function skillPointsTotal(level: number): number {
-  return Math.floor(level / SKILL_POINT_EVERY)
+  return FREE_SKILL_POINTS + Math.floor(level / SKILL_POINT_EVERY)
 }
 
 export function skillPointsSpent(profile: Profile): number {
@@ -345,6 +349,7 @@ export function sanitizeProfile(raw: unknown): Profile {
     for (const id of ATTRIBUTE_ORDER) profile.attributes[id] = clampInt(raw.attributes[id], 0, ATTRIBUTES[id].maxRank, 0)
   }
   profile.chapter = clampInt(raw.chapter, 1, 5, 1)
+  resetSkills(profile)
   if (isRecord(raw.skills)) {
     const saved: Record<string, unknown> = { ...raw.skills }
     for (const [old, next] of Object.entries(RETIRED_SKILLS)) if (saved[next] === undefined && saved[old] !== undefined) saved[next] = saved[old]
@@ -354,6 +359,7 @@ export function sanitizeProfile(raw: unknown): Profile {
     }
   }
   if (skillPointsSpent(profile) > skillPointsTotal(profile.level)) profile.skills = {}
+  if (!knowsSkill(profile)) profile.skills[STARTER_SKILL] = 1
   if (isRecord(raw.equipped)) {
     for (const slot of SKILL_SLOTS) {
       const saved = raw.equipped[slot]
@@ -364,6 +370,7 @@ export function sanitizeProfile(raw: unknown): Profile {
       }
     }
   }
+  fillOpenSlots(profile)
   if (isRecord(raw.records)) {
     for (const [id, value] of Object.entries(raw.records)) {
       if (!isRecord(value)) continue

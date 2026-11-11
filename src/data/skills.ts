@@ -49,9 +49,11 @@ export const CONCUSSION_MIN = 2
 
 export const SKILL_SLOTS: readonly SkillSlot[] = ['q', 'e']
 
-export const SLOT_UNLOCK_LEVEL: Readonly<Record<SkillSlot, number>> = { q: 1, e: 8 }
+export const SLOT_UNLOCK_LEVEL: Readonly<Record<SkillSlot, number>> = { q: 1, e: 4 }
 
-export const SKILL_POINT_EVERY = 3
+export const SKILL_POINT_EVERY = 2
+export const FREE_SKILL_POINTS = 1
+export const STARTER_SKILL: SkillId = 'concussion'
 export const SKILL_MAX_RANK = 3
 
 export const SKILLS: SkillBook = {
