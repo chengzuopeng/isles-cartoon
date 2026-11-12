@@ -35,6 +35,8 @@ import { RESIDENT_MODEL_IDS, VIEWMODEL_MODEL_IDS, type ModelId } from './render/
 import { createEffects } from './render/effects'
 import { createPropFires } from './render/prop-fires'
 import { createSupplyCards } from './ui/supply-cards'
+import { createBountyList } from './ui/bounty-list'
+import { BOUNTIES } from './data/bounties'
 import { takeCard } from './sim/pickups'
 import { createBaitViews } from './render/bait-views'
 import { createEntityViews, type EntityViews, type ViewFlags } from './render/entity-views'
@@ -74,6 +76,7 @@ import { playerHidden } from './sim/perception'
 import { makeItem, weaponItem } from './sim/pickups'
 import {
   allocate,
+  boardOf,
   createProfile,
   equipSkill,
   grantXp,
@@ -249,6 +252,7 @@ const effects = createEffects(stage.scene)
 const propFires = createPropFires(effects)
 const baitViews = createBaitViews(stage.scene)
 const supplyCards = createSupplyCards(container, pickCard)
+const bountyList = createBountyList(container)
 const sfx = createSfx()
 const music = createMusic()
 const soundtrack = createSoundtrackState()
@@ -298,6 +302,11 @@ const prep = createPrepScreen(container, {
       resetSkills(profile)
       return true
     }),
+  bounties: (id) => {
+    const def = levels.find((item) => item.id === id)
+    if (!def || training) return []
+    return boardOf(profile, builtOf(def), variedRun(profile, id, settings.difficulty))
+  },
   onBadge: (id) => {
     if (!toggleBadge(profile, id)) return
     persist()
@@ -461,6 +470,7 @@ function newWorld(): World {
     loadout: loadoutOf(profile),
     xpScale: training ? 1 : xpScaleFor(profile, levelDef.id),
     varied: !training && variedRun(profile, levelDef.id, settings.difficulty),
+    bounties: training ? [] : boardOf(profile, level, variedRun(profile, levelDef.id, settings.difficulty)),
   })
 }
 
@@ -976,6 +986,9 @@ function dispatch(event: GameEvent): void {
     case 'stunned':
       words.say('打断！', 'stun', event.x, event.y, world.player.z + 1.6, 0.9)
       break
+    case 'bountyDone':
+      words.say(`已缉拿！${BOUNTIES[event.id].name}`, 'streak', world.player.pos.x + Math.cos(world.player.facing) * 3, world.player.pos.y + Math.sin(world.player.facing) * 3, world.player.z + 2.2, 1.1)
+      break
     case 'combo':
       words.say(CHAIN_WORDS[event.kind], 'combo', event.x, event.y, event.z + 1.9, 1.15)
       break
@@ -1155,6 +1168,7 @@ function frame(now: number): void {
     dt,
   )
   overlay.setHint(screen === 'play' && paused ? '点击画面继续' : null)
+  bountyList.update(world, screen === 'play' && !results.isOpen() && !dialogue.isOpen())
   words.update(dt)
   if (screen === 'play' && views) notices.update(world)
   else notices.clear()

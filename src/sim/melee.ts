@@ -97,7 +97,9 @@ function sneak(world: World, enemy: Enemy): void {
   world.stats.sneaks += 1
   world.events.push({ type: 'combo', kind: 'sneak', x: enemy.pos.x, y: enemy.pos.y, z: enemy.z })
   if (!enemy.elite) {
+    world.killCause = 'sneak'
     smash(world, enemy)
+    world.killCause = null
     return
   }
   const dx = enemy.pos.x - player.pos.x
@@ -134,7 +136,10 @@ export function smash(world: World, enemy: Enemy): void {
   const dy = y - world.player.pos.y
   const length = Math.hypot(dx, dy) || 1
   world.events.push({ type: 'smashed', id: enemy.id, kind: enemy.kind, x, y, z: enemy.z })
+  const cause = world.killCause
+  world.killCause = cause ?? 'smash'
   killEnemy(world, enemy, true, true, false, dx / length, dy / length)
+  world.killCause = cause
   spawnPickup(world, { type: 'heal', amount: hasMilestone(world, 'brawl2') ? MILESTONE.foodHeal : FOOD_HEAL, food: foodOf(enemy) }, x, y, { from: { x, y } })
   if (hasMilestone(world, 'brawl5')) aftershock(world, enemy)
   if (hasBadge(world, 'iou') && world.lootRng.next() < BADGE.iouChance) spawnPickup(world, { type: 'heal', amount: hasMilestone(world, 'brawl2') ? MILESTONE.foodHeal : FOOD_HEAL, food: foodOf(enemy) }, x, y, { from: { x, y } })

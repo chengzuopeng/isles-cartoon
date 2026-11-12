@@ -14,6 +14,8 @@ import type { BuiltLevel } from './level'
 import type { Vec2 } from './math'
 import { createFlowField, type FlowField } from './pathing'
 import type { Bait } from './baits'
+import { createBountyRuns, type AreaClock, type BountyRun } from './bounties'
+import type { BountyId } from '../data/bounties'
 import type { CardId } from '../data/supply-cards'
 import type { Fire } from './props'
 import { createRng, type Rng } from './rng'
@@ -31,6 +33,7 @@ import type {
   ClueDrop,
   Enemy,
   GameEvent,
+  KillCause,
   LandmarkState,
   Lob,
   Mine,
@@ -119,6 +122,9 @@ export interface World {
   fires: Fire[]
   baits: Bait[]
   cards: CardId[]
+  killCause: KillCause | null
+  bounties: BountyRun[]
+  areaClocks: AreaClock[]
   offer: CardId[] | null
   cardShield: number
   rocks: Map<number, number>
@@ -173,6 +179,7 @@ export interface WorldOptions {
   xpScale?: number
   difficulty?: DifficultyId
   varied?: boolean
+  bounties?: readonly BountyId[]
 }
 
 const LOOT_SEED_SALT = 0x9e3779b9
@@ -215,6 +222,9 @@ export function createWorld(level: BuiltLevel, tuning: Tuning, options: WorldOpt
     fires: [],
     baits: [],
     cards: [],
+    killCause: null,
+    bounties: createBountyRuns(options.bounties ?? []),
+    areaClocks: [],
     offer: null,
     cardShield: 0,
     rocks: new Map(),

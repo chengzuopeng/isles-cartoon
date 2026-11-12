@@ -12,6 +12,8 @@ import { button, element } from './dom'
 import { createSkillCards } from './skill-cards'
 import { createWeaponRack } from './weapon-rack'
 import { createBadgeBox } from './badge-box'
+import { createBountyBoard } from './bounty-board'
+import type { BountyId } from '../data/bounties'
 import type { BadgeId } from '../data/badges'
 import { createXpBar } from './xp-bar'
 
@@ -38,6 +40,7 @@ export interface PrepScreenOptions {
   onResetSkills(): void
   onCarry(id: PlayerWeaponId | null): void
   onBadge(id: BadgeId): void
+  bounties(id: string): BountyId[]
   onSettings(): void
   onDifficulty(id: DifficultyId): void
   onInterlude(id: string): void
@@ -115,6 +118,7 @@ export function createPrepScreen(container: HTMLElement, options: PrepScreenOpti
   const skills = createSkillCards(panel, { onLearn: options.onLearn, onEquip: options.onEquip, onBranch: options.onBranch, onReset: options.onResetSkills })
   const rack = createWeaponRack(panel, options.onCarry)
   const badges = createBadgeBox(panel, options.onBadge)
+  const board = createBountyBoard(panel)
   const difficulty = element('div', 'prep-difficulty', panel)
   element('span', 'prep-difficulty-label', difficulty, '难度')
   const choiceRow = element('div', 'prep-difficulty-options', difficulty)
@@ -211,6 +215,7 @@ export function createPrepScreen(container: HTMLElement, options: PrepScreenOpti
     skills.render(profile)
     rack.render(profile)
     badges.render(profile)
+    board.render(titleOf(selected), options.bounties(selected), chapterOfSelected())
     const level = options.difficulty()
     for (const [id, choice] of choices) choice.classList.toggle('active', id === level)
     blurb.textContent = DIFFICULTIES[level].blurb

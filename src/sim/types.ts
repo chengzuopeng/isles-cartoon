@@ -2,6 +2,7 @@ import type { AttackCause } from '../data/attacks'
 import type { BossHazard, BossMoveId } from '../data/bosses'
 import type { ChainKind } from '../data/chains'
 import type { CardId } from '../data/supply-cards'
+import type { BountyId } from '../data/bounties'
 import type { ClueId } from '../data/clues'
 import type { BarkDisplay, SpeakerId } from '../data/dialogue'
 import type { AffixId } from '../data/elites'
@@ -32,6 +33,8 @@ export interface EliteState {
 }
 
 export type BlastSource = 'bomber' | 'boss' | 'player' | 'keg'
+
+export type KillCause = 'shot' | 'blast' | 'friendly' | 'keg' | 'fall' | 'smash' | 'sneak'
 
 export type MineCause = 'stepped' | 'shot' | 'crowded'
 
@@ -473,7 +476,7 @@ export type GameEvent =
   | { type: 'bulletHitWall'; x: number; y: number; z: number; team: Team }
   | { type: 'bulletExpired'; x: number; y: number; z: number; team: Team }
   | { type: 'enemyHit'; id: number; x: number; y: number; z: number; damage: number; crit: boolean }
-  | { type: 'enemyKilled'; id: number; kind: EnemyKind; x: number; y: number; dirX: number; dirY: number; streak?: number }
+  | { type: 'enemyKilled'; id: number; kind: EnemyKind; x: number; y: number; dirX: number; dirY: number; streak?: number; cause?: KillCause; crit?: boolean; elite?: boolean; fuse?: boolean }
   | { type: 'enemyWindup'; id: number }
   | { type: 'enemyCharge'; id: number; x: number; y: number; angle: number }
   | { type: 'enemyAlerted'; id: number; x: number; y: number }
@@ -510,6 +513,9 @@ export type GameEvent =
   | { type: 'reflected'; x: number; y: number; z: number }
   | { type: 'parried'; x: number; y: number; z: number }
   | { type: 'cardsOffered'; cards: CardId[] }
+  | { type: 'bountyDone'; id: BountyId }
+  | { type: 'bountyFailed'; id: BountyId }
+  | { type: 'courierCaught'; x: number; y: number }
   | { type: 'cardTaken'; card: CardId }
   | { type: 'baitThrown'; x: number; y: number; count: number }
   | { type: 'baitLanded'; x: number; y: number; z: number }

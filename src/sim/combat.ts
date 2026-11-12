@@ -182,7 +182,7 @@ export function damageEnemy(
     crit: hit.crit ?? false,
   })
   aggro(world, enemy)
-  if (enemy.hp <= 0) killEnemy(world, enemy, true, true, true, dirX, dirY)
+  if (enemy.hp <= 0) killEnemy(world, enemy, true, true, true, dirX, dirY, hit.crit ?? false)
   else if (knockback > 0 || hit.z !== undefined) feelPain(world, enemy, damage)
 }
 
@@ -193,7 +193,8 @@ export function countStreak(world: World): void {
   if (player.streak === BADGE.veteranStreak && hasBadge(world, 'veteran')) player.dashCharges = Math.min(world.tuning.player.dashCharges, player.dashCharges + 1)
 }
 
-export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain = true, drop = true, dirX = 0, dirY = 0): void {
+export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain = true, drop = true, dirX = 0, dirY = 0, crit = false): void {
+  const fuse = enemy.kind === 'bomber' && enemy.state === 'ignite'
   enemy.hp = 0
   if (enemy.elite && !enemy.summoned) world.stats.elites += 1
   if (byPlayer) {
@@ -207,7 +208,20 @@ export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain =
   }
   const { feel } = world.tuning
   world.hitstop = Math.max(world.hitstop, enemy.kind === 'boss' ? feel.hitstopBoss : feel.hitstopKill)
-  world.events.push({ type: 'enemyKilled', id: enemy.id, kind: enemy.kind, x: enemy.pos.x, y: enemy.pos.y, dirX, dirY, streak: byPlayer ? world.player.streak : 0 })
+  world.events.push({
+    type: 'enemyKilled',
+    id: enemy.id,
+    kind: enemy.kind,
+    x: enemy.pos.x,
+    y: enemy.pos.y,
+    dirX,
+    dirY,
+    streak: byPlayer ? world.player.streak : 0,
+    cause: world.killCause ?? 'shot',
+    crit,
+    elite: enemy.elite !== null,
+    fuse,
+  })
   if (enemy.kind === 'bomber' && chain) detonateBomber(world, enemy)
   if (enemy.elite && chain) eliteDeath(world, enemy)
   if (enemy.boss) defeatBoss(world, enemy)
@@ -384,6 +398,7 @@ function detonate(world: World, blast: Blast): void {
   }
   let friendly = false
   let struck = 0
+  world.killCause = blast.source === 'keg' ? 'keg' : blast.source === 'player' ? 'blast' : 'friendly'
   if (blast.enemyDamage > 0) {
     for (const enemy of world.enemies) {
       if (enemy.hp <= 0 || enemy.id === blast.ownerId) continue
@@ -404,6 +419,7 @@ function detonate(world: World, blast: Blast): void {
       if (blast.source === 'player') chargeUltimate(world, blast.enemyDamage * ultShareOf(world, blast.weapon), enemy)
     }
   }
+  world.killCause = null
   if (friendly) world.events.push({ type: 'combo', kind: 'friendly', x: blast.x, y: blast.y, z: blast.z })
   if (blast.skill) closeCircuit(world, blast.skill, struck)
   burstKeg(world, blast)

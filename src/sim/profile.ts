@@ -28,7 +28,10 @@ import {
   type SkillSlot,
 } from '../data/skills'
 import { BADGE, BADGE_ORDER, BADGE_SLOT_LEVELS, BOSS_BADGES, type BadgeId } from '../data/badges'
+import { BOUNTIES, BOUNTY, BOUNTY_ORDER, type BountyId } from '../data/bounties'
 import { CLEAR_WEAPONS } from '../data/loot'
+import { drawBoard } from './bounties'
+import type { BuiltLevel } from './level'
 import { SPECIAL_WEAPONS, type PlayerWeaponId } from '../data/weapons'
 import type { RunRating } from './rating'
 import { createLoadout, emptySpecs, type EquippedSkill, type Loadout, type SpecRanks } from './stats'
@@ -62,6 +65,7 @@ export interface Profile {
   carry: PlayerWeaponId | null
   badges: BadgeId[]
   bounties: number
+  boards: Partial<Record<string, BountyId[]>>
 }
 
 export type SkillBlock = 'maxed' | 'chapter' | 'noPoints'
@@ -90,6 +94,7 @@ export interface Settlement {
   newClues: ClueId[]
   newWeapons: PlayerWeaponId[]
   newBadges: BadgeId[]
+  bountiesDone: BountyId[]
 }
 
 export interface ClueEntry {
@@ -119,6 +124,7 @@ export function createProfile(): Profile {
     carry: null,
     badges: [],
     bounties: 0,
+    boards: {},
   }
 }
 
@@ -259,6 +265,15 @@ export function loadoutOf(profile: Profile): Loadout {
   return createLoadout({ ...profile.specs }, skills, profile.carry && profile.weapons.includes(profile.carry) ? profile.carry : null, badges)
 }
 
+export function boardOf(profile: Profile, level: BuiltLevel, varied: boolean): BountyId[] {
+  const id = level.def.id
+  const kept = profile.boards[id]
+  if (kept) return [...kept]
+  const board = drawBoard(level, varied, seedOf(id, (profile.plays[id] ?? 0) + BOUNTY.boardSalt))
+  profile.boards[id] = board
+  return [...board]
+}
+
 export function badgeSlots(profile: Profile): number {
   return BADGE_SLOT_LEVELS.filter((level) => profile.level >= level).length
 }
@@ -352,6 +367,7 @@ export function computeReward(world: World, rating: RunRating, record: LevelReco
   if (rating.cleared) add('通关', CLEAR_XP * world.chapter * scale)
   if (rating.cleared && rating.stars >= 3 && (record?.bestStars ?? 0) < 3) add('首次三星', THREE_STAR_XP * world.chapter)
   for (const id of newChallenges(rating, record)) add(`挑战「${CHALLENGES[id].name}」`, CHALLENGES[id].xp * world.chapter)
+  for (const bounty of world.bounties) if (bounty.done) add(`悬赏「${BOUNTIES[bounty.id].name}」`, BOUNTIES[bounty.id].xp * world.chapter)
   return { lines, total: lines.reduce((sum, line) => sum + line.amount, 0), replay: scale < 1 }
 }
 
@@ -403,6 +419,9 @@ export function settleRun(profile: Profile, world: World, rating: RunRating): Se
   const newClues = keepClues(profile, world)
   const before = { level: profile.level, xp: profile.xp }
   const ownedBefore = ownedBadges(profile)
+  const bountiesDone = rating.cleared ? world.bounties.filter((bounty) => bounty.done).map((bounty) => bounty.id) : []
+  profile.bounties += bountiesDone.length
+  if (rating.cleared) delete profile.boards[levelId]
   const levelsGained = grantXp(profile, reward.total)
   const previous = record ?? { cleared: false, bestStars: 0, bestTime: 0, clears: 0 }
   const earned = newChallenges(rating, record)
@@ -428,6 +447,7 @@ export function settleRun(profile: Profile, world: World, rating: RunRating): Se
     newClues,
     newWeapons,
     newBadges: ownedBadges(profile).filter((id) => !ownedBefore.includes(id)),
+    bountiesDone,
   }
 }
 
@@ -491,6 +511,13 @@ export function sanitizeProfile(raw: unknown): Profile {
   const carry = raw.carry
   profile.carry = typeof carry === 'string' && profile.weapons.some((id) => id === carry) ? (carry as PlayerWeaponId) : null
   profile.bounties = clampInt(raw.bounties, 0, 1e6, 0)
+  if (isRecord(raw.boards)) {
+    for (const [id, value] of Object.entries(raw.boards)) {
+      if (!Array.isArray(value)) continue
+      const kept = BOUNTY_ORDER.filter((bounty) => (value as unknown[]).includes(bounty))
+      if (kept.length > 0) profile.boards[id] = kept
+    }
+  }
   if (isRecord(raw.plays)) {
     for (const [id, value] of Object.entries(raw.plays)) {
       const plays = clampInt(value, 0, 1e9, 0)

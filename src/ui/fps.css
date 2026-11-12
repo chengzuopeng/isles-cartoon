@@ -1221,3 +1221,81 @@
   paint-order: stroke fill;
   pointer-events: none;
 }
+
+.bounty-board {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.bounty-board-title {
+  font-weight: 700;
+}
+
+.bounty-board-line {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.bounty-board-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 3px 3px 0 rgba(29, 23, 20, 0.7);
+}
+
+.board-card-name {
+  font-weight: 900;
+  font-size: 16px;
+  color: #a8331f;
+}
+
+.board-card-text {
+  font-size: 13px;
+}
+
+.board-card-xp {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bounty-list {
+  position: absolute;
+  left: 18px;
+  top: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.bounty-line {
+  color: var(--paper);
+  font-size: 14px;
+  font-weight: 800;
+  -webkit-text-stroke: 0.1em var(--ink);
+  paint-order: stroke fill;
+}
+
+.bounty-line.done {
+  text-decoration: line-through;
+  color: #ffd04a;
+}
+
+.bounty-line.failed {
+  text-decoration: line-through;
+  opacity: 0.55;
+}

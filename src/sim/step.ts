@@ -14,6 +14,7 @@ import type { Vec2 } from './math'
 import { updateMines } from './mines'
 import { updateFires } from './props'
 import { updateBaits } from './baits'
+import { updateBounties } from './bounties'
 import { updateFlowField } from './pathing'
 import { updatePickups } from './pickups'
 import { updatePlayer } from './player'
@@ -33,6 +34,7 @@ export function stepWorld(world: World, command: PlayerCommand, dt: number): voi
   world.tick += 1
   snapshot(world)
   if (world.status === 'complete') return
+  const mark = world.events.length
   let simDt = dt
   if (world.hitstop > 0) {
     world.hitstop = Math.max(0, world.hitstop - dt)
@@ -72,6 +74,7 @@ export function stepWorld(world: World, command: PlayerCommand, dt: number): voi
   updateSecrets(world)
   updateAreas(world)
   updateBarks(world)
+  updateBounties(world, world.events.slice(mark))
 }
 
 function snapshot(world: World): void {

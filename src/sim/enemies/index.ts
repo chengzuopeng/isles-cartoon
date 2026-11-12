@@ -147,7 +147,9 @@ function fall(world: World, enemy: Enemy, dt: number): void {
   const drop = enemy.fallFrom - floor
   if (drop < CHAIN.fallMin) return
   world.events.push({ type: 'combo', kind: 'fall', x: enemy.pos.x, y: enemy.pos.y, z: floor })
+  world.killCause = 'fall'
   damageEnemy(world, enemy, CHAIN.fallDamage * drop, 0, 0, 0)
+  world.killCause = null
   if (enemy.hp > 0) reelEnemy(world, enemy, CHAIN.fallReel)
 }
 
