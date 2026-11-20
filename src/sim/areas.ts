@@ -38,7 +38,7 @@ export function areaDefeated(world: World, index: number): boolean {
     const targets = targetTally(world, index)
     return targets.done >= targets.total
   }
-  const enemiesLeft = world.enemies.some((enemy) => enemy.area === index && enemy.hp > 0)
+  const enemiesLeft = world.enemies.some((enemy) => enemy.area === index && enemy.hp > 0 && enemy.role !== 'courier')
   const spawnsLeft = world.spawns.some((marker) => marker.area === index)
   return !enemiesLeft && !spawnsLeft
 }

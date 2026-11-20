@@ -539,6 +539,24 @@ export function createSfx(): Sfx {
         tone({ type: 'sine', from: 260, to: 880, duration: 0.32, gain: 0.08 })
         hiss({ filter: 'bandpass', from: 600, to: 2400, duration: 0.3, gain: 0.08, q: 1.2 })
         break
+      case 'courierSpawned':
+        tone({ type: 'sine', from: 1568, to: 1568, duration: 0.24, gain: 0.1 })
+        tone({ type: 'triangle', from: 3136, to: 3136, duration: 0.16, gain: 0.04 })
+        tone({ type: 'sine', from: 2093, to: 2093, duration: 0.32, gain: 0.11, delay: 0.14 })
+        tone({ type: 'triangle', from: 4186, to: 4186, duration: 0.2, gain: 0.04, delay: 0.14 })
+        break
+      case 'courierEscaped':
+        tone({ type: 'triangle', from: 420, to: 1280, duration: 0.28, gain: 0.08 })
+        hiss({ filter: 'bandpass', from: 1200, to: 3200, duration: 0.2, gain: 0.06, q: 1.2 })
+        break
+      case 'boltIncoming':
+        tone({ type: 'sawtooth', from: 1200, to: 180, duration: 1.35, gain: 0.08, attack: 0.1 })
+        hiss({ filter: 'bandpass', from: 2200, to: 420, duration: 1.35, gain: 0.12, q: 1 })
+        break
+      case 'boltEjected':
+        hiss({ filter: 'bandpass', from: 400, to: 3600, duration: 0.65, gain: 0.18, q: 0.9 })
+        tone({ type: 'sawtooth', from: 180, to: 980, duration: 0.55, gain: 0.1 })
+        break
       default:
         break
     }
@@ -654,9 +672,12 @@ const POSITIONED: ReadonlySet<GameEvent['type']> = new Set<GameEvent['type']>([
   'bossStunned',
   'alarmRunner',
   'alarmPull',
+  'courierEscaped',
+  'boltIncoming',
+  'boltEjected',
 ])
 
-const SELF_LEVELLED: ReadonlySet<GameEvent['type']> = new Set<GameEvent['type']>(['bladeWarning', 'bladeSweep', 'bladeHit'])
+const SELF_LEVELLED: ReadonlySet<GameEvent['type']> = new Set<GameEvent['type']>(['bladeWarning', 'bladeSweep', 'bladeHit', 'courierSpawned'])
 
 export function spotOf(event: GameEvent, world?: World): { x: number; y: number; attenuate: boolean } | null {
   if (event.type === 'playerHit') return { x: event.fromX, y: event.fromY, attenuate: false }

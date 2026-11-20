@@ -3,7 +3,9 @@ import { getBoss } from '../data/bosses'
 import type { ClueId } from '../data/clues'
 import { ELITE, type AffixId } from '../data/elites'
 import type { IdleMode } from '../data/enemies'
+import type { EnemyRole } from '../data/rare-events'
 import type { Tuning } from '../data/tuning'
+import type { PlayerWeaponId } from '../data/weapons'
 import { createAlarmStates } from './alarms'
 import { resolveBarkEnemies } from './barks'
 import { createBladeStates } from './blades'
@@ -18,6 +20,7 @@ import { createBountyRuns, type AreaClock, type BountyRun } from './bounties'
 import type { BountyId } from '../data/bounties'
 import type { CardId } from '../data/supply-cards'
 import type { Fire } from './props'
+import { createRareEventState, type RareEventState } from './rare-events'
 import { createRng, type Rng } from './rng'
 import { RUSH_VARIETY } from '../data/levels/rules'
 import { createSheep } from './sheep'
@@ -163,6 +166,7 @@ export interface World {
   volleyAt: number
   difficulty: Difficulty
   debug: DebugFlags
+  rare: RareEventState
 }
 
 export interface EnemyOptions {
@@ -170,6 +174,7 @@ export interface EnemyOptions {
   idle?: IdleMode
   route?: Vec2[]
   affixes?: readonly AffixId[]
+  role?: EnemyRole
 }
 
 export interface WorldOptions {
@@ -180,6 +185,10 @@ export interface WorldOptions {
   difficulty?: DifficultyId
   varied?: boolean
   bounties?: readonly BountyId[]
+  rareEvents?: boolean
+  replay?: boolean
+  chapter1Cleared?: boolean
+  unlockedWeapons?: readonly PlayerWeaponId[]
 }
 
 const LOOT_SEED_SALT = 0x9e3779b9
@@ -263,6 +272,7 @@ export function createWorld(level: BuiltLevel, tuning: Tuning, options: WorldOpt
     volleyAt: 0,
     difficulty: DIFFICULTIES[options.difficulty ?? DEFAULT_DIFFICULTY],
     debug: options.debug ?? { invincible: false },
+    rare: createRareEventState(level, seed, options),
   }
   for (const placement of level.enemies) {
     world.enemies.push(
@@ -460,6 +470,7 @@ export function createEnemy(world: World, kind: MinionKind, pos: Vec2, area: num
     status: createStatus(),
     elite: elite ? { affixes: [...affixes], shield: shieldMax, shieldMax, sinceHit: 0 } : null,
     boss: null,
+    ...(options.role ? { role: options.role } : {}),
   }
 }
 

@@ -16,7 +16,7 @@ import { chargeUltimate } from './ultimate'
 import type { World } from './world'
 
 export function crumbling(world: World, enemy: Enemy): boolean {
-  if (enemy.kind === 'boss' || enemy.hp <= 0) return false
+  if (enemy.kind === 'boss' || enemy.role === 'bolt' || enemy.hp <= 0) return false
   return enemy.hp < enemy.maxHp * world.tuning.player.crumbleAt || enemy.status.dazed > 0 || enemy.status.frozen > 0
 }
 
@@ -61,7 +61,7 @@ export function swingMelee(world: World): void {
       sneak(world, enemy)
       continue
     }
-    if (enemy.kind !== 'boss' && (crumbling(world, enemy) || enemy.hp <= damage)) {
+    if (enemy.kind !== 'boss' && enemy.role !== 'bolt' && (crumbling(world, enemy) || enemy.hp <= damage)) {
       smash(world, enemy)
       continue
     }
@@ -85,7 +85,7 @@ export function swingMelee(world: World): void {
 }
 
 export function unaware(enemy: Enemy): boolean {
-  return enemy.kind !== 'boss' && enemy.hp > 0 && !enemy.aggro
+  return enemy.kind !== 'boss' && enemy.role !== 'bolt' && enemy.hp > 0 && !enemy.aggro
 }
 
 export function sneakReady(world: World): boolean {
@@ -96,7 +96,7 @@ function sneak(world: World, enemy: Enemy): void {
   const { player, tuning } = world
   world.stats.sneaks += 1
   world.events.push({ type: 'combo', kind: 'sneak', x: enemy.pos.x, y: enemy.pos.y, z: enemy.z })
-  if (!enemy.elite) {
+  if (!enemy.elite && enemy.role !== 'courier') {
     world.killCause = 'sneak'
     smash(world, enemy)
     world.killCause = null

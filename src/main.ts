@@ -37,7 +37,9 @@ import { createPropFires } from './render/prop-fires'
 import { createSupplyCards } from './ui/supply-cards'
 import { createBountyList } from './ui/bounty-list'
 import { BOUNTIES } from './data/bounties'
+import { BOLT_CAMEO } from './data/rare-events'
 import { takeCard } from './sim/pickups'
+import { callBoltCameo, spawnCourier } from './sim/rare-events'
 import { createBaitViews } from './render/bait-views'
 import { createEntityViews, type EntityViews, type ViewFlags } from './render/entity-views'
 import { createFpsLevelView, type FpsLevelView } from './render/fps-level-view'
@@ -80,6 +82,7 @@ import {
   createProfile,
   equipSkill,
   grantXp,
+  isReplay,
   keepClues,
   learnSkill,
   levelUnlocked,
@@ -169,6 +172,8 @@ interface GameDebugHandle {
   openPens(area?: number): number
   raiseAlarms(): number
   lightLamps(area?: number): number
+  spawnCourier(area?: number): boolean
+  callBoltCameo(): boolean
   runLog(): RunLogEntry[]
   toScreen(x: number, y: number): { x: number; y: number }
   renderInfo(): RenderInfo
@@ -422,7 +427,9 @@ function builtOf(def: LevelDef): BuiltLevel {
 function modelsOf(def: LevelDef): ModelId[] {
   let ids = levelModels.get(def.id)
   if (!ids) {
-    ids = [...new Set<ModelId>([...modelsFor(builtOf(def)), ...VIEWMODEL_MODELS])]
+    const built = builtOf(def)
+    const extra: ModelId[] = built.rushes.length > 0 ? ['elite-crown'] : []
+    ids = [...new Set<ModelId>([...modelsFor(built), ...VIEWMODEL_MODELS, ...extra])]
     levelModels.set(def.id, ids)
   }
   return ids
@@ -463,14 +470,20 @@ function newWorld(): World {
     seed = nextSeed(profile, levelDef.id)
     persist()
   }
+  const replay = !training && isReplay(profile, levelDef.id)
+  const varied = !training && variedRun(profile, levelDef.id, settings.difficulty)
   return createWorld(level, tuning, {
     seed,
     debug,
     difficulty: settings.difficulty,
     loadout: loadoutOf(profile),
     xpScale: training ? 1 : xpScaleFor(profile, levelDef.id),
-    varied: !training && variedRun(profile, levelDef.id, settings.difficulty),
-    bounties: training ? [] : boardOf(profile, level, variedRun(profile, levelDef.id, settings.difficulty)),
+    varied,
+    bounties: training ? [] : boardOf(profile, level, varied),
+    rareEvents: !training,
+    replay,
+    chapter1Cleared: !training && isReplay(profile, BOLT_CAMEO.unlockAfter),
+    unlockedWeapons: profile.weapons,
   })
 }
 
@@ -992,6 +1005,12 @@ function dispatch(event: GameEvent): void {
     case 'combo':
       words.say(CHAIN_WORDS[event.kind], 'combo', event.x, event.y, event.z + 1.9, 1.15)
       break
+    case 'boltEjected':
+      words.say('弹射！', 'combo', event.x, event.y, event.z + 1.9, 1.25)
+      break
+    case 'courierEscaped':
+      words.say('溜了！', 'stun', event.x, event.y, event.z + 1.8, 1.05)
+      break
     case 'enemyBumped':
       wordAt('kuang', event.x, event.y, event.z + 1.3, 0.9)
       break
@@ -1351,6 +1370,8 @@ if (devTools) {
     openPens: (area) => openPens(world, area),
     raiseAlarms: () => raiseAlarms(world),
     lightLamps: (area) => lightLamps(world, area),
+    spawnCourier: (area) => spawnCourier(world, area) !== null,
+    callBoltCameo: () => callBoltCameo(world) !== null,
     runLog: readRunLog,
     toScreen(x, y) {
       const point = { x: 0, y: 0, visible: false }

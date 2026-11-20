@@ -72,7 +72,7 @@ async function main() {
     const page = await context.newPage()
     await page.goto(server.url, { waitUntil: 'commit' })
     await waitForGame(page)
-    await page.addStyleTag({ content: '.hud-banner, .bark-bar, .dialogue, .tp-dfwv { visibility: hidden !important; }' })
+    await page.addStyleTag({ content: '.hud-banner, .bark-bar, .dialogue, .bounty-card, .tp-dfwv { visibility: hidden !important; }' })
     let current = null
     for (const spot of chosen) {
       if (spot.level !== current) {

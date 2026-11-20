@@ -13,6 +13,7 @@ import type { AlertState, Enemy } from '../types'
 import type { World } from '../world'
 import { calm } from './calm'
 import { lured } from '../baits'
+import { actCourier } from '../rare-events'
 import { setState, still } from './kit'
 import { behaviorOf, stationary } from './registry'
 import { assignSlots } from './tactics'
@@ -56,6 +57,11 @@ export function updateEnemies(world: World, dt: number): void {
           continue
         }
       }
+    }
+    if (enemy.role === 'courier') {
+      enemy.stateTime += dt
+      integrate(world, enemy, actCourier(world, enemy, dt), dt)
+      continue
     }
     const errand = runForAlarm(world, enemy, dt)
     if (errand) {

@@ -2,6 +2,7 @@ import { AFFIX_ORDER } from '../data/elites'
 import { RUSH, RUSH_VARIETY } from '../data/levels/rules'
 import { resolveCircleGrid } from './collision'
 import { aggro } from './perception'
+import { noteRushForRareEvents, noteSpawnForRareEvents } from './rare-events'
 import type { MinionKind, SpawnMarker } from './types'
 import { createEnemy, type World } from './world'
 
@@ -17,6 +18,7 @@ export function updateSpawns(world: World, dt: number): void {
   for (const marker of ready) {
     const enemy = createEnemy(world, marker.kind, marker.pos, marker.area, { summoned: marker.summoned, affixes: marker.affixes })
     world.enemies.push(enemy)
+    noteSpawnForRareEvents(world, marker.id, enemy.id)
     world.events.push({ type: 'enemySpawned', id: enemy.id, x: enemy.pos.x, y: enemy.pos.y })
     aggro(world, enemy, 0)
   }
@@ -52,7 +54,9 @@ export function updateRushes(world: World): void {
       }
     }
     if (count > 0) world.events.push({ type: 'rush', area: rush.area, count })
-    promoteOne(world, world.spawns.slice(first))
+    const batch = world.spawns.slice(first)
+    promoteOne(world, batch)
+    noteRushForRareEvents(world, index, batch)
   })
 }
 

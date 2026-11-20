@@ -9,6 +9,7 @@ import type { AffixId } from '../data/elites'
 import type { IdleMode, MinionKind } from '../data/enemies'
 import type { LandmarkId } from '../data/landmarks'
 import type { BuffId, ChestTier, FoodKind } from '../data/loot'
+import type { EnemyRole } from '../data/rare-events'
 import type { SkillBranch, SkillId, SkillSlot } from '../data/skills'
 import type { PlayerWeaponId, StatusKind, WeaponId } from '../data/weapons'
 import type { Vec2 } from './math'
@@ -32,7 +33,7 @@ export interface EliteState {
   sinceHit: number
 }
 
-export type BlastSource = 'bomber' | 'boss' | 'player' | 'keg'
+export type BlastSource = 'bomber' | 'boss' | 'player' | 'keg' | 'pod'
 
 export type KillCause = 'shot' | 'blast' | 'friendly' | 'keg' | 'fall' | 'smash' | 'sneak'
 
@@ -231,6 +232,7 @@ export interface Enemy extends Body {
   status: StatusState
   elite: EliteState | null
   boss: BossState | null
+  role?: EnemyRole
 }
 
 export interface Bullet {
@@ -515,7 +517,13 @@ export type GameEvent =
   | { type: 'cardsOffered'; cards: CardId[] }
   | { type: 'bountyDone'; id: BountyId }
   | { type: 'bountyFailed'; id: BountyId }
+  | { type: 'courierSpawned'; id: number; x: number; y: number }
+  | { type: 'courierLeaked'; id: number; leaked: number; x: number; y: number }
+  | { type: 'courierEscaped'; id: number; x: number; y: number; z: number }
   | { type: 'courierCaught'; x: number; y: number }
+  | { type: 'boltIncoming'; x: number; y: number; z: number; delay: number }
+  | { type: 'boltLanded'; id: number; x: number; y: number; z: number }
+  | { type: 'boltEjected'; id: number; x: number; y: number; z: number }
   | { type: 'cardTaken'; card: CardId }
   | { type: 'baitThrown'; x: number; y: number; count: number }
   | { type: 'baitLanded'; x: number; y: number; z: number }
@@ -581,6 +589,7 @@ export type GameEvent =
       enemy: number | null
       x: number
       y: number
+      z?: number
       seconds: number
       radio?: boolean
     }

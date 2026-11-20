@@ -63,9 +63,23 @@ function report(world: World, level: BuiltLevel, skill: AutopilotSkillId, seed: 
   }
 }
 
-export function play(def: LevelDef, skill: AutopilotSkillId, seed: number, loadout: Loadout): Run {
+export interface PlayExtras {
+  rareEvents?: boolean
+  replay?: boolean
+  chapter1Cleared?: boolean
+  varied?: boolean
+}
+
+export function play(def: LevelDef, skill: AutopilotSkillId, seed: number, loadout: Loadout, extras: PlayExtras = {}): Run {
   const level = buildLevel(def)
-  const world = createWorld(level, createDefaultTuning(), { seed, loadout })
+  const world = createWorld(level, createDefaultTuning(), {
+    seed,
+    loadout,
+    rareEvents: extras.rareEvents ?? true,
+    replay: extras.replay ?? false,
+    chapter1Cleared: extras.chapter1Cleared ?? false,
+    varied: extras.varied ?? false,
+  })
   const pilot = createAutopilot({ skill, seed })
   for (let step = 0; step < LIMIT_SECONDS / DT && world.status === 'playing'; step++) {
     stepWorld(world, pilot.next(world), DT)

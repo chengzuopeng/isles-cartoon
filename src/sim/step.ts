@@ -24,6 +24,7 @@ import { updateSecrets } from './secrets'
 import { updateSheep } from './sheep'
 import { updateSkills } from './skills'
 import { updatePlayerStatus } from './status'
+import { updateRareEvents } from './rare-events'
 import { updateRushes, updateSpawns, updateWaves } from './spawns'
 import { bodyHeight, heightsOverlap, resolvePlayer, settleWalker } from './terrain'
 import type { Body, Enemy, PlayerCommand } from './types'
@@ -73,6 +74,7 @@ export function stepWorld(world: World, command: PlayerCommand, dt: number): voi
   updateClues(world)
   updateSecrets(world)
   updateAreas(world)
+  updateRareEvents(world)
   updateBarks(world)
   updateBounties(world, world.events.slice(mark))
 }

@@ -65,7 +65,7 @@ export function updateBaits(world: World, dt: number): void {
 function land(world: World, bait: Bait): void {
   world.events.push({ type: 'baitLanded', x: bait.pos.x, y: bait.pos.y, z: bait.z })
   for (const enemy of world.enemies) {
-    if (enemy.hp <= 0 || enemy.kind === 'boss' || enemy.kind === 'turret' || enemy.state === 'arming') continue
+    if (enemy.hp <= 0 || enemy.kind === 'boss' || enemy.kind === 'turret' || enemy.role === 'courier' || enemy.state === 'arming') continue
     if (distanceTo(enemy, bait.pos) > bait.radius) continue
     const lure = bait.lure * (enemy.elite ? BAIT.eliteShare : 1)
     const current = world.baits.find((item) => item.id === enemy.lure)

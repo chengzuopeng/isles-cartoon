@@ -1,6 +1,6 @@
 import type { WeaponId } from './weapons'
 
-export type AttackCause = WeaponId | 'charge' | 'burn' | 'volatile' | 'blade' | 'keg'
+export type AttackCause = WeaponId | 'charge' | 'burn' | 'volatile' | 'blade' | 'keg' | 'pod'
 
 export const CAUSE_NAMES: Readonly<Partial<Record<AttackCause, string>>> = {
   charge: '冲撞',
@@ -8,6 +8,7 @@ export const CAUSE_NAMES: Readonly<Partial<Record<AttackCause, string>>> = {
   volatile: '爆裂',
   blade: '收割刀片',
   keg: '火药桶',
+  pod: '逃生舱空投',
 }
 
 export const ATTACK_TIPS: Readonly<Partial<Record<AttackCause, string>>> = {
@@ -36,4 +37,5 @@ export const ATTACK_TIPS: Readonly<Partial<Record<AttackCause, string>>> = {
   volatile: '爆裂精英倒下后会原地爆炸，击败后马上远离',
   blade: '等红线消失、刀片扫过去再穿过收割道',
   keg: '火药桶被打中会先冒火星再炸：离它三米以外，或者引敌人过去再打',
+  pod: '逃生舱砸下前地面会出现红圈，看到预警立刻离开落点',
 }

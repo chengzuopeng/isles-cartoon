@@ -849,7 +849,7 @@ function engage(
   walk: (field: Float32Array) => Vec2 | null,
   kite = false,
 ): Vec2 | null {
-  if (!target) return null
+  if (!target || target.role === 'courier') return null
   const { player, grid } = world
   const locked = world.areas[world.areaIndex]?.status === 'locked'
   if (!target.aggro && !locked) return null

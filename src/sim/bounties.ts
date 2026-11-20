@@ -100,7 +100,7 @@ function bump(world: World, id: BountyId, amount = 1): void {
   world.events.push({ type: 'bountyDone', id })
 }
 
-function fail(world: World, id: BountyId): void {
+export function failBounty(world: World, id: BountyId): void {
   const bounty = world.bounties.find((item) => item.id === id)
   if (!bounty || bounty.done || bounty.failed) return
   bounty.failed = true
@@ -124,13 +124,13 @@ function note(world: World, event: GameEvent): void {
       bump(world, 'smash')
       return
     case 'shot':
-      if ((SPECIAL_WEAPONS as readonly string[]).includes(event.weapon)) fail(world, 'thrifty')
+      if ((SPECIAL_WEAPONS as readonly string[]).includes(event.weapon)) failBounty(world, 'thrifty')
       return
     case 'courierCaught':
       bump(world, 'courier')
       return
     case 'blast':
-      if (world.sheep.some((sheep) => Math.hypot(sheep.pos.x - event.x, sheep.pos.y - event.y) <= event.radius + BOUNTY.sheepMargin)) fail(world, 'shepherd')
+      if (world.sheep.some((sheep) => Math.hypot(sheep.pos.x - event.x, sheep.pos.y - event.y) <= event.radius + BOUNTY.sheepMargin)) failBounty(world, 'shepherd')
       return
   }
 }

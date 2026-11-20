@@ -25,6 +25,7 @@ import { glowSprite, radialTexture } from './glow-textures'
 import { createMineViews } from './mine-views'
 import { EMPTY_LIBRARY, socketWorld, type ModelLibrary } from './model-library'
 import { createPlayerView } from './player-view'
+import { buildCourierSack, buildEscapePodHull, createRareEventFX, type CourierSack } from './rare-event-models'
 import { createSheepViews } from './sheep-views'
 import type { Stage } from './stage'
 import { BUFF_COLORS, CHEST_COLORS, CLUE_GLOW, ELITE_CROWN, ENEMY_IMPACT_COLOR, ENEMY_LOOK, ENEMY_MUZZLE_COLOR, FOG_LAYER, FOG_VEIL, FX, HEAL_COLOR, HIT_STARS, HIT_WHITEOUT } from './themes'
@@ -87,6 +88,7 @@ interface EnemyView {
   crouch: number
   casts: boolean
   flinch: number
+  sack: CourierSack | null
 }
 
 interface Veil {
@@ -404,6 +406,7 @@ export function createEntityViews(
   const blobs = createBlobShadows(scene)
   const sheep = createSheepViews(scene, models, effects)
   const mines = createMineViews(scene, models, effects)
+  const rareFX = createRareEventFX(scene, effects)
   let eyeTexture: THREE.Texture | null = null
   let haloTexture: THREE.Texture | null = null
   let foggy = false
@@ -502,6 +505,7 @@ export function createEntityViews(
       crouch: 0,
       casts: false,
       flinch: 0,
+      sack: null,
     }
   }
 
@@ -657,6 +661,14 @@ export function createEntityViews(
         crown.castShadow = false
         ;(view.anchor ?? view.body).add(crown)
       }
+    }
+    if (enemy.role === 'courier') {
+      const sack = buildCourierSack(view.owned)
+      view.pivot.add(sack.root)
+      view.sack = sack
+    } else if (enemy.role === 'bolt') {
+      const pod = buildEscapePodHull(view.owned, true)
+      view.body.add(pod.root)
     }
     if (kind !== 'boss') {
       const material = eyeConeMaterial.clone()
@@ -946,6 +958,7 @@ export function createEntityViews(
       yaw,
       pose: view.posed,
     })
+    view.sack?.sync(clock, moving && !frozen)
 
     switch (enemy.kind) {
       case 'grunt': {
@@ -1432,11 +1445,13 @@ export function createEntityViews(
       syncEnemies(world, alpha, dt)
       syncMarkers(world)
       syncBlasts(world)
+      rareFX.update(dt, world.rare.bolt?.landing ?? null)
       wrecks.update(dt, wreckGround)
     },
     handle(event) {
       player.handle(event)
       sheep.handle(event)
+      rareFX.handle(event)
       let claimed = false
       for (const view of enemyViews.values()) if (view.boss?.handle(event)) claimed = true
       const { feel } = tuning
@@ -1555,6 +1570,15 @@ export function createEntityViews(
         case 'bossPhase':
           stage.addTrauma(0.6)
           break
+        case 'courierLeaked':
+          enemyViews.get(event.id)?.sack?.setLeaked(event.leaked)
+          break
+        case 'boltLanded':
+          stage.addTrauma(feel.shakeBlast)
+          break
+        case 'boltEjected':
+          stage.addTrauma(feel.shakeKill)
+          break
         default:
           break
       }
@@ -1572,6 +1596,7 @@ export function createEntityViews(
       player.reset()
       sheep.reset()
       mines.reset()
+      rareFX.reset()
       wrecks.reset()
     },
   }

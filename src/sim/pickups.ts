@@ -335,6 +335,7 @@ function takeWeapon(world: World, pickup: Pickup): void {
     dropped.age = PICKUP_DELAY
   }
   equipSpecial(world, item.weapon, item.ammo)
+  if (!world.rare.unlockedWeapons.includes(item.weapon)) world.rare.unlockedWeapons.push(item.weapon)
   world.events.push({ type: 'pickedUp', item, x: pickup.pos.x, y: pickup.pos.y, amount: item.ammo })
 }
 

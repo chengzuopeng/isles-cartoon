@@ -7,6 +7,7 @@ import { BOSS_XP, ELITE_XP, KILL_XP, MILESTONE } from '../data/progression'
 import type { SkillId } from '../data/skills'
 import type { WeaponId } from '../data/weapons'
 import { attackOf, sameAttack } from './attacks'
+import { failBounty } from './bounties'
 import { absorbDamage } from './buffs'
 import { damageCratesInRadius } from './crates'
 import { armBomber } from './enemies/bomber'
@@ -16,6 +17,7 @@ import { floorAt } from './grid'
 import { blastLandmarks } from './landmark-state'
 import { aggro, witnessDeath } from './perception'
 import { rollEnemyDrop, rollItem, spawnPickup } from './pickups'
+import { onCourierKilled, onRareEnemyDamaged } from './rare-events'
 import { barrierBurstKnockback, pushEnemies } from './skills'
 import { feelPain, reelEnemy, stunEnemy } from './status'
 import type { Vec2 } from './math'
@@ -181,6 +183,7 @@ export function damageEnemy(
     damage: amount,
     crit: hit.crit ?? false,
   })
+  if (onRareEnemyDamaged(world, enemy)) return
   aggro(world, enemy)
   if (enemy.hp <= 0) killEnemy(world, enemy, true, true, true, dirX, dirY, hit.crit ?? false)
   else if (knockback > 0 || hit.z !== undefined) feelPain(world, enemy, damage)
@@ -200,12 +203,13 @@ export function killEnemy(world: World, enemy: Enemy, byPlayer: boolean, chain =
   if (byPlayer) {
     world.stats.kills += 1
     countStreak(world)
-    if (enemy.kind !== 'boss') {
+    if (enemy.role === 'courier') onCourierKilled(world, enemy)
+    else if (enemy.kind !== 'boss') {
       world.rewards.kills += (enemy.elite ? ELITE_XP : KILL_XP[enemy.kind]) * world.chapter
       if (drop && enemy.elite) spawnPickup(world, rollItem(world, ELITE_WEIGHTS), enemy.pos.x, enemy.pos.y, { from: enemy.pos })
       else if (drop) rollEnemyDrop(world, enemy)
     }
-  }
+  } else if (enemy.role === 'courier') failBounty(world, 'courier')
   const { feel } = world.tuning
   world.hitstop = Math.max(world.hitstop, enemy.kind === 'boss' ? feel.hitstopBoss : feel.hitstopKill)
   world.events.push({
@@ -410,7 +414,7 @@ function detonate(world: World, blast: Blast): void {
       const distance = Math.hypot(dx, dy)
       const length = distance > 1e-6 ? distance : 1
       damageEnemy(world, enemy, blast.enemyDamage, dx / length, dy / length, knockback)
-      if (blast.source === 'bomber' || blast.source === 'boss') friendly = true
+      if (blast.source === 'bomber' || blast.source === 'boss' || blast.source === 'pod') friendly = true
       struck += 1
       if (blast.stun > 0 && enemy.hp > 0) {
         if (blast.daze) reelEnemy(world, enemy, blast.stun)

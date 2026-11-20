@@ -1,7 +1,7 @@
 import { AFFIX_ORDER, type AffixId } from '../data/elites'
 import type { MinionKind } from '../data/enemies'
 import { raiseAlarm } from './alarms'
-import { killEnemy } from './combat'
+import { damageEnemy, killEnemy } from './combat'
 import { lightLamp } from './fog'
 import { Tile, blocksMovement, floorAt, tileAt } from './grid'
 import { breakLandmark, isTarget } from './landmark-state'
@@ -57,7 +57,9 @@ export function teleportToBoss(world: World): Vec2 | null {
 
 export function clearCurrentArea(world: World): void {
   for (const enemy of world.enemies) {
-    if (enemy.area === world.areaIndex && enemy.kind !== 'boss' && enemy.hp > 0) killEnemy(world, enemy, false, false)
+    if (enemy.area !== world.areaIndex || enemy.kind === 'boss' || enemy.hp <= 0) continue
+    if (enemy.role === 'bolt') damageEnemy(world, enemy, enemy.hp, 0, 0, 0)
+    else killEnemy(world, enemy, false, false)
   }
 }
 

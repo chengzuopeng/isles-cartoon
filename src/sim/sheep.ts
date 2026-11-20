@@ -59,7 +59,7 @@ export function updateSheep(world: World, dt: number): void {
 }
 
 export function areaQuiet(world: World, area: number): boolean {
-  if (world.enemies.some((enemy) => enemy.area === area && enemy.hp > 0)) return false
+  if (world.enemies.some((enemy) => enemy.area === area && enemy.hp > 0 && enemy.role !== 'courier')) return false
   if (world.spawns.some((marker) => marker.area === area)) return false
   return world.level.rushes.every((rush, index) => rush.area !== area || world.rushed[index])
 }

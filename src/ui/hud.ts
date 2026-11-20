@@ -547,7 +547,15 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
       const foggy = world.level.areas.some((area) => area.fog)
       for (const enemy of world.enemies) {
         if (enemy.hp <= 0 || enemy.kind === 'boss') continue
-        const plate = enemy.elite !== null && Math.hypot(enemy.pos.x - player.pos.x, enemy.pos.y - player.pos.y) <= BAR_SCALE.plateRange
+        const specialTag =
+          enemy.role === 'courier'
+            ? '运粮兵'
+            : enemy.role === 'bolt'
+              ? '螺栓上尉 · 逃生舱'
+              : enemy.elite
+                ? `精英 · ${enemy.elite.affixes.map((id) => AFFIXES[id].name).join(' ')}`
+                : ''
+        const plate = specialTag !== '' && Math.hypot(enemy.pos.x - player.pos.x, enemy.pos.y - player.pos.y) <= BAR_SCALE.plateRange
         if (!enemy.aggro && enemy.hp >= enemy.maxHp && !plate) continue
         seen.add(enemy.id)
         let bar = enemyBars.get(enemy.id)
@@ -563,9 +571,9 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
         place(bar, x, y, height, barScale(world, x, y))
         syncStyle(bar.fill, 'transform', `scaleX(${Math.max(0, enemy.hp / enemy.maxHp).toFixed(4)})`)
         const elite = enemy.elite
-        syncText(bar.tag, elite ? `精英 · ${elite.affixes.map((id) => AFFIXES[id].name).join(' ')}` : '')
-        syncStyle(bar.tag, 'display', elite ? '' : 'none')
-        bar.root.classList.toggle('elite', Boolean(elite))
+        syncText(bar.tag, specialTag)
+        syncStyle(bar.tag, 'display', specialTag !== '' ? '' : 'none')
+        bar.root.classList.toggle('elite', specialTag !== '')
         const shielded = Boolean(elite && elite.shieldMax > 0)
         syncStyle(bar.shield, 'display', shielded ? '' : 'none')
         if (elite && shielded) syncStyle(bar.shieldFill, 'transform', `scaleX(${(elite.shield / elite.shieldMax).toFixed(4)})`)

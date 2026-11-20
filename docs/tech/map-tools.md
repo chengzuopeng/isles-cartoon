@@ -1,6 +1,6 @@
 # 地图工具：`pnpm map`
 
-- 状态：2026-11-11 加的。1-1 换地图时用的是仓库外的临时脚本（Python 加临时测试文件），这次整理成命令，全部用 Node，不用另装东西
+- 状态：2026-11-11 从 1-1 的临时测量脚本整理成命令。地图逻辑在 Node 中执行，`draw` 和 `compare` 用本机 Chrome 生成 PNG
 - 相关：[1-1 地图重做](../design/levels/1-1-layout.md)（第一次用这套办法）、[1-2 地图重做](../design/levels/1-2-layout.md)（第一次用这个命令，从草稿到落地走完了一遍）、[自动驾驶](autopilot.md)
 
 改一关的地图之前，先回答三个问题：现在的地图哪里一览无余、新布局挡住了没有、新布局走不走得通。这个命令把三件事都做成一条：
@@ -9,12 +9,15 @@
 pnpm map draw 1-2                                  # 画现在的 1-2，打印视线统计和关卡校验
 pnpm map compare 1-3 scripts/map/sketches/1-3.mjs  # 现在和草稿并排
 pnpm map play scripts/map/sketches/1-3.mjs --points brawl=1,gun=1 --skills q=concussion:1 --carry shotgun --badges straw   # 自动驾驶三档各跑 5 局
+pnpm map play 1-1 --replay --chapter1 --seeds 1,2,3 --skills q=concussion:1   # 按通关第 1 章后的重玩规则跑
 pnpm map text 1-1                                  # 打印字符画和高度表，带行号
 pnpm map emit scripts/map/sketches/1-3.mjs src/data/levels/level-1-3.ts   # 草稿写成关卡数据
 pnpm map --help                                    # 全部命令和选项
 ```
 
 「关卡」可以写三种：关卡 id（读 `src/data/levels/` 里现在的数据）、草稿 `.mjs`、`LevelDef` 的 `.json`。结果默认写在系统临时目录的 `isles-cartoon-map/<时间>/`，`--out` 改目录。
+
+`--replay` 开启重玩的冲锋波配方、随机精英和运粮兵概率。再加 `--chapter1` 后，带冲锋波的关卡可能抽到螺栓上尉客串。事件由种子决定。
 
 ## 图怎么读
 
