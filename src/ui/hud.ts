@@ -588,7 +588,7 @@ export function createHud(container: HTMLElement, stage: Stage, options: HudOpti
     },
     handle(event, world) {
       const areas = world.level.areas
-      barks.handle(event)
+      barks.handle(event, world)
       switch (event.type) {
         case 'areaEntered': {
           const label = areas[event.index]?.kind === 'destroy' && world.areas[event.index]?.status === 'sealed' ? targetLabel(world, event.index) : null

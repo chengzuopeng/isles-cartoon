@@ -53,16 +53,19 @@ export interface LandmarkDef {
   building?: BuildingKind
 }
 
-export type BuildingKind = 'barn' | 'shed'
+export type BuildingKind = 'barn' | 'shed' | 'loading-shed' | 'big-barn' | 'workshop' | 'weighhouse' | 'tool-shed'
 
 export const LANDMARK_IDS = [
   'ch1-town-gate',
+  'ch1-field-tool-shed',
   'ch1-windmill',
   'ch1-barn',
   'ch1-star-altar',
   'ch1-wheat-ears',
   'ch1-sheep-pen',
   'ch1-feed-shed',
+  'ch1-repair-workshop',
+  'ch1-weighhouse',
   'ch1-hay-cart',
   'ch1-dock',
   'ch1-watermill',
@@ -107,6 +110,15 @@ export const LANDMARKS: Readonly<Record<LandmarkId, LandmarkDef>> = {
     motion: [{ node: 'sign', axis: 'y', swing: 0.1, speed: 1.1 }],
     nodes: ['gate', 'sign', 'board', 'lamp_l', 'lamp_r', 'socket_fx_lamp_l', 'socket_fx_lamp_r'],
   },
+  'ch1-field-tool-shed': {
+    name: '麦田农具棚',
+    level: '1-1',
+    size: [6, 4],
+    footprint: ['######', '#.....', '#.....', '#..###'],
+    ...solid,
+    height: 3,
+    building: 'tool-shed',
+  },
   'ch1-windmill': {
     name: '大风车',
     level: '1-1',
@@ -121,7 +133,7 @@ export const LANDMARKS: Readonly<Record<LandmarkId, LandmarkDef>> = {
     name: '谷仓',
     level: '1-1',
     size: [8, 9],
-    footprint: ['########', '#......#', '#......#', '#......#', '#......#', '#......#', '#......#', '#......#', '###..###'],
+    footprint: ['########', '#......#', '#......#', '#......#', '#.......', '#.......', '#......#', '#......#', '###..###'],
     ...solid,
     height: 4.6,
     building: 'barn',
@@ -154,6 +166,24 @@ export const LANDMARKS: Readonly<Record<LandmarkId, LandmarkDef>> = {
     ...solid,
     height: 2.8,
     building: 'shed',
+  },
+  'ch1-repair-workshop': {
+    name: '修车屋',
+    level: '1-2',
+    size: [6, 4],
+    footprint: ['######', '#.....', '#.....', '#..###'],
+    ...solid,
+    height: 3,
+    building: 'workshop',
+  },
+  'ch1-weighhouse': {
+    name: '地磅房',
+    level: '1-2',
+    size: [6, 5],
+    footprint: ['######', '#.....', '#.....', '#....#', '#..###'],
+    ...solid,
+    height: 3,
+    building: 'weighhouse',
   },
   'ch1-hay-cart': {
     name: '草料车',

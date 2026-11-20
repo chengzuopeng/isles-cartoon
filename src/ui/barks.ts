@@ -1,4 +1,7 @@
 import { BARKS, SPEAKERS, type SpeakerId } from '../data/dialogue'
+import { lineClear } from '../sim/collision'
+import { blocksSight, floorAt } from '../sim/grid'
+import { playerEye } from '../sim/terrain'
 import { assetUrl, type PortraitId } from '../render/asset-urls'
 import type { ScreenPoint, Stage } from '../render/stage'
 import { lerp } from '../sim/math'
@@ -23,6 +26,7 @@ interface Bubble {
   enemy: number | null
   x: number
   y: number
+  z: number
   left: number
   total: number
   veil: number
@@ -30,7 +34,7 @@ interface Bubble {
 }
 
 export interface Barks {
-  handle(event: GameEvent): void
+  handle(event: GameEvent, world: World): void
   update(world: World, alpha: number): void
   reset(): void
 }
@@ -86,16 +90,26 @@ export function createBarks(parent: HTMLElement, stage: Stage): Barks {
     bar.classList.remove('visible', 'leaving')
   }
 
-  const addBubble = (event: BarkEvent) => {
+  const addBubble = (event: BarkEvent, world: World) => {
     const root = element('div', 'bark-bubble', layer, event.text)
-    bubbles.push({ root, enemy: event.enemy, x: event.x, y: event.y, left: event.seconds, total: event.seconds, veil: -1, shown: '' })
+    root.classList.toggle('actor', event.z !== undefined)
+    const z = event.z ?? floorAt(world.grid, event.x, event.y) + BUBBLE_HEIGHT
+    bubbles.push({ root, enemy: event.enemy, x: event.x, y: event.y, z, left: event.seconds, total: event.seconds, veil: -1, shown: '' })
+  }
+
+  const actorOnScreen = (event: BarkEvent, world: World): boolean => {
+    const { x, y, z } = event
+    if (z === undefined) return false
+    stage.project(x, z, y, point)
+    if (!point.visible || point.x < 120 || point.x > stage.width - 120 || point.y < 72 || point.y > stage.height) return false
+    return lineClear(world.grid, playerEye(world.player), { x, y, z: z - 0.28 }, blocksSight)
   }
 
   return {
-    handle(event) {
+    handle(event, world) {
       if (event.type !== 'bark') return
-      if (event.display === 'bubble') {
-        addBubble(event)
+      if (event.display === 'bubble' || actorOnScreen(event, world)) {
+        addBubble(event, world)
         return
       }
       const line = { speaker: event.speaker, text: event.text, seconds: event.seconds, radio: event.radio === true }
@@ -127,8 +141,9 @@ export function createBarks(parent: HTMLElement, stage: Stage): Barks {
         if (enemy) {
           bubble.x = lerp(enemy.prev.x, enemy.pos.x, alpha)
           bubble.y = lerp(enemy.prev.y, enemy.pos.y, alpha)
+          bubble.z = lerp(enemy.prevZ, enemy.z, alpha) + BUBBLE_HEIGHT
         }
-        stage.project(bubble.x, BUBBLE_HEIGHT, bubble.y, point)
+        stage.project(bubble.x, bubble.z, bubble.y, point)
         bubble.root.style.transform = `translate3d(${point.x.toFixed(1)}px, ${point.y.toFixed(1)}px, 0)`
         bubble.root.style.visibility = point.visible ? 'visible' : 'hidden'
         bubble.root.classList.toggle('leaving', bubble.left <= FADE_SECONDS)

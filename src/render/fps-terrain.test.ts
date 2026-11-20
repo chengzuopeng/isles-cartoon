@@ -1,7 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import * as THREE from 'three'
+import { describe, expect, it, vi } from 'vitest'
+import { LEVEL_1_1 } from '../data/levels/level-1-1'
+import { LEVEL_1_2 } from '../data/levels/level-1-2'
 import { Tile, type Grid } from '../sim/grid'
-import type { BuiltLevel } from '../sim/level'
-import { TERRAIN, buildTerrain, rawHeight, rimEdge, surfaceHeight } from './fps-terrain'
+import { buildLevel, type BuiltLevel } from '../sim/level'
+import { TERRAIN, buildTerrain, platformSurfaceOf, rawHeight, rimEdge, surfaceHeight } from './fps-terrain'
+import { buildLevelPlatforms, framedPlatformCells } from './level-platforms'
+
+vi.mock('./line-textures', () => ({ lineTexture: () => new THREE.Texture() }))
 
 function grid(rows: string[], floors?: number[][]): Grid {
   const tiles: Record<string, Tile> = { '.': Tile.Floor, '#': Tile.Wall, '~': Tile.Water, ',': Tile.Path }
@@ -30,6 +36,15 @@ function level(target: Grid): BuiltLevel {
     areaOfRow: new Int16Array(target.rows),
   } as unknown as BuiltLevel
 }
+
+it('places the loading platform materials on the authored height-map footprints', () => {
+  const level = buildLevel(LEVEL_1_2)
+  const field = level.areas[2]
+  expect(platformSurfaceOf(level, 20, field.top + 42)).toBe('wood')
+  expect(platformSurfaceOf(level, 19, field.top + 42)).toBeUndefined()
+  expect(platformSurfaceOf(level, 46, field.top + 24)).toBe('straw')
+  expect(platformSurfaceOf(level, 13, field.top + 6)).toBe('wood')
+})
 
 describe('fps terrain', () => {
   it('sinks water beds and drops the outside to the cliff depth', () => {
@@ -69,6 +84,56 @@ describe('fps terrain', () => {
     }
     expect(terrain.heightAt(0.2, 0.5)).toBeCloseTo(0)
     expect(terrain.heightAt(3.8, 0.5)).toBeCloseTo(0.5)
+  })
+
+  it('renders framed decks at standing height and joins the feed deck to its north ramp', () => {
+    const level = buildLevel(LEVEL_1_2)
+    const framed = framedPlatformCells(level)
+    const terrain = buildTerrain(level, framed)
+    const structures = buildLevelPlatforms(level, framed)
+    const deck = structures.find(({ near }) => near === level.areas[2].top)!.group
+    const feed = structures.find(({ near }) => near === level.areas[1].top)!.group
+    const material = new THREE.MeshBasicMaterial()
+    const base = new THREE.Mesh(terrain.geometry, material)
+    const surface = (mesh: THREE.Object3D, x: number, z: number) =>
+      new THREE.Raycaster(new THREE.Vector3(x, 8, z), new THREE.Vector3(0, -1, 0)).intersectObject(mesh)[0]?.point.y
+    const south = level.areas[2].top + 42.5
+    expect(surface(deck, 38.4, south)).toBeCloseTo(2)
+    expect(surface(deck, 35.4, south)).toBeCloseTo(3)
+    expect(surface(base, 35.4, south)).toBeCloseTo(1)
+    expect(terrain.heightAt(35.4, south)).toBeCloseTo(3)
+    const join = level.areas[1].top + 33
+    expect(surface(feed, 27.4, join - 0.01)).toBeCloseTo(3, 1)
+    expect(surface(feed, 27.4, join + 0.01)).toBeCloseTo(3)
+    expect(terrain.heightAt(27.4, join - 0.2)).toBeCloseTo(surface(feed, 27.4, join - 0.2)!)
+    structures.forEach((structure) => structure.dispose())
+    terrain.geometry.dispose()
+    terrain.water.dispose()
+    terrain.underside.dispose()
+    material.dispose()
+  })
+
+  it('joins the 1-1 threshing deck to its two walk-up ramps and draws the upper stone terrace level', () => {
+    const level = buildLevel(LEVEL_1_1)
+    const framed = framedPlatformCells(level)
+    const terrain = buildTerrain(level, framed)
+    const structures = buildLevelPlatforms(level, framed)
+    const yard = structures.find(({ near }) => near === level.areas[2].top)!.group
+    const bank = structures.find(({ near }) => near === level.areas[1].top)!.group
+    const surface = (mesh: THREE.Object3D, x: number, z: number) =>
+      new THREE.Raycaster(new THREE.Vector3(x, 8, z), new THREE.Vector3(0, -1, 0)).intersectObject(mesh)[0]?.point.y
+    const row = level.areas[2].top + 32.5
+    for (const [x, height] of [[29.05, 2.05], [29.95, 2.95], [30.05, 3], [47.95, 3], [48.05, 2.975], [49.95, 2.025]]) {
+      expect(surface(yard, x, row)).toBeCloseTo(height)
+      expect(terrain.heightAt(x, row)).toBeCloseTo(height)
+    }
+    const terraceRow = level.areas[1].top + 33.2
+    expect(platformSurfaceOf(level, 53, Math.floor(terraceRow))).toBe('stone')
+    expect(surface(bank, 53.4, terraceRow)).toBeCloseTo(2.5)
+    structures.forEach((structure) => structure.dispose())
+    terrain.geometry.dispose()
+    terrain.water.dispose()
+    terrain.underside.dispose()
   })
 
   it('lays water quads a little past the banks and keeps an underside below the island', () => {

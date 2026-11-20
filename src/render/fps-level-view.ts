@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { LANDMARKS, type LandmarkMotion } from '../data/landmarks'
-import type { Theme, WallStyle } from '../data/levels/types'
-import { Tile, cellFloor, tileAt, type Grid } from '../sim/grid'
+import type { CoverDef, Theme, WallStyle } from '../data/levels/types'
+import { Tile, cellFloor, cellTop, tileAt, type Grid } from '../sim/grid'
 import type { BuiltLevel } from '../sim/level'
 import type { GameEvent } from '../sim/types'
 import type { World } from '../sim/world'
@@ -9,8 +9,12 @@ import type { ModelId } from './asset-urls'
 import { lineTexture, type LineTextureKind } from './line-textures'
 import type { ModelLibrary } from './model-library'
 import { buildBuilding } from './buildings'
-import { buildTerrain, createTerrainMaterials, surfaceHeight, terrainChunks } from './fps-terrain'
+import { buildCover } from './cover-props'
+import { barnPartAt, buildLevelStructures } from './level-buildings'
+import { buildLevelPlatforms, framedPlatformCells } from './level-platforms'
+import { buildTerrain, createTerrainMaterials, platformSurfaceOf, surfaceHeight, terrainChunks } from './fps-terrain'
 import { STALK_STYLES, createStalkMaterial, stalkGeometry, stalkMatrices } from './stalks'
+import { createStoryActors } from './story-actors'
 import { flowerBatches, flowerHeadGeometry, flowerStemGeometry, hedgeTopBatches, hedgeTopGeometry, pebbleBatches, pebbleGeometry, spikeBatches, spikeGeometry, type DetailBatch, type WallEdge } from './ground-details'
 import { hiddenTops, treeDepths, treeLook } from './level-cover'
 import { bakeNode, type NodePart } from './node-parts'
@@ -85,6 +89,8 @@ export type WallLook = Theme | WallStyle
 
 const WALL_STYLES: Readonly<Record<WallStyle, { color: string; texture: LineTextureKind }>> = {
   hedge: { color: '#5a9440', texture: 'grass' },
+  bales: { color: '#d4ab68', texture: 'bales' },
+  timber: { color: '#a47956', texture: 'wood' },
 }
 
 const TILE_PROPS: Readonly<Partial<Record<Tile, PropKind>>> = {
@@ -215,7 +221,7 @@ export function buildWalls(level: BuiltLevel, fromRow = 0, toRow = level.grid.ro
   const solid = (column: number, row: number) => column >= 0 && row >= 0 && column < grid.columns && row < grid.rows && tileAt(grid, column, row) === Tile.Wall && !isBorder(grid, column, row)
   for (let row = fromRow; row < Math.min(toRow, grid.rows); row++) {
     for (let column = 0; column < grid.columns; column++) {
-      if (!solid(column, row)) continue
+      if (!solid(column, row) || barnPartAt(level, column, row) === 'wall') continue
       const look = wallLookOf(level, row)
       let builder = builders.get(look)
       if (!builder) {
@@ -233,7 +239,10 @@ export function buildWalls(level: BuiltLevel, fromRow = 0, toRow = level.grid.ro
         const [x1, z1, x2, z2] = edgeCorners(column, row, side)
         const along = side.dc === 0 ? x1 : z1
         const along2 = side.dc === 0 ? x2 : z2
-        builder.quad({ x: x1, y: top, z: z1 }, { x: x1, y: floor, z: z1 }, { x: x2, y: floor, z: z2 }, { x: x2, y: top, z: z2 }, side.normal, white, [along, top, along, floor, along2, floor, along2, top])
+        const uv = look === 'bales'
+          ? [along / 4, 1, along / 4, 0, along2 / 4, 0, along2 / 4, 1]
+          : [along, top, along, floor, along2, floor, along2, top]
+        builder.quad({ x: x1, y: top, z: z1 }, { x: x1, y: floor, z: z1 }, { x: x2, y: floor, z: z2 }, { x: x2, y: top, z: z2 }, side.normal, white, uv)
       }
     }
   }
@@ -314,7 +323,8 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   const culled: { object: THREE.Object3D; near: number; far: number }[] = []
   const band = (row: number) => Math.floor(row / LEVEL_CULL.chunkRows)
   const bandRange = (index: number) => ({ near: index * LEVEL_CULL.chunkRows, far: (index + 1) * LEVEL_CULL.chunkRows })
-  const terrain = buildTerrain(level)
+  const framed = framedPlatformCells(level)
+  const terrain = buildTerrain(level, framed)
   const terrainMaterials = createTerrainMaterials(level)
   for (const chunk of terrainChunks(terrain, grid.rows, LEVEL_CULL.chunkRows)) {
     const mesh = new THREE.Mesh(chunk.geometry, terrainMaterials.ground)
@@ -353,6 +363,11 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       culled.push({ object: mesh, ...range })
       disposables.push(geometry)
     }
+  }
+  for (const structure of [...buildLevelStructures(level), ...buildLevelPlatforms(level, framed)]) {
+    group.add(structure.group)
+    disposables.push(structure)
+    culled.push({ object: structure.group, near: structure.near, far: structure.far })
   }
 
   const batches = new Map<string, Batch>()
@@ -393,6 +408,46 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   const hayCells = new Set(level.hay)
   const hays: HayView[] = []
   const ashes: THREE.Mesh[] = []
+  const coverCells = new Set<number>()
+  const coverParts = new Map<string, readonly NodePart[]>()
+  const placeCover = (style: CoverDef['style'], column: number, row: number, width: number, depth: number) => {
+    const floor = cellFloor(grid, column, row)
+    const height = cellTop(grid, column, row) - floor
+    const length = Math.max(width, depth)
+    const name = `cover-${style}-${height.toFixed(2)}-${length}`
+    let parts = coverParts.get(name)
+    if (!parts) {
+      parts = buildCover(style, height, length)
+      coverParts.set(name, parts)
+      for (const part of parts) disposables.push(part.geometry, part.material)
+    }
+    const x = column + width / 2
+    const z = row + depth / 2
+    const spot = place(name, parts, x, floor, z, depth > width ? Math.PI / 2 : 0, 1, 1, 1, true)
+    const index = row * grid.columns + column
+    if (spot && hayCells.has(index)) hays.push({ index, ...spot, x, y: floor, z, gone: false })
+  }
+  for (const area of level.areas) {
+    for (const { style, from, to } of area.scenery?.covers ?? []) {
+      const separate = style === 'bales' || style === 'sacks'
+      for (let row = area.top + from[1]; row <= area.top + to[1]; row++) {
+        for (let column = from[0]; column <= to[0]; column++) {
+          coverCells.add(row * grid.columns + column)
+          if (separate) placeCover(style, column, row, 1, 1)
+        }
+      }
+      if (!separate) placeCover(style, from[0], area.top + from[1], to[0] - from[0] + 1, to[1] - from[1] + 1)
+    }
+  }
+
+  const houseCells = new Set<number>()
+  for (const { id, column, row, depth, width } of level.landmarks) {
+    const kind = LANDMARKS[id].building
+    if (kind !== 'workshop' && kind !== 'weighhouse' && kind !== 'tool-shed') continue
+    for (let r = row; r < row + depth; r++) {
+      for (let c = column; c < column + width; c++) houseCells.add(r * grid.columns + c)
+    }
+  }
   const stalkSpots = new Map<string, { theme: Theme; band: number; matrices: THREE.Matrix4[] }>()
   const gateParts = has('ch1-gate')
   const crateModel = has('crate')
@@ -408,6 +463,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   for (let row = 0; row < grid.rows; row++) {
     const theme = themeOf(level, row)
     for (let column = 0; column < grid.columns; column++) {
+      if (coverCells.has(row * grid.columns + column)) continue
       const tile = tileAt(grid, column, row)
       const floor = cellFloor(grid, column, row)
       const x = column + 0.5
@@ -565,10 +621,15 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
 
   const tuftSpots = new Map<number, THREE.Matrix4[]>()
   const tuftTints = new Map<number, THREE.Color[]>()
+  const unseen = (column: number, row: number) => {
+    const cell = row * grid.columns + column
+    return hidden[cell] === 1 || houseCells.has(cell) || platformSurfaceOf(level, column, row) !== undefined
+  }
   for (let row = 0; row < grid.rows; row++) {
     if (!TUFT_THEMES.has(themeOf(level, row))) continue
     for (let column = 0; column < grid.columns; column++) {
-      if (tileAt(grid, column, row) !== Tile.Floor || isBorder(grid, column, row) || hidden[row * grid.columns + column] === 1) continue
+      if (tileAt(grid, column, row) !== Tile.Floor || isBorder(grid, column, row) || unseen(column, row)) continue
+      if (barnPartAt(level, column, row) === 'interior') continue
       const count = cellHash(column, row, 11) < TUFT.denseShare ? TUFT.dense : TUFT.sparse
       for (let k = 0; k < count; k++) {
         const tx = column + 0.15 + cellHash(column, row, 20 + k) * 0.7
@@ -627,7 +688,6 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     }
   }
   const surface = (x: number, z: number) => terrain.heightAt(x, z)
-  const unseen = (column: number, row: number) => hidden[row * grid.columns + column] === 1
   const flowers = flowerBatches(grid, (row) => themeOf(level, row), surface, band, (column, row) => isBorder(grid, column, row) || unseen(column, row))
   addDetails('flower-stems', flowers, flowerStemGeometry(), toonMaterial({ vertexColors: true, side: THREE.DoubleSide }), false, false)
   addDetails('flower-heads', flowers, flowerHeadGeometry(), toonMaterial({ side: THREE.DoubleSide }), false)
@@ -657,6 +717,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       const building = buildBuilding(kind, placement, cellFloor(grid, placement.column, placement.row))
       group.add(building.group)
       disposables.push(building)
+      culled.push({ object: building.group, near: placement.row - 1, far: placement.row + placement.depth + 1 })
       continue
     }
     const id = landmarkModel(has, placement.id, placement.variant)
@@ -679,6 +740,8 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       motions.push({ node, rest: node.quaternion.clone(), axis: new THREE.Vector3(ax, ay, az), motion })
     }
   }
+  const actors = level.actors.length ? createStoryActors(level, group) : undefined
+  if (actors) disposables.push(actors)
 
   let time = 0
   const turn = new THREE.Quaternion()
@@ -687,6 +750,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     heightAt: terrain.heightAt,
     update(world, dt, eye) {
       time += dt
+      actors?.update(world.areaIndex, time)
       terrainMaterials.update(dt)
       stalkMaterial.update(dt)
       const z = eye ? eye.z : world.player.pos.y

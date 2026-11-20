@@ -206,6 +206,7 @@ export interface Bark {
   text: string
   display: BarkDisplay
   trigger: BarkTrigger
+  actorArea?: number
   radio?: boolean
 }
 
@@ -256,6 +257,7 @@ export const BARKS: Readonly<Record<string, readonly Bark[]>> = {
       text: '钱箱就在那儿，碰都没碰。',
       display: 'bar',
       trigger: { on: 'targets', count: 1 },
+      actorArea: 2,
     },
     {
       id: 'plough',
@@ -263,6 +265,7 @@ export const BARKS: Readonly<Record<string, readonly Bark[]>> = {
       text: '这不是二十年前镇上买的耕地机吗？那时候有人开着船来卖，便宜又结实。',
       display: 'bar',
       trigger: { on: 'near', landmark: 'grunt-wreck', radius: 4 },
+      actorArea: 3,
     },
   ],
   '1-3': [

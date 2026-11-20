@@ -38,7 +38,8 @@ test('the prep screen lists the missions and marks the levels the first-person v
     '试炼 · 巨型收割机 · 第 1 章大 Boss',
   ])
   await expect(page.locator('.prep-mission').nth(0).locator('.prep-mission-wip')).toHaveCount(0)
-  await expect(page.locator('.prep-mission').nth(1).locator('.prep-mission-wip')).toContainText('第一人称版还没做')
+  await expect(page.locator('.prep-mission').nth(1).locator('.prep-mission-wip')).toContainText('待试玩校准')
+  await expect(page.locator('.prep-mission').nth(2).locator('.prep-mission-wip')).toContainText('第一人称版还没做')
   await expect(page).toHaveScreenshot('prep.png')
   expect(errors).toEqual([])
 })
@@ -65,6 +66,58 @@ test('settings carry the view options and key bindings, and a rebound key surviv
   await expect(binds.nth(4)).toHaveText('F')
   await panel.getByRole('button', { name: '按键恢复默认' }).click()
   await expect(binds.nth(4)).toHaveText('空格')
+  expect(errors).toEqual([])
+})
+
+test('the pasture shows Lao Tang, anchors visible dialogue and reaches its results', async ({ page }) => {
+  const errors = await open(page)
+  await page.evaluate(() => window.__game!.startLevel('1-2'))
+  await expect(page.locator('.dialogue-text')).toHaveText('它们把干草和麦子都装车了！')
+  await page.waitForFunction(() => window.__game!.scene.getObjectByName('story-actor-laoTang-0')?.visible)
+
+  await page.evaluate(async () => {
+    const game = window.__game!
+    game.skipDialogue()
+    game.freeze(true)
+    game.debug.invincible = true
+    game.teleport(2)
+    game.advance(0.05)
+    const actor = game.world.level.actors.find((item) => item.area === 2)!
+    const { x, y } = game.world.player.pos
+    game.look(Math.atan2(y - actor.y, x - actor.x), 0)
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    game.breakTargets(2)
+    game.advance(0.05)
+  })
+  await expect(page.locator('.bark-bar.visible .bark-text')).toHaveText('钱箱就在那儿，碰都没碰。')
+
+  await page.evaluate(async () => {
+    const game = window.__game!
+    const { grid, player, level } = game.world
+    const wreck = level.landmarks.find((item) => item.id === 'grunt-wreck')!
+    const actor = level.actors.find((item) => item.area === wreck.area)!
+    const x = wreck.column + wreck.width + 2.5
+    const y = wreck.row + 0.5
+    const floor = grid.floor[Math.floor(y) * grid.columns + Math.floor(x)]
+    Object.assign(player, { pos: { x, y }, prev: { x, y }, z: floor, prevZ: floor })
+    game.look(Math.atan2(actor.y - y, actor.x - x), 0)
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    game.advance(0.05)
+  })
+  await expect(page.locator('.bark-bubble.actor')).toContainText('二十年前镇上买的耕地机')
+
+  const result = await page.evaluate(() => {
+    const game = window.__game!
+    game.restart()
+    game.setAutopilot(true, 'perfect')
+    game.advance(540)
+    game.setAutopilot(false)
+    return game.world.status
+  })
+  expect(result).toBe('complete')
+  await expect(page.locator('.dialogue-text')).toContainText('谷仓塌了一半')
+  await page.evaluate(() => window.__game!.skipDialogue())
+  await expect(page.locator('.results-screen .screen-button', { hasText: '下一关' })).toContainText('1-3')
   expect(errors).toEqual([])
 })
 

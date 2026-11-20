@@ -5,7 +5,7 @@ import { LEVEL_1_2 } from '../data/levels/level-1-2'
 import { LEVEL_1_3 } from '../data/levels/level-1-3'
 import { createDefaultTuning } from '../data/tuning'
 import { updateBarks } from './barks'
-import { Tile, tileAt } from './grid'
+import { Tile, floorAt, tileAt } from './grid'
 import { breakLandmark } from './landmark-state'
 import { buildLevel } from './level'
 import { aggro } from './perception'
@@ -169,7 +169,9 @@ describe('barks in 1-2', () => {
     expect(step(world).some((event) => event.type === 'bark')).toBe(false)
     place(world, 27.5, wreck.row + 0.5)
     const barks = step(world).filter((event) => event.type === 'bark')
-    expect(barks.map((event) => event.type === 'bark' && event.id)).toEqual(['plough'])
+    const actor = level.actors.find((item) => item.speaker === 'laoTang' && item.area === 3)!
+    expect(barks).toHaveLength(1)
+    expect(barks[0]).toMatchObject({ id: 'plough', x: actor.x, y: actor.y, z: floorAt(world.grid, actor.x, actor.y) + 2 })
     expect(step(world).some((event) => event.type === 'bark')).toBe(false)
   })
 

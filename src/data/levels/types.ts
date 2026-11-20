@@ -1,5 +1,6 @@
 import type { BossSummon } from '../bosses'
 import type { ClueId } from '../clues'
+import type { SpeakerId } from '../dialogue'
 import type { AffixId } from '../elites'
 import type { IdleMode } from '../enemies'
 import type { Facing, LandmarkId } from '../landmarks'
@@ -29,6 +30,32 @@ export interface LandmarkPlacementDef {
 export interface RegionDef {
   from: GridPoint
   to: GridPoint
+}
+
+export function regionContainsCell({ from, to }: RegionDef, column: number, row: number): boolean {
+  return column >= from[0] && column <= to[0] && row >= from[1] && row <= to[1]
+}
+
+export interface PlatformDef extends RegionDef {
+  surface: 'wood' | 'straw' | 'stone'
+  frame?: { base: number; trim?: 'straps' | 'steel' | 'stone'; ramp?: 'north' | 'west' | 'east' }
+}
+
+export interface CoverDef extends RegionDef {
+  style: 'water-trough' | 'feed-trough' | 'bales' | 'sacks' | 'sleepers'
+}
+
+export interface AreaSceneryDef {
+  platforms?: readonly PlatformDef[]
+  covers?: readonly CoverDef[]
+  sheds?: readonly RegionDef[]
+  barn?: RegionDef
+}
+
+export interface StoryActorDef {
+  speaker: Extract<SpeakerId, 'laoTang'>
+  at: GridPoint
+  facing: Facing
 }
 
 export type ClueSpotDef = { id: ClueId; at: GridPoint } | { id: ClueId; dropBy: 'firstTarget' }
@@ -79,7 +106,7 @@ export interface BladeDef {
 
 export type AreaKind = 'normal' | 'lock' | 'boss' | 'destroy'
 
-export type WallStyle = 'hedge'
+export type WallStyle = 'hedge' | 'bales' | 'timber'
 
 export interface BossTuningDef {
   maxHp?: number
@@ -91,6 +118,8 @@ export interface AreaDef {
   theme: Theme
   kind?: AreaKind
   walls?: WallStyle
+  scenery?: AreaSceneryDef
+  actors?: readonly StoryActorDef[]
   idle?: IdleMode
   patrols?: readonly PatrolDef[]
   elites?: readonly EliteDef[]

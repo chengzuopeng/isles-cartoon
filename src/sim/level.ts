@@ -5,7 +5,8 @@ import type { ClueId } from '../data/clues'
 import type { AffixId } from '../data/elites'
 import type { IdleMode } from '../data/enemies'
 import { LANDMARKS, type LandmarkId } from '../data/landmarks'
-import type { AreaKind, BladeDef, GridPoint, LevelDef, RegionDef, Theme, WallStyle } from '../data/levels/types'
+import { regionContainsCell } from '../data/levels/types'
+import type { AreaKind, AreaSceneryDef, BladeDef, GridPoint, LevelDef, RegionDef, StoryActorDef, Theme, WallStyle } from '../data/levels/types'
 import type { ChestTier } from '../data/loot'
 import type { PlayerWeaponId } from '../data/weapons'
 import { HAY_THEMES, KEG } from '../data/props'
@@ -23,6 +24,7 @@ export interface AreaInfo {
   theme: Theme
   kind: AreaKind
   walls: WallStyle | null
+  scenery?: AreaSceneryDef
   fog: boolean
   top: number
   bottom: number
@@ -136,6 +138,12 @@ export interface BossPlacement {
   area: number
 }
 
+export interface StoryActorPlacement extends Vec2 {
+  area: number
+  speaker: StoryActorDef['speaker']
+  facing: StoryActorDef['facing']
+}
+
 export interface BuiltLevel {
   def: LevelDef
   grid: Grid
@@ -151,6 +159,7 @@ export interface BuiltLevel {
   conveyors: Conveyor[]
   exits: number[]
   landmarks: LandmarkPlacement[]
+  actors: StoryActorPlacement[]
   landmarkAt: Int16Array
   pastures: RegionPlacement[]
   clues: CluePlacement[]
@@ -240,6 +249,7 @@ export function buildLevel(def: LevelDef): BuiltLevel {
     theme: area.theme,
     kind: area.kind ?? 'normal',
     walls: area.walls ?? null,
+    scenery: area.scenery,
     fog: area.fog !== undefined,
     top: 0,
     bottom: 0,
@@ -257,6 +267,15 @@ export function buildLevel(def: LevelDef): BuiltLevel {
 
   const landmarks = def.areas.flatMap((area, index) =>
     (area.landmarks ?? []).map((placement) => placeLandmark(placement, index, areas[index].top, grid)),
+  )
+  const actors = def.areas.flatMap((area, index) =>
+    (area.actors ?? []).map(({ at, speaker, facing }) => ({
+      area: index,
+      speaker,
+      facing,
+      x: at[0] + 0.5,
+      y: areas[index].top + at[1] + 0.5,
+    })),
   )
   stampLandmarks(grid, landmarks)
   const landmarkAt = new Int16Array(grid.columns * grid.rows).fill(-1)
@@ -403,6 +422,7 @@ export function buildLevel(def: LevelDef): BuiltLevel {
     conveyors,
     exits,
     landmarks,
+    actors,
     landmarkAt,
     pastures,
     clues,
@@ -554,8 +574,10 @@ function hayCells(grid: Grid, areaOfRow: Int16Array, areas: readonly AreaInfo[])
   const cells: number[] = []
   grid.tiles.forEach((tile, index) => {
     if (tile !== Tile.Rock) return
-    const theme = areas[areaOfRow[Math.floor(index / grid.columns)]]?.theme
-    if (theme && HAY_THEMES.includes(theme)) cells.push(index)
+    const row = Math.floor(index / grid.columns)
+    const area = areas[areaOfRow[row]]
+    const cover = area.scenery?.covers?.find((region) => regionContainsCell(region, index % grid.columns, row - area.top))
+    if (cover ? cover.style === 'bales' || cover.style === 'sacks' : HAY_THEMES.includes(area.theme)) cells.push(index)
   })
   return cells
 }
@@ -584,6 +606,14 @@ export function validateLevel(level: BuiltLevel): string[] {
   }
   if (!def.waves && level.exits.length === 0) problems.push('level has no exit')
   if (def.bossId && !level.boss) problems.push('level names a boss but has no boss marker')
+  for (const actor of level.actors) {
+    const area = level.areas[actor.area]
+    const column = Math.floor(actor.x)
+    const row = Math.floor(actor.y)
+    if (column < 0 || column >= grid.columns || row < area.top || row >= area.bottom || blocksMovement(tileAt(grid, column, row))) {
+      problems.push(`actor "${actor.speaker}" at ${column},${row} must stand on open ground in "${area.name}"`)
+    }
+  }
 
   for (const area of level.areas) {
     if (area.kind === 'normal') continue

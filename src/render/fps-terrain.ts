@@ -1,7 +1,9 @@
 import * as THREE from 'three'
-import type { Theme } from '../data/levels/types'
+import { regionContainsCell, type PlatformDef, type Theme } from '../data/levels/types'
 import { Tile, cellFloor, tileAt, type Grid } from '../sim/grid'
 import type { BuiltLevel } from '../sim/level'
+import { barnPartAt } from './level-buildings'
+import { deckHeightAt, framedPlatformCells, platformHeights } from './level-platforms'
 import { lineTexture } from './line-textures'
 import { cellHash } from './scene-models'
 import { PALETTES } from './themes'
@@ -196,15 +198,18 @@ function buildWater(level: BuiltLevel): THREE.BufferGeometry {
   return geometry
 }
 
-export function buildTerrain(level: BuiltLevel): Terrain {
+export function buildTerrain(level: BuiltLevel, framed = framedPlatformCells(level)): Terrain {
   const { grid } = level
+  // Keep the smoothed ground below authored decks. The decks supply their own top and risers.
+  const ground = framed.size > 0 ? { ...grid, floor: grid.floor.slice() } : grid
+  for (const [index, platform] of framed) ground.floor[index] = platform.frame.base
   const { sub, margin } = TERRAIN
   const width = (grid.columns + margin * 2) * sub
   const depth = (grid.rows + margin * 2) * sub
   const sampleX = (i: number) => -margin + (i + 0.5) / sub
   const sampleZ = (j: number) => -margin + (j + 0.5) / sub
   const raw = new Float32Array(width * depth)
-  for (let j = 0; j < depth; j++) for (let i = 0; i < width; i++) raw[j * width + i] = rawHeight(grid, sampleX(i), sampleZ(j))
+  for (let j = 0; j < depth; j++) for (let i = 0; i < width; i++) raw[j * width + i] = rawHeight(ground, sampleX(i), sampleZ(j))
   const blurred = blurAxis(blurAxis(raw, width, depth, true), width, depth, false)
   const heights = new Float32Array(raw.length)
   for (let k = 0; k < raw.length; k++) heights[k] = raw[k] + Math.max(-TERRAIN.settle, Math.min(TERRAIN.settle, blurred[k] - raw[k]))
@@ -241,6 +246,11 @@ export function buildTerrain(level: BuiltLevel): Terrain {
   geometry.computeBoundingSphere()
 
   const heightAt = (x: number, z: number) => {
+    if (x >= 0 && x < grid.columns && z >= 0 && z < grid.rows) {
+      const index = Math.floor(z) * grid.columns + Math.floor(x)
+      const platform = framed.get(index)
+      if (platform) return deckHeightAt(platformHeights(level, index, platform), x - Math.floor(x), z - Math.floor(z))
+    }
     const fi = Math.min(width - 1, Math.max(0, (x + margin) * sub - 0.5))
     const fj = Math.min(depth - 1, Math.max(0, (z + margin) * sub - 0.5))
     const i0 = Math.min(width - 2, Math.floor(fi))
@@ -315,6 +325,13 @@ function cellTexture(grid: Grid, fill: (column: number, row: number, out: number
 
 const DRY_THEMES: ReadonlySet<Theme> = new Set(['arena', 'village', 'factory'])
 
+export function platformSurfaceOf(level: BuiltLevel, column: number, row: number): PlatformDef['surface'] | undefined {
+  const area = level.areas[level.areaOfRow[row]]
+  if (!area) return
+  const localRow = row - area.top
+  return area.scenery?.platforms?.find((region) => regionContainsCell(region, column, localRow))?.surface
+}
+
 export function terrainMasks(level: BuiltLevel): { a: THREE.DataTexture; b: THREE.DataTexture; c: THREE.DataTexture } {
   const { grid } = level
   const color = new THREE.Color()
@@ -324,7 +341,7 @@ export function terrainMasks(level: BuiltLevel): { a: THREE.DataTexture; b: THRE
     out[0] = color.r
     out[1] = color.g
     out[2] = color.b
-    out[3] = paved(tileAt(grid, column, row)) ? 1 : 0
+    out[3] = paved(tileAt(grid, column, row)) || barnPartAt(level, column, row) === 'interior' ? 1 : 0
   })
   const b = cellTexture(grid, (column, row, out) => {
     const theme = themeOf(level, row)
@@ -335,10 +352,11 @@ export function terrainMasks(level: BuiltLevel): { a: THREE.DataTexture; b: THRE
     out[3] = tileAt(grid, column, row) === Tile.Bush && theme === 'farm' ? 1 : 0
   })
   const c = cellTexture(grid, (column, row, out) => {
+    const surface = platformSurfaceOf(level, column, row)
     out[0] = tileAt(grid, column, row) === Tile.Water ? 1 : 0
     out[1] = DRY_THEMES.has(themeOf(level, row)) ? 1 : 0
-    out[2] = 0
-    out[3] = 1
+    out[2] = surface === 'wood' ? 1 : 0
+    out[3] = surface === 'straw' ? 1 : 0
   })
   return { a, b, c }
 }
@@ -366,16 +384,28 @@ uniform sampler2D terrainGrass;
 uniform sampler2D terrainGravel;
 uniform sampler2D terrainBank;
 uniform sampler2D terrainStubble;
+uniform sampler2D terrainPlanks;
+uniform sampler2D terrainBales;
 uniform vec2 terrainSize;
 uniform vec3 terrainSoil;
 uniform vec3 terrainBankColor;
 uniform vec3 terrainCliff;
+uniform vec3 terrainDeckColor;
+uniform vec3 terrainBaleColor;
 ${NOISE}
 vec3 terrainColor(vec3 world, vec3 normal) {
   vec2 cell = world.xz / terrainSize;
   vec4 a = texture2D(terrainA, cell);
   vec4 b = texture2D(terrainB, cell);
   vec4 c = texture2D(terrainC, cell);
+  if (c.b > 0.5) {
+    vec2 woodUV = normal.y < 0.72 ? vec2(world.y * 0.85, (world.x + world.z) * 0.2) : vec2(world.z, world.x * 0.25);
+    return terrainDeckColor * texture2D(terrainPlanks, woodUV).rgb;
+  }
+  if (c.a > 0.5) {
+    vec2 baleUV = normal.y < 0.72 ? vec2((world.x + world.z) * 0.25, (world.y - 1.0) * 0.5) : world.xz * 0.35;
+    return terrainBaleColor * texture2D(terrainBales, baleUV).rgb;
+  }
   float warp = terrainNoise(world.xz * 0.45) - 0.5;
   float fine = terrainNoise(world.xz * 2.1 + 3.7) - 0.5;
   float path = smoothstep(0.42, 0.58, a.a + warp * 0.45 + fine * 0.14);
@@ -435,10 +465,14 @@ export function createTerrainMaterials(level: BuiltLevel): TerrainMaterials {
     terrainGravel: { value: lineTexture('gravel') },
     terrainBank: { value: lineTexture('bank') },
     terrainStubble: { value: lineTexture('stubble') },
+    terrainPlanks: { value: lineTexture('wood') },
+    terrainBales: { value: lineTexture('bales') },
     terrainSize: { value: size },
     terrainSoil: { value: SOIL },
     terrainBankColor: { value: BANK },
     terrainCliff: { value: CLIFF },
+    terrainDeckColor: { value: new THREE.Color('#9c693f') },
+    terrainBaleColor: { value: new THREE.Color('#e1b96b') },
   }
   ground.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, groundUniforms)

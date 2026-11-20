@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-export type LineTextureKind = 'wood' | 'stone' | 'rock' | 'metal' | 'dirt' | 'grass' | 'gravel' | 'bank' | 'stubble'
+export type LineTextureKind = 'wood' | 'stone' | 'rock' | 'metal' | 'dirt' | 'grass' | 'gravel' | 'bank' | 'stubble' | 'bales'
 
 const SIZE = 256
 const INK = 'rgba(29, 23, 20, 0.85)'
@@ -257,7 +257,41 @@ function stubble(context: CanvasRenderingContext2D, rand: () => number): void {
   }
 }
 
-const PAINTERS: Record<LineTextureKind, (context: CanvasRenderingContext2D, rand: () => number) => void> = { wood, stone, rock, metal, dirt, grass, gravel, bank, stubble }
+function bales(context: CanvasRenderingContext2D, rand: () => number): void {
+  const width = SIZE / 2
+  const course = SIZE / 3
+  context.fillStyle = '#93704a'
+  context.fillRect(0, 0, SIZE, SIZE)
+  for (let row = 0; row < 3; row++) {
+    const y = row * course
+    for (let column = 0; column < 2; column++) {
+      const x = column * width - (row % 2) * width / 2
+      const shade = 226 + Math.floor(rand() * 30)
+      for (const repeat of [0, SIZE]) {
+        const start = x + repeat
+        context.fillStyle = `rgb(${shade}, ${shade - 13}, ${shade - 43})`
+        context.beginPath()
+        context.roundRect(start + 1.5, y + 1.5, width - 3, course - 3, 7)
+        context.fill()
+        stroke(context, [[start + 8, y + 5], [start + width - 8, y + 5]], 2, 'rgba(255, 250, 220, 0.55)')
+        for (const offset of [width * 0.28, width * 0.72]) {
+          const rope = start + offset
+          stroke(context, [[rope - 1, y + 4], [rope + 1, y + course - 4]], 4.4, 'rgba(91, 59, 33, 0.68)')
+          stroke(context, [[rope + 1, y + 4], [rope + 3, y + course - 4]], 1.4, 'rgba(249, 224, 164, 0.9)')
+        }
+      }
+    }
+  }
+  for (let i = 0; i < 1120; i++) {
+    const x = rand() * SIZE
+    const y = rand() * SIZE
+    if (y % course < 6 || y % course > course - 6) continue
+    const length = 3 + rand() * 17
+    wrappedStroke(context, [[x, y], [x + length, y + (rand() - 0.5) * 5]], 0.9, i % 4 === 0 ? 'rgba(255, 253, 221, 0.76)' : 'rgba(79, 56, 25, 0.32)')
+  }
+}
+
+const PAINTERS: Record<LineTextureKind, (context: CanvasRenderingContext2D, rand: () => number) => void> = { wood, stone, rock, metal, dirt, grass, gravel, bank, stubble, bales }
 
 const cache = new Map<LineTextureKind, THREE.Texture>()
 

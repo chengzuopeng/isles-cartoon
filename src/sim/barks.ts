@@ -2,7 +2,7 @@ import { BARKS, BARK_SECONDS, type Bark } from '../data/dialogue'
 import { alarmRaised } from './alarms'
 import { lineClear } from './collision'
 import { fogBlocks } from './fog'
-import { blocksSight } from './grid'
+import { blocksSight, floorAt } from './grid'
 import { landmarkCenter, targetTally } from './landmark-state'
 import type { LandmarkPlacement } from './landmarks'
 import { clamp, type Vec2 } from './math'
@@ -11,6 +11,7 @@ import type { Enemy } from './types'
 import type { World } from './world'
 
 const SPOT_MATCH = 1.5
+const ACTOR_BUBBLE_HEIGHT = 2
 
 interface BarkHit {
   x: number
@@ -53,6 +54,9 @@ export function updateBarks(world: World, barks: readonly Bark[] = barksOf(world
     if (world.barks.has(bark.id)) continue
     const hit = triggered(world, bark)
     if (!hit) continue
+    const actor = bark.actorArea === world.areaIndex
+      ? world.level.actors.find((placement) => placement.area === bark.actorArea && placement.speaker === bark.speaker)
+      : undefined
     world.barks.set(hit.key ?? bark.id, world.time)
     world.events.push({
       type: 'bark',
@@ -61,8 +65,9 @@ export function updateBarks(world: World, barks: readonly Bark[] = barksOf(world
       text: bark.text,
       display: bark.display,
       enemy: hit.enemy,
-      x: hit.x,
-      y: hit.y,
+      x: actor?.x ?? hit.x,
+      y: actor?.y ?? hit.y,
+      ...(actor ? { z: floorAt(world.grid, actor.x, actor.y) + ACTOR_BUBBLE_HEIGHT } : {}),
       seconds: BARK_SECONDS,
       ...(bark.radio ? { radio: true } : {}),
     })

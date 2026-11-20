@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { BuildingKind } from '../data/landmarks'
 import type { LandmarkPlacement } from '../sim/landmarks'
+import { radialTexture } from './glow-textures'
 import { lineTexture, type LineTextureKind } from './line-textures'
 import { toonMaterial } from './toon'
 
@@ -20,6 +21,10 @@ export interface BuildingStyle {
   overhang: number
   roofThickness: number
   bales: boolean
+  fixedDoors?: false | Opening['side']
+  ridgeAlongZ?: boolean
+  postsEvery?: number
+  lanterns?: boolean
 }
 
 export const BUILDING_STYLES: Readonly<Record<BuildingKind, BuildingStyle>> = {
@@ -33,12 +38,13 @@ export const BUILDING_STYLES: Readonly<Record<BuildingKind, BuildingStyle>> = {
     wallTexture: 'wood',
     roofTexture: 'metal',
     wallHeight: 4.2,
-    wallThickness: 0.5,
+    wallThickness: 1,
     doorHeight: 3,
     pitch: 0.75,
     overhang: 0.55,
     roofThickness: 0.16,
     bales: true,
+    fixedDoors: 'south',
   },
   shed: {
     wall: '#8c6a47',
@@ -57,13 +63,106 @@ export const BUILDING_STYLES: Readonly<Record<BuildingKind, BuildingStyle>> = {
     roofThickness: 0.14,
     bales: false,
   },
+  'loading-shed': {
+    wall: '#8a5e3f',
+    inside: '#966a49',
+    trim: '#65452f',
+    roof: '#61776d',
+    door: '#805137',
+    hay: '#e2c35c',
+    wallTexture: 'wood',
+    roofTexture: 'metal',
+    wallHeight: 3.75,
+    wallThickness: 0.88,
+    doorHeight: 3.05,
+    pitch: 0.36,
+    overhang: 0.62,
+    roofThickness: 0.15,
+    bales: false,
+    fixedDoors: false,
+    postsEvery: 4,
+  },
+  'big-barn': {
+    wall: '#a85137',
+    inside: '#a47450',
+    trim: '#6c503b',
+    roof: '#74554b',
+    door: '#8b4935',
+    hay: '#e2c35c',
+    wallTexture: 'wood',
+    roofTexture: 'metal',
+    wallHeight: 8,
+    wallThickness: 1,
+    doorHeight: 3,
+    pitch: 0.24,
+    overhang: 0.65,
+    roofThickness: 0.24,
+    bales: false,
+    fixedDoors: false,
+    ridgeAlongZ: true,
+    lanterns: true,
+  },
+  workshop: {
+    wall: '#ba8c60',
+    inside: '#946c49',
+    trim: '#865431',
+    roof: '#b9563c',
+    door: '#a3784f',
+    hay: '#e2c35c',
+    wallTexture: 'wood',
+    roofTexture: 'metal',
+    wallHeight: 2.85,
+    wallThickness: 1,
+    doorHeight: 2.4,
+    pitch: 0.72,
+    overhang: 0.37,
+    roofThickness: 0.13,
+    bales: false,
+    fixedDoors: false,
+  },
+  weighhouse: {
+    wall: '#b18a55',
+    inside: '#866347',
+    trim: '#635946',
+    roof: '#9e5139',
+    door: '#a3784f',
+    hay: '#e2c35c',
+    wallTexture: 'wood',
+    roofTexture: 'metal',
+    wallHeight: 2.9,
+    wallThickness: 1,
+    doorHeight: 2.4,
+    pitch: 0.63,
+    overhang: 0.42,
+    roofThickness: 0.13,
+    bales: false,
+    fixedDoors: false,
+  },
+  'tool-shed': {
+    wall: '#b28556',
+    inside: '#916644',
+    trim: '#88603c',
+    roof: '#b86849',
+    door: '#a3784f',
+    hay: '#e2c35c',
+    wallTexture: 'wood',
+    roofTexture: 'metal',
+    wallHeight: 2.8,
+    wallThickness: 1,
+    doorHeight: 2.4,
+    pitch: 0.68,
+    overhang: 0.4,
+    roofThickness: 0.13,
+    bales: false,
+    fixedDoors: false,
+  },
 }
 
 type Axis = 'x' | 'y' | 'z'
 
 type Bucket = (centroid: THREE.Vector3, normal: THREE.Vector3) => number
 
-class Mesher {
+export class Mesher {
   private readonly buckets: { positions: number[]; normals: number[]; uvs: number[] }[] = [{ positions: [], normals: [], uvs: [] }, { positions: [], normals: [], uvs: [] }]
   private readonly centroid = new THREE.Vector3()
 
@@ -154,8 +253,10 @@ export interface Building {
   dispose(): void
 }
 
-export function buildBuilding(kind: BuildingKind, placement: LandmarkPlacement, floor: number): Building {
+export function buildBuilding(kind: BuildingKind, placement: Pick<LandmarkPlacement, 'column' | 'row' | 'width' | 'depth' | 'mask'>, floor: number): Building {
   const style = BUILDING_STYLES[kind]
+  const house = kind === 'workshop' || kind === 'weighhouse' || kind === 'tool-shed'
+  const fullCellWall = house || kind === 'barn'
   const group = new THREE.Group()
   group.name = `building-${kind}`
   const { column, row, width, depth, mask } = placement
@@ -175,11 +276,14 @@ export function buildBuilding(kind: BuildingKind, placement: LandmarkPlacement, 
   }
   const walls = new Mesher(0.5, facesIn)
   const trim = new Mesher(0.5)
+  const foundation = new Mesher(0.8)
   const sideSpan = (side: Opening['side']) => (side === 'north' || side === 'south' ? { start: column, length: width } : { start: row, length: depth })
   const sideBox = (side: Opening['side'], from: number, to: number, bottom: number, top: number, inset = 0) => {
     const span = sideSpan(side)
-    const a = Math.max(span.start + from, side === 'north' || side === 'south' ? x0 - half : z0 - half)
-    const b = Math.min(span.start + to, side === 'north' || side === 'south' ? x1 + half : z1 + half)
+    const across = side === 'north' || side === 'south'
+    const corner = fullCellWall && !across && inset === 0 ? 1 : 0
+    const a = Math.max(span.start + from, across ? x0 - half : z0 - half + corner)
+    const b = Math.min(span.start + to, across ? x1 + half : z1 + half - corner)
     if (b - a <= 0.01 || top - bottom <= 0.01) return null
     if (side === 'north') return [new THREE.Vector3(a, bottom, z0 - half - inset), new THREE.Vector3(b, top, z0 + half + inset)] as const
     if (side === 'south') return [new THREE.Vector3(a, bottom, z1 - half - inset), new THREE.Vector3(b, top, z1 + half + inset)] as const
@@ -187,31 +291,49 @@ export function buildBuilding(kind: BuildingKind, placement: LandmarkPlacement, 
     return [new THREE.Vector3(x1 - half - inset, bottom, a), new THREE.Vector3(x1 + half + inset, top, b)] as const
   }
   const ground = floor - 0.4
+  const addWall = (side: Opening['side'], from: number, to: number) => {
+    const sill = house ? floor + 0.42 : ground
+    const wall = sideBox(side, from, to, sill, eave)
+    if (wall) walls.box(wall[0], wall[1], true)
+    if (!house) return
+    const base = sideBox(side, from, to, ground, sill)
+    if (base) foundation.box(base[0], base[1])
+  }
   for (const side of ['north', 'south', 'west', 'east'] as const) {
     const span = sideSpan(side)
     const gaps = openings.filter((opening) => opening.side === side)
     let cursor = 0
     for (const gap of gaps) {
-      const solid = sideBox(side, cursor, gap.from, ground, eave)
-      if (solid) walls.box(solid[0], solid[1], true)
+      addWall(side, cursor, gap.from)
       const lintel = sideBox(side, gap.from, gap.to, floor + style.doorHeight, eave)
-      if (lintel) walls.box(lintel[0], lintel[1], true)
+      if (lintel && kind !== 'loading-shed') walls.box(lintel[0], lintel[1], true)
       const header = sideBox(side, gap.from - 0.15, gap.to + 0.15, floor + style.doorHeight - 0.18, floor + style.doorHeight + 0.05, 0.06)
       if (header) trim.box(header[0], header[1])
-      for (const edge of [gap.from, gap.to]) {
-        const post = sideBox(side, edge - 0.12, edge + 0.12, ground, floor + style.doorHeight, 0.06)
+      for (const [from, to] of fullCellWall ? [[gap.from - 0.17, gap.from], [gap.to, gap.to + 0.17]] : [[gap.from - 0.12, gap.from + 0.12], [gap.to - 0.12, gap.to + 0.12]]) {
+        const post = sideBox(side, from, to, ground, floor + style.doorHeight, 0.06)
         if (post) trim.box(post[0], post[1])
+      }
+      if (style.postsEvery) {
+        for (let at = gap.from + style.postsEvery; at < gap.to - 0.5; at += style.postsEvery) {
+          const post = sideBox(side, at - 0.095, at + 0.095, ground, eave, 0.075)
+          if (post) trim.box(post[0], post[1])
+        }
       }
       cursor = gap.to
     }
-    const rest = sideBox(side, cursor, span.length, ground, eave)
-    if (rest) walls.box(rest[0], rest[1], true)
+    addWall(side, cursor, span.length)
   }
   for (const [cx, cz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) {
-    trim.box(new THREE.Vector3(cx - half - 0.06, ground, cz - half - 0.06), new THREE.Vector3(cx + half + 0.06, eave, cz + half + 0.06))
+    if (fullCellWall) {
+      const x = cx + (cx === x0 ? -half + 0.065 : half - 0.065)
+      const z = cz + (cz === z0 ? -half + 0.065 : half - 0.065)
+      trim.box(new THREE.Vector3(x - 0.11, ground, z - 0.11), new THREE.Vector3(x + 0.11, eave, z + 0.11))
+    } else {
+      trim.box(new THREE.Vector3(cx - half - 0.06, ground, cz - half - 0.06), new THREE.Vector3(cx + half + 0.06, eave, cz + half + 0.06))
+    }
   }
 
-  const ridgeAlongZ = depth >= width
+  const ridgeAlongZ = style.ridgeAlongZ ?? (depth >= width)
   const spanHalf = (ridgeAlongZ ? x1 - x0 + t : z1 - z0 + t) / 2
   const rise = spanHalf * style.pitch
   const ridge = eave + rise
@@ -269,13 +391,113 @@ export function buildBuilding(kind: BuildingKind, placement: LandmarkPlacement, 
   }
 
   const inner = new Mesher(0.5)
-  const beams = Math.max(1, Math.round((ridgeAlongZ ? z1 - z0 : x1 - x0) / 3))
+  const lanterns = new Mesher(0.5)
+  const lightPools = new Mesher(1)
+  const floorboards = new Mesher(0.5)
+  const fittings = new Mesher(0.5)
+  const details: THREE.Mesh<THREE.BufferGeometry, THREE.Material>[] = []
+  const box = (mesh: Mesher, x: number, y: number, z: number, dx: number, dy: number, dz: number) =>
+    mesh.box(new THREE.Vector3(x, floor + y, z), new THREE.Vector3(x + dx, floor + y + dy, z + dz))
+  const lightPool = (x: number, z: number, radius: number, y: number) => {
+    lightPools.face([
+      new THREE.Vector3(x - radius, y, z - radius),
+      new THREE.Vector3(x - radius, y, z + radius),
+      new THREE.Vector3(x + radius, y, z + radius),
+      new THREE.Vector3(x + radius, y, z - radius),
+    ], new THREE.Vector3(0, 1, 0), (point) => (point.x - x + radius) / (2 * radius), (point) => (point.z - z + radius) / (2 * radius))
+  }
+  if (house) {
+    // A single floor runs between the two thresholds. The workbench stays against the north wall.
+    box(floorboards, column + 1, -0.09, row + 1, width - 2, 0.11, depth - 2)
+    for (const { side, from, to } of openings) {
+      if (side === 'north' || side === 'south') {
+        box(floorboards, column + from, -0.09, side === 'south' ? row + depth - 1 : row, to - from, 0.11, 1)
+      } else {
+        box(floorboards, side === 'east' ? column + width - 1 : column, -0.09, row + from, 1, 0.11, to - from)
+      }
+    }
+    box(floorboards, column + 1.35, 0.82, row + 0.8, 2.2, 0.15, 0.42)
+    for (const x of [column + 1.5, column + 3.25]) {
+      box(inner, x, 0, row + 0.94, 0.15, 0.82, 0.18)
+    }
+    box(inner, column + 1.55, 1.38, row + 0.95, 1.85, 0.12, 0.24)
+    box(fittings, column + 1.72, 0.97, row + 0.97, 0.46, 0.24, 0.22)
+    box(fittings, column + 2.85, 1.5, row + 1, 0.34, 0.34, 0.16)
+    box(foundation, column + 1.2, style.wallHeight + 0.07, row + 0.85, 0.52, 0.96, 0.5)
+    box(foundation, column + 1.12, style.wallHeight + 1.01, row + 0.77, 0.68, 0.13, 0.66)
+
+    const southDoor = openings.find((opening) => opening.side === 'south')
+    if (southDoor) {
+      const lampX = column + (southDoor.from + southDoor.to) / 2
+      box(inner, lampX - 0.055, 2.42, row + depth - 1.14, 0.11, 0.29, 0.11)
+      box(lanterns, lampX - 0.14, 2.22, row + depth - 1.22, 0.28, 0.2, 0.24)
+      lightPool(lampX, row + depth - 1.35, 1.7, floor + 0.027)
+    }
+    if (kind === 'workshop') {
+      const wheelX = column + width - 1.6
+      const wheelY = 1.66
+      const wheelZ = row + depth + 0.1
+      const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.57, 0.085, 5, 16), toonMaterial({ color: '#ae7c3f' }))
+      wheel.name = 'hanging-wheel'
+      wheel.position.set(wheelX, floor + wheelY, wheelZ)
+      details.push(wheel)
+      box(fittings, wheelX - 0.55, wheelY - 0.04, wheelZ - 0.045, 1.1, 0.08, 0.09)
+      box(fittings, wheelX - 0.04, wheelY - 0.55, wheelZ - 0.045, 0.08, 1.1, 0.09)
+      box(inner, wheelX - 0.15, wheelY - 0.15, wheelZ - 0.16, 0.3, 0.3, 0.25)
+    } else if (kind === 'weighhouse') {
+      const armX = column + width
+      box(inner, armX - 0.05, 2.68, row + 2.24, 0.26, 0.51, 0.25)
+      box(fittings, armX + 0.09, 3.02, row + 1.52, 0.23, 0.17, 2.06)
+      box(inner, armX + 0.18, 2.67, row + 3.42, 0.055, 0.42, 0.055)
+      box(fittings, armX + 0.08, 2.44, row + 3.32, 0.26, 0.28, 0.25)
+      box(fittings, column + 3.1, 0.97, row + 0.98, 0.33, 0.51, 0.16)
+    } else {
+      const x = column + width - 1.55
+      const z = row + depth
+      const grainHook = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.06, 4, 13, Math.PI * 1.22), toonMaterial({ color: '#7e8988' }))
+      grainHook.name = 'grain-hook'
+      grainHook.position.set(x, floor + 1.78, z + 0.075)
+      grainHook.rotation.z = 0.28
+      details.push(grainHook)
+      box(inner, x + 0.25, 1.21, z + 0.025, 0.14, 0.72, 0.11)
+      box(fittings, x - 0.62, 1.45, z + 0.03, 0.06, 0.75, 0.095)
+      box(fittings, x - 0.81, 1.43, z + 0.035, 0.42, 0.07, 0.1)
+    }
+  }
+  if (kind === 'barn') {
+    const eastDoor = openings.find((opening) => opening.side === 'east')
+    if (eastDoor) {
+      const x = column + width - 1.47
+      const z = row + (eastDoor.from + eastDoor.to) / 2
+      box(inner, x - 0.06, 3.24, z - 0.06, 0.12, 0.82, 0.12)
+      box(lanterns, x - 0.17, 3, z - 0.16, 0.34, 0.24, 0.32)
+      lightPool(x, z, 1.85, floor + 0.025)
+    }
+  }
+  const beamStep = style.lanterns ? 5 : 3
+  const beams = Math.max(1, Math.round((ridgeAlongZ ? z1 - z0 : x1 - x0) / beamStep))
   for (let i = 1; i < beams; i++) {
     const at = (ridgeAlongZ ? z0 : x0) + ((ridgeAlongZ ? z1 - z0 : x1 - x0) * i) / beams
     if (ridgeAlongZ) inner.box(new THREE.Vector3(x0, eave - 0.32, at - 0.12), new THREE.Vector3(x1, eave - 0.06, at + 0.12))
     else inner.box(new THREE.Vector3(at - 0.12, eave - 0.32, z0), new THREE.Vector3(at + 0.12, eave - 0.06, z1))
     if (ridgeAlongZ) inner.box(new THREE.Vector3(cx - 0.12, eave - 0.06, at - 0.12), new THREE.Vector3(cx + 0.12, ridge - 0.1, at + 0.12))
     else inner.box(new THREE.Vector3(at - 0.12, eave - 0.06, cz - 0.12), new THREE.Vector3(at + 0.12, ridge - 0.1, cz + 0.12))
+    if (style.lanterns) {
+      for (const x of [x0 + half - 0.07, x1 - half + 0.07]) {
+        inner.box(new THREE.Vector3(x - 0.14, floor, at - 0.18), new THREE.Vector3(x + 0.14, eave - 0.06, at + 0.18))
+      }
+    }
+    if (style.lanterns && i % 2 === 1) {
+      for (const x of [cx - width * 0.24, cx + width * 0.24]) {
+        const bottom = eave - 1.5
+        inner.box(new THREE.Vector3(x - 0.035, bottom + 0.38, at - 0.035), new THREE.Vector3(x + 0.035, eave - 0.22, at + 0.035))
+        for (const y of [bottom - 0.08, bottom + 0.34]) {
+          inner.box(new THREE.Vector3(x - 0.23, y, at - 0.2), new THREE.Vector3(x + 0.23, y + 0.1, at + 0.2))
+        }
+        lanterns.box(new THREE.Vector3(x - 0.17, bottom, at - 0.14), new THREE.Vector3(x + 0.17, bottom + 0.34, at + 0.14))
+        lightPool(x, at, 5, floor + 0.02)
+      }
+    }
   }
   if (ridgeAlongZ) inner.box(new THREE.Vector3(cx - 0.14, ridge - 0.3, z0 - half), new THREE.Vector3(cx + 0.14, ridge - 0.02, z1 + half))
   else inner.box(new THREE.Vector3(x0 - half, ridge - 0.3, cz - 0.14), new THREE.Vector3(x1 + half, ridge - 0.02, cz + 0.14))
@@ -296,6 +518,7 @@ export function buildBuilding(kind: BuildingKind, placement: LandmarkPlacement, 
 
   const doors = new Mesher(0.5)
   for (const gap of openings) {
+    if (style.fixedDoors === false || (style.fixedDoors !== undefined && style.fixedDoors !== gap.side)) continue
     const span = sideSpan(gap.side)
     const length = gap.to - gap.from
     const leaf = length / 2
@@ -330,16 +553,38 @@ export function buildBuilding(kind: BuildingKind, placement: LandmarkPlacement, 
     inner: toonMaterial({ color: style.inside }),
     hay: toonMaterial({ color: style.hay, map: lineTexture('stubble') }),
     door: toonMaterial({ color: style.door, map: lineTexture(style.wallTexture) }),
+    lantern: new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffca75').multiplyScalar(1.8) }),
   }
+  const glow = lightPools.empty ? null : radialTexture(64, 1.8)
+  const lightMaterial = glow && new THREE.MeshBasicMaterial({
+    color: '#dcb889',
+    map: glow,
+    transparent: true,
+    opacity: 0.24,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
   const parts: [Mesher, THREE.Material | THREE.Material[], string, boolean][] = [
     [walls, [materials.wall, materials.underside], 'walls', true],
     [trim, materials.trim, 'trim', true],
     [roof, materials.roof, 'roof', true],
     [underside, materials.underside, 'ceiling', false],
     [inner, materials.inner, 'beams', true],
+    [lanterns, materials.lantern, 'lanterns', false],
     [hay, materials.hay, 'hay', true],
     [doors, materials.door, 'doors', true],
   ]
+  const houseMaterials = house ? [
+    toonMaterial({ color: '#b69a7d', map: lineTexture('stone') }),
+    toonMaterial({ color: '#a27a53', map: lineTexture('wood') }),
+    toonMaterial({ color: '#9a7443', map: lineTexture('metal') }),
+  ] : []
+  if (house) parts.push(
+    [foundation, houseMaterials[0], 'stonework', true],
+    [floorboards, houseMaterials[1], 'floorboards', true],
+    [fittings, houseMaterials[2], 'fittings', true],
+  )
+  if (lightMaterial) parts.push([lightPools, lightMaterial, 'lantern-light', false])
   const geometries: THREE.BufferGeometry[] = []
   for (const [mesher, material, name, shadow] of parts) {
     if (mesher.empty) continue
@@ -349,7 +594,13 @@ export function buildBuilding(kind: BuildingKind, placement: LandmarkPlacement, 
     mesh.name = name
     mesh.castShadow = shadow
     mesh.receiveShadow = true
+    if (name === 'lantern-light') mesh.userData.noInk = true
     group.add(mesh)
+  }
+  for (const detail of details) {
+    detail.castShadow = true
+    detail.receiveShadow = true
+    group.add(detail)
   }
   return {
     group,
@@ -357,6 +608,13 @@ export function buildBuilding(kind: BuildingKind, placement: LandmarkPlacement, 
       group.removeFromParent()
       for (const geometry of geometries) geometry.dispose()
       for (const material of Object.values(materials)) material.dispose()
+      for (const material of houseMaterials) material.dispose()
+      for (const detail of details) {
+        detail.geometry.dispose()
+        detail.material.dispose()
+      }
+      lightMaterial?.dispose()
+      glow?.dispose()
     },
   }
 }

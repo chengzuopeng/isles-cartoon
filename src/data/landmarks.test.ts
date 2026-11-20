@@ -49,7 +49,7 @@ describe('landmark table', () => {
     const byLevel = new Map<string, LandmarkId[]>()
     for (const id of LANDMARK_IDS) byLevel.set(LANDMARKS[id].level, [...(byLevel.get(LANDMARKS[id].level) ?? []), id])
     expect([...byLevel.keys()].sort()).toEqual(['1-1', '1-2', '1-3', '1-4', '1-5'])
-    expect(byLevel.get('1-1')).toEqual(['ch1-town-gate', 'ch1-windmill', 'ch1-barn', 'ch1-star-altar', 'ch1-wheat-ears'])
+    expect(byLevel.get('1-1')).toEqual(['ch1-town-gate', 'ch1-field-tool-shed', 'ch1-windmill', 'ch1-barn', 'ch1-star-altar', 'ch1-wheat-ears'])
     expect(LANDMARKS['ch1-windmill'].motion?.[0].node).toBe('sails')
     expect(LANDMARKS['ch1-barn'].building).toBe('barn')
   })

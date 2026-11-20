@@ -26,11 +26,14 @@ export const CHEST_COLORS = { normal: '#f2c230', rare: '#58b7ff', weapon: '#ff7a
 
 const LABELS = {
   'ch1-town-gate': '镇门',
+  'ch1-field-tool-shed': '农具棚',
   'ch1-windmill': '风车',
   'ch1-barn': '谷仓',
   'ch1-star-altar': '星石台',
   'ch1-sheep-pen': '羊圈',
   'ch1-feed-shed': '饲料棚',
+  'ch1-repair-workshop': '修车屋',
+  'ch1-weighhouse': '地磅房',
   'ch1-hay-cart': '车',
   'ch1-dock': '码头',
   'ch1-watermill': '水车磨坊',

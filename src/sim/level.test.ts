@@ -403,7 +403,7 @@ describe('level 1-1', () => {
 
   it('puts the chapter landmarks where the design places them', () => {
     const placed = level.landmarks.map((landmark) => [landmark.id, landmark.area])
-    expect(placed).toEqual([['ch1-town-gate', 0], ['ch1-windmill', 1], ['ch1-star-altar', 1], ['ch1-barn', 2], ...Array(5).fill(['ch1-wheat-ears', 3])])
+    expect(placed).toEqual([['ch1-town-gate', 0], ['ch1-field-tool-shed', 0], ['ch1-windmill', 1], ['ch1-star-altar', 1], ['ch1-barn', 2], ...Array(5).fill(['ch1-wheat-ears', 3])])
     const at = (id: string) => level.landmarks.find((landmark) => landmark.id === id)!
     const altar = at('ch1-star-altar')
     const rare = level.chests.find((chest) => chest.tier === 'rare')!
@@ -470,7 +470,7 @@ describe('level 1-2', () => {
     expect(level.areas.map((area) => area.bottom - area.top)).toEqual([44, 42, 56, 30, 35])
     expect(level.areas.map((area) => area.theme)).toEqual(['meadow', 'village', 'farm', 'forest', 'arena'])
     expect(level.areas.map((area) => area.kind)).toEqual(['normal', 'normal', 'destroy', 'normal', 'boss'])
-    expect(level.areas.map((area) => area.walls)).toEqual(['hedge', null, null, null, null])
+    expect(level.areas.map((area) => area.walls)).toEqual(['hedge', 'bales', 'timber', null, 'timber'])
     expect(LEVEL_1_2.unlockAfter).toBe('1-1')
   })
 

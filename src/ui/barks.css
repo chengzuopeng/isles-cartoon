@@ -104,6 +104,12 @@
   opacity: 0;
 }
 
+.bark-bubble.actor {
+  width: max-content;
+  max-width: 250px;
+  white-space: normal;
+}
+
 @keyframes bark-in {
   from {
     opacity: 0;
