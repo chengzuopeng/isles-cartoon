@@ -23,17 +23,20 @@
   - [愿景](design/vision.md)
   - [第一人称玩法](design/gameplay.md)
   - [战斗节奏：为什么显得呆，怎么改](design/combat-pacing.md)（第一轮：前四条和第 8 条已做，其余并进第二轮）
-  - [可玩性第二轮：手里的东西、规则连锁、每局不一样](design/playability.md)（用户定了全部要做，分三个批次；批次 1、2 已做完）
+  - [可玩性第二轮：手里的东西、规则连锁、每局不一样](design/playability.md)（三个批次已完成）
   - [成长体系：专精、技能分支、徽章](design/progression.md)（2026-11-12 做完）
   - [画风：会动的漫画](design/art-direction.md)
   - [画面复盘：为什么还不够好看，怎么改](design/visual-review.md)（12 项已落地，其余 9 项待做）
   - [样机关卡：1-1 出发](design/prototype-1-1.md)（M1 缩减版）
   - [关卡 1-1 出发（第一人称完整版）](design/levels/1-1.md)
+  - [1-1 掩体、穿行与跳台](design/levels/1-1-cover-and-jumps.md)（布局、参考图和实装验证）
   - [1-1 地图重做：为什么一览无余，改成了什么样](design/levels/1-1-layout.md)（2026-11-11 落地）
-  - [关卡 1-2 牧场（第一人称版）](design/levels/1-2.md)（灰盒、新机制、Boss 做完，地图已换成新布局；场景和剧情还没做）
+  - [关卡 1-2 牧场（第一人称版）](design/levels/1-2.md)（实景与剧情已接通，待试玩校准）
+  - [1-2 掩体、房屋与跳台](design/levels/1-2-cover-and-jumps.md)（布局、概念图和实装验证）
   - [1-2 地图重做：为什么改，改成了什么样](design/levels/1-2-layout.md)（2026-11-11 落地）
   - [设定摘要](design/setting.md)
 - 技术
+  - [本地开发与验证](tech/local-development.md)
   - [技术架构](tech/architecture.md)
   - [墨线渲染管线](tech/rendering.md)
   - [性能](tech/performance.md)
@@ -47,8 +50,10 @@
   - [ADR-0003 墨线渲染：WebGL 加自己写的屏幕空间描边](decisions/0003-comic-ink-rendering.md)
   - [ADR-0004 美术素材沿用主仓库的做法](decisions/0004-art-pipeline.md)
   - [ADR-0005 全面转第一人称，这个仓库转为正式开发仓库](decisions/0005-full-first-person.md)
+  - [ADR-0006 在当前 Codex 会话生成二维素材](decisions/0006-codex-art-workflow.md)
 - 参考
   - [参考预告片拆解](reference/trailer-notes.md)
+  - [Three.js 开发参考](reference/threejs/README.md)
 
 ## 和主仓库文档的关系
 
