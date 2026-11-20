@@ -1,5 +1,13 @@
 # 美术素材
 
+## 二维素材流程
+
+从[统一风格描述](../docs/design/art-direction.md#统一风格描述)和现有设定图起草提示词，在当前 Codex 会话用内置 `image_gen` 生成。源输出保留在 `$CODEX_HOME/generated_images/`。把选中的图复制到 `art/` 的对应目录，并保存同名 `.prompt.txt`，记录完整提示词及用到的参考图。
+
+独立透明素材直接使用生成图的 alpha。需要沿用现有抠图或者分格流程时，按原图的布局出纯品红 `#FF00FF` 背景。运行时素材按需裁切、缩放和打包到 `public/assets/`。现有转换参数和输出路径在 [build-assets.sh](../scripts/build-assets.sh)，其中 Swift 工具的 `trim` 可按已有 alpha 裁切。
+
+接入后检查游戏里的实际尺寸、透明边缘和锚点，并在实际显示场景截图。出图流程的决策记录见 [ADR-0006](../docs/decisions/0006-codex-art-workflow.md)。
+
 ## concept/：画风目标图
 
 新画风的目标，画面验收以这几张为准（[画风](../docs/design/art-direction.md)「目标图」）。2026-10-31 用 Codex（`gpt-6.1-sol`，xhigh）生成，完整提示词在同名 `.prompt.txt`。
@@ -27,7 +35,7 @@
 
 ## reference/：从主仓库拷来的设定图
 
-出新图时用 `-i` 附上，造型和配色以它们为准。2026-10-31 从主仓库拷来：除了 `chapter-1-title.png` 是主仓库工作区里还没提交的文件，其余都和主仓库提交 `e38713d` 里的一样。提示词和建模备注在主仓库的对应目录。
+出新图时把对应图片作为参考，造型和配色以它们为准。2026-10-31 从主仓库拷来。除 `chapter-1-title.png` 来自主仓库当时的工作区，其余均来自提交 `e38713d`。提示词和建模备注在主仓库的对应目录。
 
 | 文件 | 主仓库路径 | 内容 |
 |---|---|---|
@@ -49,7 +57,18 @@
 | `skill-shockwave.png` | `art/ui/skills/shockwave.png` | 冲击波技能图标，出新技能图标时定画风 |
 | `chapter-1-title.png` | `art/scenes/chapter-1-title.png` | 第 1 章标题卡插图，场景气氛的参考 |
 
-## models/：3D 模型
+## 3D 模型流程
+
+Codex 维护 Blender 装配脚本。沿用刚性零件动画、材质和挂点约定，导出的源 GLB 放在 `art/models/`，打包后将 KTX2 版放到 `public/assets/models/`。已有混元 3D 源网格的制作记录见 [ADR-0004](../docs/decisions/0004-art-pipeline.md#2026-11-02-更新3d-模型可以用混元-3d)。
+
+手臂和武器装配默认到与仓库相邻的 `game/` 里找俯视版参考模型。独立工作树或其他检出目录下，传参考 GLB 的绝对路径。手臂脚本用 `--blaster`，能量枪和特种武器脚本用 `--reference`。例如在仓库根目录为霰弹枪装配：
+
+```bash
+blender --background --factory-startup --python art/models/fp-weapons/assemble.py -- \
+  --id shotgun --source /path/to/source-shotgun.glb --reference /path/to/game/art/models/shotgun/shotgun.glb
+```
+
+### 当前模型源文件
 
 | 目录 | 内容 |
 |---|---|

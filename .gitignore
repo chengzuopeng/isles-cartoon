@@ -3,8 +3,6 @@ dist
 coverage
 *.local
 .DS_Store
-.claude/settings.local.json
 test-results
 playwright-report
 __pycache__/
-.claude/worktrees/
