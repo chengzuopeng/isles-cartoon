@@ -6,7 +6,7 @@ import type { World } from '../sim/world'
 import type { Effects } from './effects'
 import { instancedDepth } from './instanced-depth'
 import type { ModelLibrary } from './model-library'
-import { bakeNode, type NodePart } from './node-parts'
+import { atlasGroups, bakeNode, type NodePart } from './node-parts'
 import { SHEEP_LEGS, bodyBob, headPitch, legSwing, turnToward, type SheepLeg } from './sheep-motion'
 import { SHEEP_RIG } from './themes'
 
@@ -50,7 +50,7 @@ function castsShadow(material: THREE.Material): boolean {
 
 export function createSheepViews(scene: THREE.Scene, models: ModelLibrary, effects: Effects | null = null): SheepViews {
   const sets: PartSet[] = []
-  const geometries: THREE.BufferGeometry[] = []
+  const owned: { dispose(): void }[] = []
   const poses: Pose[] = []
   const fallbacks: Fallback[] = []
   const fallbackOwned: { dispose(): void }[] = []
@@ -75,9 +75,15 @@ export function createSheepViews(scene: THREE.Scene, models: ModelLibrary, effec
       const node = name === 'head' ? head : nodes.get(name)
       if (!node) continue
       node.updateMatrix()
-      const list = bakeNode(node, name) ?? []
-      for (const part of list) geometries.push(part.geometry)
-      baked.push({ node: name, rest: node.matrix.clone(), parts: list })
+      const raw = bakeNode(node, name) ?? []
+      const grouped = atlasGroups(raw)
+      const kept = new Set(grouped.parts.map((part) => part.geometry))
+      for (const part of raw) {
+        if (!kept.has(part.geometry)) part.geometry.dispose()
+      }
+      for (const part of grouped.parts) owned.push(part.geometry)
+      owned.push(...grouped.owned)
+      baked.push({ node: name, rest: node.matrix.clone(), parts: grouped.parts })
     }
     return baked
   }
@@ -94,6 +100,7 @@ export function createSheepViews(scene: THREE.Scene, models: ModelLibrary, effec
     for (const entry of parts) {
       const meshes = entry.parts.map((part) => {
         const mesh = new THREE.InstancedMesh(part.geometry, part.material, count)
+        mesh.name = `sheep:${entry.node}`
         mesh.castShadow = castsShadow(part.material)
         mesh.receiveShadow = false
         mesh.customDepthMaterial = instancedDepth(mesh)
@@ -233,8 +240,8 @@ export function createSheepViews(scene: THREE.Scene, models: ModelLibrary, effec
     },
     dispose() {
       clearMeshes()
-      for (const geometry of geometries) geometry.dispose()
-      geometries.length = 0
+      for (const item of new Set(owned)) item.dispose()
+      owned.length = 0
       parts = null
     },
   }

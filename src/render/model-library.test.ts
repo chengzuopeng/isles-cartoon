@@ -243,6 +243,23 @@ describe('model library', () => {
     expect(models.parts('grunt')).toBe(parts)
   })
 
+  it('atlases multi-material parts sharing one base texture during parts() bake', async () => {
+    const atlas = new THREE.Texture()
+    const look = (name: string, roughness: number) => {
+      const material = paint(name)
+      material.map = atlas
+      material.roughness = roughness
+      return material
+    }
+    const root = new THREE.Group()
+    named('wood', new THREE.BoxGeometry(1, 1, 1), look('mat_wood', 0.8), root)
+    named('iron', new THREE.BoxGeometry(0.5, 0.5, 0.5), look('mat_iron', 0.35), root)
+    const models = await library(root)
+    const parts = models.parts('grunt')
+    expect(parts).toHaveLength(1)
+    expect((parts[0].material as THREE.MeshStandardMaterial).roughnessMap?.channel).toBe(1)
+  })
+
   it('keeps decals, glass, tiny bolts and small glowing parts out of the shadow pass', async () => {
     const root = new THREE.Group()
     const decal = paint('mat_emblem')

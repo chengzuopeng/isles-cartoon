@@ -162,9 +162,15 @@ type Axis = 'x' | 'y' | 'z'
 
 type Bucket = (centroid: THREE.Vector3, normal: THREE.Vector3) => number
 
+const WHITE = new THREE.Color('#ffffff')
+
 export class Mesher {
-  private readonly buckets: { positions: number[]; normals: number[]; uvs: number[] }[] = [{ positions: [], normals: [], uvs: [] }, { positions: [], normals: [], uvs: [] }]
+  private readonly buckets: { positions: number[]; normals: number[]; uvs: number[]; colors: number[] }[] = [
+    { positions: [], normals: [], uvs: [], colors: [] },
+    { positions: [], normals: [], uvs: [], colors: [] },
+  ]
   private readonly centroid = new THREE.Vector3()
+  private colored = false
 
   constructor(
     private readonly scale: number,
@@ -175,32 +181,41 @@ export class Mesher {
     return this.buckets.every((item) => item.positions.length === 0)
   }
 
-  face(corners: readonly THREE.Vector3[], normal: THREE.Vector3, u: (point: THREE.Vector3) => number, v: (point: THREE.Vector3) => number): void {
+  face(
+    corners: readonly THREE.Vector3[],
+    normal: THREE.Vector3,
+    u: (point: THREE.Vector3) => number,
+    v: (point: THREE.Vector3) => number,
+    color?: THREE.Color,
+  ): void {
     this.centroid.set(0, 0, 0)
     for (const corner of corners) this.centroid.add(corner)
     this.centroid.multiplyScalar(1 / corners.length)
     const target = this.buckets[this.bucket ? this.bucket(this.centroid, normal) : 0]
+    if (color) this.colored = true
+    const tint = color ?? WHITE
     const order = corners.length === 4 ? [0, 1, 2, 0, 2, 3] : [0, 1, 2]
     for (const index of order) {
       const point = corners[index]
       target.positions.push(point.x, point.y, point.z)
       target.normals.push(normal.x, normal.y, normal.z)
       target.uvs.push(u(point) * this.scale, v(point) * this.scale)
+      target.colors.push(tint.r, tint.g, tint.b)
     }
   }
 
-  box(min: THREE.Vector3, max: THREE.Vector3, vertical = false): void {
+  box(min: THREE.Vector3, max: THREE.Vector3, vertical = false, color?: THREE.Color): void {
     const p = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
     const along = (axis: Axis) => (point: THREE.Vector3) => point[axis]
     const pick = (horizontal: Axis) => (vertical ? [along('y'), along(horizontal)] : [along(horizontal), along('y')]) as [(point: THREE.Vector3) => number, (point: THREE.Vector3) => number]
     const [xu, xv] = pick('z')
     const [zu, zv] = pick('x')
-    this.face([p(max.x, min.y, min.z), p(max.x, max.y, min.z), p(max.x, max.y, max.z), p(max.x, min.y, max.z)], new THREE.Vector3(1, 0, 0), xu, xv)
-    this.face([p(min.x, min.y, max.z), p(min.x, max.y, max.z), p(min.x, max.y, min.z), p(min.x, min.y, min.z)], new THREE.Vector3(-1, 0, 0), xu, xv)
-    this.face([p(min.x, min.y, max.z), p(max.x, min.y, max.z), p(max.x, max.y, max.z), p(min.x, max.y, max.z)], new THREE.Vector3(0, 0, 1), zu, zv)
-    this.face([p(max.x, min.y, min.z), p(min.x, min.y, min.z), p(min.x, max.y, min.z), p(max.x, max.y, min.z)], new THREE.Vector3(0, 0, -1), zu, zv)
-    this.face([p(min.x, max.y, min.z), p(min.x, max.y, max.z), p(max.x, max.y, max.z), p(max.x, max.y, min.z)], new THREE.Vector3(0, 1, 0), along('x'), along('z'))
-    this.face([p(min.x, min.y, max.z), p(min.x, min.y, min.z), p(max.x, min.y, min.z), p(max.x, min.y, max.z)], new THREE.Vector3(0, -1, 0), along('x'), along('z'))
+    this.face([p(max.x, min.y, min.z), p(max.x, max.y, min.z), p(max.x, max.y, max.z), p(max.x, min.y, max.z)], new THREE.Vector3(1, 0, 0), xu, xv, color)
+    this.face([p(min.x, min.y, max.z), p(min.x, max.y, max.z), p(min.x, max.y, min.z), p(min.x, min.y, min.z)], new THREE.Vector3(-1, 0, 0), xu, xv, color)
+    this.face([p(min.x, min.y, max.z), p(max.x, min.y, max.z), p(max.x, max.y, max.z), p(min.x, max.y, max.z)], new THREE.Vector3(0, 0, 1), zu, zv, color)
+    this.face([p(max.x, min.y, min.z), p(min.x, min.y, min.z), p(min.x, max.y, min.z), p(max.x, max.y, min.z)], new THREE.Vector3(0, 0, -1), zu, zv, color)
+    this.face([p(min.x, max.y, min.z), p(min.x, max.y, max.z), p(max.x, max.y, max.z), p(max.x, max.y, min.z)], new THREE.Vector3(0, 1, 0), along('x'), along('z'), color)
+    this.face([p(min.x, min.y, max.z), p(min.x, min.y, min.z), p(max.x, min.y, min.z), p(max.x, min.y, max.z)], new THREE.Vector3(0, -1, 0), along('x'), along('z'), color)
   }
 
   build(): THREE.BufferGeometry {
@@ -209,6 +224,7 @@ export class Mesher {
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(this.buckets.flatMap((item) => item.normals), 3))
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(this.buckets.flatMap((item) => item.uvs), 2))
+    if (this.colored) geometry.setAttribute('color', new THREE.Float32BufferAttribute(this.buckets.flatMap((item) => item.colors), 3))
     let start = 0
     this.buckets.forEach((item, index) => {
       const count = item.positions.length / 3
@@ -571,7 +587,7 @@ export function buildBuilding(kind: BuildingKind, placement: Pick<LandmarkPlacem
     [underside, materials.underside, 'ceiling', false],
     [inner, materials.inner, 'beams', true],
     [lanterns, materials.lantern, 'lanterns', false],
-    [hay, materials.hay, 'hay', true],
+    [hay, materials.hay, 'hay', false],
     [doors, materials.door, 'doors', true],
   ]
   const houseMaterials = house ? [
@@ -581,8 +597,8 @@ export function buildBuilding(kind: BuildingKind, placement: Pick<LandmarkPlacem
   ] : []
   if (house) parts.push(
     [foundation, houseMaterials[0], 'stonework', true],
-    [floorboards, houseMaterials[1], 'floorboards', true],
-    [fittings, houseMaterials[2], 'fittings', true],
+    [floorboards, houseMaterials[1], 'floorboards', false],
+    [fittings, houseMaterials[2], 'fittings', false],
   )
   if (lightMaterial) parts.push([lightPools, lightMaterial, 'lantern-light', false])
   const geometries: THREE.BufferGeometry[] = []
@@ -598,7 +614,7 @@ export function buildBuilding(kind: BuildingKind, placement: Pick<LandmarkPlacem
     group.add(mesh)
   }
   for (const detail of details) {
-    detail.castShadow = true
+    detail.castShadow = false
     detail.receiveShadow = true
     group.add(detail)
   }

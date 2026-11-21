@@ -5,11 +5,11 @@ import { lineTexture, type LineTextureKind } from './line-textures'
 import type { NodePart } from './node-parts'
 import { toonMaterial } from './toon'
 
-function box(mesh: Mesher, x: number, y: number, z: number, width: number, height: number, depth: number): void {
-  mesh.box(new THREE.Vector3(x, y, z), new THREE.Vector3(x + width, y + height, z + depth))
+function box(mesh: Mesher, x: number, y: number, z: number, width: number, height: number, depth: number, color?: THREE.Color): void {
+  mesh.box(new THREE.Vector3(x, y, z), new THREE.Vector3(x + width, y + height, z + depth), false, color)
 }
 
-function sack(mesh: Mesher, y: number, height: number, shift: number): void {
+function sack(mesh: Mesher, y: number, height: number, shift: number, color: THREE.Color): void {
   const ring = (at: number, width: number, depth: number) => {
     const blunt = 0.14
     return [
@@ -31,34 +31,49 @@ function sack(mesh: Mesher, y: number, height: number, shift: number): void {
     for (let i = 0; i < bottom.length; i++) {
       const j = (i + 1) % bottom.length
       const normal = bottom[j].clone().sub(bottom[i]).cross(top[i].clone().sub(bottom[i])).normalize()
-      mesh.face([bottom[i], bottom[j], top[j], top[i]], normal, u, v)
+      mesh.face([bottom[i], bottom[j], top[j], top[i]], normal, u, v, color)
     }
   }
   const top = rings[rings.length - 1]
   const center = new THREE.Vector3(shift, y + height, 0)
   const up = new THREE.Vector3(0, 1, 0)
-  for (let i = 0; i < top.length; i++) mesh.face([top[i], top[(i + 1) % top.length], center], up, (p) => p.x, (p) => p.z)
+  for (let i = 0; i < top.length; i++) mesh.face([top[i], top[(i + 1) % top.length], center], up, (p) => p.x, (p) => p.z, color)
 }
+
+const FEED_WOOD = new THREE.Color('#a3774d')
+const FEED_TRIM = new THREE.Color('#78614c')
+const SACK_MAIN = new THREE.Color('#c9ad83')
+const SACK_TRIM = new THREE.Color('#b3916d')
 
 export function buildCover(style: CoverDef['style'], height: number, length: number): NodePart[] {
   const parts: NodePart[] = []
-  const add = (mesh: Mesher, color: string, texture?: LineTextureKind) => {
-    parts.push({ geometry: mesh.build(), material: toonMaterial({ color, map: texture ? lineTexture(texture) : null }) })
+  const add = (mesh: Mesher, color: string | null, texture?: LineTextureKind) => {
+    parts.push({
+      geometry: mesh.build(),
+      material: toonMaterial({ ...(color ? { color } : { vertexColors: true }), map: texture ? lineTexture(texture) : null }),
+    })
   }
   const body = new Mesher(0.65)
   const trim = new Mesher(0.65)
   const left = -length / 2
   if (style === 'water-trough' || style === 'feed-trough') {
     const water = style === 'water-trough'
+    const mainColor = water ? undefined : FEED_WOOD
+    const legColor = water ? undefined : FEED_TRIM
+    const target = water ? trim : body
     // Recessed basin with a continuous, standable rim.
-    box(body, left + 0.075, 0.17, -0.445, length - 0.15, height - 0.35, 0.89)
-    for (const side of [-0.5, 0.35]) box(body, left, height - 0.38, side, length, 0.38, 0.15)
-    for (const end of [left, -left - 0.16]) box(body, end, height - 0.38, -0.35, 0.16, 0.38, 0.7)
-    for (const end of [left + 0.14, -left - 0.4]) box(trim, end, -0.13, -0.43, 0.26, 0.58, 0.86)
+    box(body, left + 0.075, 0.17, -0.445, length - 0.15, height - 0.35, 0.89, mainColor)
+    for (const side of [-0.5, 0.35]) box(body, left, height - 0.38, side, length, 0.38, 0.15, mainColor)
+    for (const end of [left, -left - 0.16]) box(body, end, height - 0.38, -0.35, 0.16, 0.38, 0.7, mainColor)
+    for (const end of [left + 0.14, -left - 0.4]) box(target, end, -0.13, -0.43, 0.26, 0.58, 0.86, legColor)
     const bed = new Mesher(0.6)
     box(bed, left + 0.16, height - 0.21, -0.35, length - 0.32, 0.13, 0.7)
-    add(body, water ? '#938778' : '#a3774d', water ? 'stone' : 'wood')
-    add(trim, '#78614c', 'wood')
+    if (water) {
+      add(body, '#938778', 'stone')
+      add(trim, '#78614c', 'wood')
+    } else {
+      add(body, null, 'wood')
+    }
     add(bed, water ? '#60a9a4' : '#9b8d4c', water ? undefined : 'stubble')
   } else if (style === 'sleepers') {
     const course = height / 3
@@ -70,11 +85,10 @@ export function buildCover(style: CoverDef['style'], height: number, length: num
     add(trim, '#645e4c', 'metal')
   } else if (style === 'sacks') {
     const course = height / 3
-    sack(body, -0.08, course + 0.09, -0.01)
-    sack(trim, course - 0.015, course + 0.035, 0.01)
-    sack(body, 2 * course - 0.025, course + 0.025, -0.01)
-    add(body, '#c9ad83', 'dirt')
-    add(trim, '#b3916d', 'dirt')
+    sack(body, -0.08, course + 0.09, -0.01, SACK_MAIN)
+    sack(body, course - 0.015, course + 0.035, 0.01, SACK_TRIM)
+    sack(body, 2 * course - 0.025, course + 0.025, -0.01, SACK_MAIN)
+    add(body, null, 'dirt')
   } else {
     const courses = height > 2 ? 3 : 2
     const course = height / courses

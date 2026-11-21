@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { LANDMARKS, type LandmarkMotion } from '../data/landmarks'
+import { LANDMARKS, type LandmarkId, type LandmarkMotion } from '../data/landmarks'
 import type { CoverDef, Theme, WallStyle } from '../data/levels/types'
 import { Tile, cellFloor, cellTop, tileAt, type Grid } from '../sim/grid'
 import type { BuiltLevel } from '../sim/level'
@@ -7,7 +7,7 @@ import type { GameEvent } from '../sim/types'
 import type { World } from '../sim/world'
 import type { ModelId } from './asset-urls'
 import { lineTexture, type LineTextureKind } from './line-textures'
-import type { ModelLibrary } from './model-library'
+import { SHADOW_RULES, type ModelLibrary } from './model-library'
 import { buildBuilding } from './buildings'
 import { buildCover } from './cover-props'
 import { barnPartAt, buildLevelStructures } from './level-buildings'
@@ -17,7 +17,7 @@ import { STALK_STYLES, createStalkMaterial, stalkGeometry, stalkMatrices } from 
 import { createStoryActors } from './story-actors'
 import { flowerBatches, flowerHeadGeometry, flowerStemGeometry, hedgeTopBatches, hedgeTopGeometry, pebbleBatches, pebbleGeometry, spikeBatches, spikeGeometry, type DetailBatch, type WallEdge } from './ground-details'
 import { hiddenTops, treeDepths, treeLook } from './level-cover'
-import { bakeNode, type NodePart } from './node-parts'
+import { bakeNode, mergeJoints, mergeStill, ownMeshes, type NodePart } from './node-parts'
 import {
   BACKDROP_THEMES,
   PROP_MODELS,
@@ -62,6 +62,7 @@ const BOULDER_WIDTH = 1.3
 
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0)
 const ASH = { radius: 0.62, color: '#3b3330' } as const
+const SKYLINE_LANDMARKS: ReadonlySet<LandmarkId> = new Set(['ch1-windmill', 'ch1-watermill', 'ch1-town-gate'])
 
 export const LEVEL_CULL = {
   chunkRows: 20,
@@ -112,14 +113,22 @@ interface Batch {
 
 interface GateView {
   index: number
+  row: number
   root: THREE.Object3D
   base: number
   lift: number
 }
 
+interface CrateSpot {
+  key: string
+  at: number
+  rest: THREE.Matrix4
+}
+
 interface CrateView {
   index: number
-  root: THREE.Object3D
+  spots: CrateSpot[]
+  gone: boolean
 }
 
 interface KegView {
@@ -138,7 +147,8 @@ interface HayView {
   x: number
   y: number
   z: number
-  gone: boolean
+  rest: THREE.Matrix4
+  ash: THREE.Mesh | null
 }
 
 interface Motion {
@@ -407,7 +417,6 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   const kegCells = new Set(level.kegs)
   const hayCells = new Set(level.hay)
   const hays: HayView[] = []
-  const ashes: THREE.Mesh[] = []
   const coverCells = new Set<number>()
   const coverParts = new Map<string, readonly NodePart[]>()
   const placeCover = (style: CoverDef['style'], column: number, row: number, width: number, depth: number) => {
@@ -425,7 +434,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     const z = row + depth / 2
     const spot = place(name, parts, x, floor, z, depth > width ? Math.PI / 2 : 0, 1, 1, 1, true)
     const index = row * grid.columns + column
-    if (spot && hayCells.has(index)) hays.push({ index, ...spot, x, y: floor, z, gone: false })
+    if (spot && hayCells.has(index)) hays.push({ index, ...spot, x, y: floor, z, rest: batches.get(spot.key)!.matrices[spot.at], ash: null })
   }
   for (const area of level.areas) {
     for (const { style, from, to } of area.scenery?.covers ?? []) {
@@ -496,16 +505,18 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       if (tile === Tile.Gate || tile === Tile.GateClosed) {
         if (!gateParts) continue
         const instance = models.instance('ch1-gate' as ModelId)
+        const merged = mergeStill(instance.root, ownMeshes(instance.root, new Set()))
         toonify(instance.root)
+        instance.root.name = 'gate'
         instance.root.position.set(x, floor, z)
         instance.root.rotation.y = facingYaw(gateFacing(grid, column, row))
         instance.root.scale.set(1, VISUAL_HEIGHTS.gate / 1.25, 1)
         instance.root.traverse((object) => {
-          object.castShadow = true
-          object.receiveShadow = true
+          if ((object as THREE.Mesh).isMesh) object.receiveShadow = true
         })
         group.add(instance.root)
-        gates.push({ index: row * grid.columns + column, root: instance.root, base: floor, lift: tile === Tile.Gate ? 1 : 0 })
+        disposables.push(instance, ...merged.owned)
+        gates.push({ index: row * grid.columns + column, row, root: instance.root, base: floor, lift: tile === Tile.Gate ? 1 : 0 })
         continue
       }
       if (tile === Tile.Crate && kegCells.has(row * grid.columns + column)) {
@@ -523,19 +534,16 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
         if (!crateModel) continue
         const index = row * grid.columns + column
         const layers = crateLayers(grid.top[index] - floor)
+        const spots: CrateSpot[] = []
         for (let layer = 0; layer < layers.length; layer++) {
-          const instance = models.instance('crate' as ModelId)
-          toonify(instance.root)
-          instance.root.position.set(x, floor + layers[layer].base, z)
-          instance.root.rotation.y = Math.floor(cellHash(column, row + layer * 7, 4) * 4) * (Math.PI / 2) + layer * CRATE_STACK.twist
-          instance.root.scale.setScalar(layers[layer].size)
-          instance.root.traverse((object) => {
-            object.castShadow = true
-            object.receiveShadow = true
-          })
-          group.add(instance.root)
-          crates.push({ index, root: instance.root })
+          const yaw = Math.floor(cellHash(column, row + layer * 7, 4) * 4) * (Math.PI / 2) + layer * CRATE_STACK.twist
+          const size = layers[layer].size
+          const spot = place('crate', models.parts('crate'), x, floor + layers[layer].base, z, yaw, size, size, size, true)
+          if (!spot) continue
+          const rest = batches.get(spot.key)!.matrices[spot.at].clone()
+          spots.push({ ...spot, rest })
         }
+        crates.push({ index, spots, gone: false })
         continue
       }
       const bridge = tile === Tile.Path || tile === Tile.Floor ? bridgeAt(grid, column, row) : null
@@ -573,11 +581,12 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       }
       const spot = place(id, models.parts(id as ModelId), x, groundAt(x, z, floor) - (kind === 'cart' ? 0 : 0.06), z, propYaw(kind, column, row), s, s, s, kind !== 'bush')
       const cell = row * grid.columns + column
-      if (spot && tile === Tile.Rock && hayCells.has(cell)) hays.push({ index: cell, ...spot, x, y: floor, z, gone: false })
+      if (spot && tile === Tile.Rock && hayCells.has(cell)) hays.push({ index: cell, ...spot, x, y: floor, z, rest: batches.get(spot.key)!.matrices[spot.at], ash: null })
     }
   }
 
   const batchMeshes = new Map<string, THREE.InstancedMesh[]>()
+  const partShadow = (material: THREE.Material) => !(material.transparent || material.alphaTest > 0 || SHADOW_RULES.materials.test(material.name))
   for (const [key, batch] of batches) {
     const meshes: THREE.InstancedMesh[] = []
     batchMeshes.set(key, meshes)
@@ -587,9 +596,9 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       batch.matrices.forEach((m, index) => mesh.setMatrixAt(index, m))
       mesh.instanceMatrix.needsUpdate = true
       mesh.computeBoundingSphere()
-      mesh.castShadow = batch.shadow
+      mesh.castShadow = batch.shadow && partShadow(part.material)
       mesh.receiveShadow = true
-      mesh.name = batch.name
+      mesh.name = `prop:${batch.name}`
       if (!batch.ink) mesh.userData.noInk = true
       group.add(mesh)
       culled.push({ object: mesh, ...bandRange(batch.band) })
@@ -723,17 +732,24 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     const id = landmarkModel(has, placement.id, placement.variant)
     if (!id) continue
     const instance = models.instance(id as ModelId)
+    const motionList = LANDMARKS[placement.id].motion ?? []
+    const joints = motionList.map((motion) => motion.node)
+    const merged = mergeJoints(instance.root, joints)
     toonify(instance.root)
+    instance.root.name = `landmark:${placement.id}`
     const center = footprintCenter(placement.column, placement.row, placement.width, placement.depth)
     const floor = cellFloor(grid, Math.min(grid.columns - 1, Math.floor(center.x)), Math.min(grid.rows - 1, Math.floor(center.z)))
     instance.root.position.set(center.x, floor, center.z)
     instance.root.rotation.y = landmarkYaw(placement.id, placement.facing, placement.column, placement.row)
     instance.root.traverse((object) => {
-      object.castShadow = true
-      object.receiveShadow = true
+      if ((object as THREE.Mesh).isMesh) object.receiveShadow = true
     })
     group.add(instance.root)
-    for (const motion of LANDMARKS[placement.id].motion ?? []) {
+    disposables.push(instance, ...merged.owned)
+    if (!SKYLINE_LANDMARKS.has(placement.id)) {
+      culled.push({ object: instance.root, near: placement.row - 2, far: placement.row + placement.depth + 2 })
+    }
+    for (const motion of motionList) {
       const node = instance.nodes.get(motion.node)
       if (!node) continue
       const [ax, ay, az] = motionAxis(motion.axis)
@@ -763,9 +779,20 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
         const open = world.grid.tiles[gate.index] === Tile.Gate
         gate.lift += ((open ? 1 : 0) - gate.lift) * Math.min(1, dt * 3)
         gate.root.position.y = gate.base - gate.lift * (VISUAL_HEIGHTS.gate + 0.2)
-        gate.root.visible = gate.lift < 0.98
+        gate.root.visible = gate.lift < 0.98 && Math.abs(gate.row + 0.5 - z) <= LEVEL_CULL.drawDistance
       }
-      for (const crate of crates) crate.root.visible = world.grid.tiles[crate.index] === Tile.Crate
+      for (const crate of crates) {
+        const broken = world.grid.tiles[crate.index] !== Tile.Crate
+        if (crate.gone === broken) continue
+        crate.gone = broken
+        for (const spot of crate.spots) {
+          const matrix = broken ? HIDDEN : spot.rest
+          for (const mesh of batchMeshes.get(spot.key) ?? []) {
+            mesh.setMatrixAt(spot.at, matrix)
+            mesh.instanceMatrix.needsUpdate = true
+          }
+        }
+      }
       for (const keg of kegs) {
         keg.root.visible = world.grid.tiles[keg.index] === Tile.Crate && Math.abs(keg.row + 0.5 - z) <= LEVEL_CULL.drawDistance
         const lit = keg.root.visible && world.blasts.some((blast) => blast.keg === keg.index)
@@ -776,11 +803,16 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
         keg.root.scale.setScalar(1 + beat * 0.05)
       }
       for (const hay of hays) {
-        if (hay.gone || world.grid.tiles[hay.index] === Tile.Rock) continue
-        hay.gone = true
+        const burned = world.grid.tiles[hay.index] !== Tile.Rock
+        if (burned === (hay.ash !== null)) continue
         for (const mesh of batchMeshes.get(hay.key) ?? []) {
-          mesh.setMatrixAt(hay.at, HIDDEN)
+          mesh.setMatrixAt(hay.at, burned ? HIDDEN : hay.rest)
           mesh.instanceMatrix.needsUpdate = true
+        }
+        if (!burned) {
+          hay.ash?.removeFromParent()
+          hay.ash = null
+          continue
         }
         const ash = new THREE.Mesh(ashGeometry, ashMaterial)
         ash.rotation.x = -Math.PI / 2
@@ -788,7 +820,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
         ash.position.set(hay.x, hay.y + 0.03, hay.z)
         ash.receiveShadow = true
         group.add(ash)
-        ashes.push(ash)
+        hay.ash = ash
       }
       for (const beam of exits) {
         beam.rotation.y = time * 0.8

@@ -3,7 +3,7 @@ import type { PlatformDef } from '../data/levels/types'
 import { insideGrid } from '../sim/grid'
 import type { AreaInfo, BuiltLevel } from '../sim/level'
 import { Mesher, type Building } from './buildings'
-import { lineTexture } from './line-textures'
+import { lineTexture, type LineTextureKind } from './line-textures'
 import { toonMaterial } from './toon'
 
 type Frame = NonNullable<PlatformDef['frame']>
@@ -65,40 +65,41 @@ const UP = new THREE.Vector3(0, 1, 0)
 const axes = { x: (point: THREE.Vector3) => point.x, y: (point: THREE.Vector3) => point.y, z: (point: THREE.Vector3) => point.z }
 
 const MATERIAL = {
-  boards: { color: '#c49760', texture: 'wood' },
-  lip: { color: '#e1ba83', texture: 'wood' },
-  timber: { color: '#8c6548', texture: 'wood' },
-  brace: { color: '#c19668', texture: 'wood' },
-  stone: { color: '#9e8b73', texture: 'stone' },
-  capstone: { color: '#cbbb9d', texture: 'stone' },
-  straw: { color: '#dfb052', texture: 'stubble' },
-  rope: { color: '#906239', texture: 'stubble' },
-  steel: { color: '#747b6b', texture: 'metal' },
-  seam: { color: '#66442f', texture: 'wood' },
+  boards: { color: new THREE.Color('#c49760'), texture: 'wood' },
+  lip: { color: new THREE.Color('#e1ba83'), texture: 'wood' },
+  timber: { color: new THREE.Color('#8c6548'), texture: 'wood' },
+  brace: { color: new THREE.Color('#c19668'), texture: 'wood' },
+  stone: { color: new THREE.Color('#9e8b73'), texture: 'stone' },
+  capstone: { color: new THREE.Color('#cbbb9d'), texture: 'stone' },
+  straw: { color: new THREE.Color('#dfb052'), texture: 'stubble' },
+  rope: { color: new THREE.Color('#906239'), texture: 'stubble' },
+  steel: { color: new THREE.Color('#747b6b'), texture: 'metal' },
+  seam: { color: new THREE.Color('#66442f'), texture: 'wood' },
 } as const
 
 type Part = keyof typeof MATERIAL
 
-function deck(mesh: Mesher, x: number, z: number, heights: DeckHeights, from = 0, to = 1, near = 0, far = 1): void {
+function deck(mesh: Mesher, color: THREE.Color, x: number, z: number, heights: DeckHeights, from = 0, to = 1, near = 0, far = 1): void {
   const riseX = heights[1] - heights[0]
   const riseZ = heights[2] - heights[0]
   const normal = riseX === 0 && riseZ === 0 ? UP : new THREE.Vector3(-riseX, 1, -riseZ).normalize()
   const point = (u: number, v: number) => new THREE.Vector3(x + u, deckHeightAt(heights, u, v), z + v)
   mesh.face([
     point(from, near), point(from, far), point(to, far), point(to, near),
-  ], normal, axes.x, axes.z)
+  ], normal, axes.x, axes.z, color)
 }
 
 function buildPlatforms(level: BuiltLevel, area: AreaInfo, cells: ReadonlyMap<number, FramedPlatform>): Building | null {
-  const meshers = new Map<Part, Mesher>()
-  const part = (name: Part) => {
-    let mesh = meshers.get(name)
+  const meshers = new Map<LineTextureKind, Mesher>()
+  const mesherFor = (texture: LineTextureKind) => {
+    let mesh = meshers.get(texture)
     if (!mesh) {
-      mesh = new Mesher(name === 'stone' || name === 'capstone' ? 0.85 : 0.55)
-      meshers.set(name, mesh)
+      mesh = new Mesher(texture === 'stone' ? 0.85 : 0.55)
+      meshers.set(texture, mesh)
     }
     return mesh
   }
+  const part = (name: Part) => ({ mesher: mesherFor(MATERIAL[name].texture), color: MATERIAL[name].color })
   const { columns, floor } = level.grid
   for (const [index, platform] of cells) {
     const row = Math.floor(index / columns)
@@ -110,15 +111,22 @@ function buildPlatforms(level: BuiltLevel, area: AreaInfo, cells: ReadonlyMap<nu
     const straw = platform.surface === 'straw'
     const stone = platform.surface === 'stone'
     const masonry = stone || trim === 'stone' || trim === 'steel'
-    deck(part(straw ? 'straw' : stone ? 'capstone' : 'boards'), x, row, heights)
-    if (trim === 'steel' && top - base >= 1) deck(part('steel'), x, row, flatDeck(top + 0.003), 0.08, 0.92, 0.08, 0.92)
+    const surface = part(straw ? 'straw' : stone ? 'capstone' : 'boards')
+    deck(surface.mesher, surface.color, x, row, heights)
+    if (trim === 'steel' && top - base >= 1) {
+      const cap = part('steel')
+      deck(cap.mesher, cap.color, x, row, flatDeck(top + 0.003), 0.08, 0.92, 0.08, 0.92)
+    }
     const straps = trim === 'straps'
       ? [0.28, 0.72].map((fraction) => platform.from[0] + (platform.to[0] - platform.from[0] + 1) * fraction - x)
       : []
     for (const strap of straps) {
       const from = Math.max(0, strap - 0.045)
       const to = Math.min(1, strap + 0.045)
-      if (from < to) deck(part(straw ? 'rope' : 'steel'), x, row, flatDeck(top + 0.005), from, to)
+      if (from < to) {
+        const band = part(straw ? 'rope' : 'steel')
+        deck(band.mesher, band.color, x, row, flatDeck(top + 0.005), from, to)
+      }
     }
 
     for (const { dx, dz, from, to } of EDGES) {
@@ -137,8 +145,10 @@ function buildPlatforms(level: BuiltLevel, area: AreaInfo, cells: ReadonlyMap<nu
         y,
         row + from[1] + (to[1] - from[1]) * along + dz * outset,
       )
-      const panel = (name: Part, [a, b, c, d]: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3]) =>
-        part(name).face([a, b, c, d], normal, dx === 0 ? axes.x : axes.z, axes.y)
+      const panel = (name: Part, [a, b, c, d]: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3]) => {
+        const entry = part(name)
+        entry.mesher.face([a, b, c, d], normal, dx === 0 ? axes.x : axes.z, axes.y, entry.color)
+      }
       const lipA = straw ? upperA : Math.max(lowerA, upperA - 0.16)
       const lipB = straw ? upperB : Math.max(lowerB, upperB - 0.16)
       panel(straw ? 'straw' : masonry ? 'stone' : 'timber', [point(0, lowerA), point(1, lowerB), point(1, lipB), point(0, lipA)])
@@ -167,10 +177,9 @@ function buildPlatforms(level: BuiltLevel, area: AreaInfo, cells: ReadonlyMap<nu
   if (meshers.size === 0) return null
   const group = new THREE.Group()
   group.name = 'framed-platforms'
-  const meshes = [...meshers].map(([name, mesher]) => {
-    const style = MATERIAL[name]
-    const mesh = new THREE.Mesh(mesher.build(), toonMaterial({ color: style.color, map: lineTexture(style.texture) }))
-    mesh.name = name
+  const meshes = [...meshers].map(([texture, mesher]) => {
+    const mesh = new THREE.Mesh(mesher.build(), toonMaterial({ vertexColors: true, map: lineTexture(texture) }))
+    mesh.name = texture
     mesh.castShadow = true
     mesh.receiveShadow = true
     group.add(mesh)

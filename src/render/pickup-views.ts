@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { HEAL_LARGE, PICKUP_BLINK } from '../data/loot'
 import type { PlayerWeaponId } from '../data/weapons'
 import { lerp } from '../sim/math'
@@ -8,10 +9,13 @@ import type { World } from '../sim/world'
 import { assetUrl } from './asset-urls'
 import { createCrateDebris } from './crate-debris'
 import { hasFog } from './fog-motion'
+import { LEVEL_CULL } from './fps-level-view'
 import { rotateFromRest, type ModelInstance, type ModelLibrary } from './model-library'
+import { mergeJoints, mergeStill, ownMeshes } from './node-parts'
 import { groundWeaponScale, groundWeaponYaw, lidAngle, lidOpen, propHash, spentGlow } from './prop-motion'
 import { facingYaw } from './scene-models'
 import { AMMO_COLOR, BUFF_COLORS, CAMPFIRE_FLAME, CHEST_COLORS, CLUE_PAPER, FOG_LAYER, GROUND_WEAPON, HEAL_COLOR, PERCH_DROP, WEAPON_GLOW } from './themes'
+import { toonify } from './toon'
 
 interface PickupView {
   root: THREE.Group
@@ -34,6 +38,9 @@ interface ChestView {
   glow: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>
   shines: Shine[]
   model: ModelInstance | null
+  owned: { dispose(): void }[]
+  x: number
+  z: number
   openedAt: number | null
   seen: boolean
 }
@@ -52,7 +59,7 @@ interface SupplyView {
   burnt: THREE.Object3D | null
   charred: Charred[]
   models: ModelInstance[]
-  owned: THREE.Material[]
+  owned: { dispose(): void }[]
   used: boolean | null
   seen: boolean
 }
@@ -145,6 +152,16 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
 
   const paperGeometry = new THREE.PlaneGeometry(CLUE_PAPER.width / 2, CLUE_PAPER.height)
   const inkGeometry = new THREE.PlaneGeometry(CLUE_PAPER.width * 0.34, 0.018)
+  const mergedInk = (side: number) => {
+    const lines = [0.17, 0.08, -0.01, -0.1]
+      .filter((_, index) => !(side > 0 && index === 3))
+      .map((y) => inkGeometry.clone().translate((side * CLUE_PAPER.width) / 4, y, 0.002))
+    const merged = mergeGeometries(lines, false)
+    for (const line of lines) line.dispose()
+    return merged
+  }
+  const leftInkGeometry = mergedInk(-1)
+  const rightInkGeometry = mergedInk(1)
   const sealGeometry = new THREE.CircleGeometry(0.045, 16)
   const clueRing = new THREE.RingGeometry(0.36, 0.46, 36)
   const beamGeometry = new THREE.CylinderGeometry(CLUE_PAPER.beamRadius, CLUE_PAPER.beamRadius * 0.6, CLUE_PAPER.beamHeight, 18, 1, true).translate(0, CLUE_PAPER.beamHeight / 2, 0)
@@ -207,6 +224,7 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
 
   function buildPickup(pickup: Pickup): PickupView {
     const root = new THREE.Group()
+    root.name = 'pickup'
     const spin = new THREE.Group()
     root.add(spin)
     const { item } = pickup
@@ -267,11 +285,15 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
   function buildChest(chest: Chest): ChestView {
     const colors = CHEST_COLORS[chest.tier]
     const root = new THREE.Group()
+    root.name = 'chest'
     const id = `chest-${chest.tier}`
     let model: ModelInstance | null = null
+    let owned: { dispose(): void }[] = []
     let parts: Pick<ChestView, 'lid' | 'hinge' | 'lidScale'>
     if (models.has(id)) {
       model = models.instance(id)
+      owned = mergeJoints(model.root, ['lid']).owned
+      toonify(model.root)
       const holder = new THREE.Group()
       holder.rotation.y = -Math.PI / 2
       holder.add(model.root)
@@ -284,6 +306,8 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     const glow = flat(new THREE.Mesh(chestGlow, new THREE.MeshBasicMaterial({ color: colors.trim, transparent: true, opacity: 0.6, depthWrite: false })), 0.03)
     root.add(glow)
     const perch = chest.perch
+    const x = perch ? perch.x : chest.pos.x
+    const z = perch ? perch.y : chest.pos.y
     if (perch) {
       root.position.set(perch.x, perch.height, perch.y)
       const facing = world?.level.landmarks[perch.landmark]?.facing ?? 0
@@ -291,7 +315,7 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     } else root.position.set(chest.pos.x, world ? floorAt(world.grid, chest.pos.x, chest.pos.y) : 0, chest.pos.y)
     layer(root)
     scene.add(root)
-    return { root, ...parts, glow, shines, model, openedAt: chest.opened ? -Infinity : null, seen: true }
+    return { root, ...parts, glow, shines, model, owned, x, z, openedAt: chest.opened ? -Infinity : null, seen: true }
   }
 
   function charredOf(materials: readonly THREE.Material[]): Charred[] {
@@ -321,6 +345,7 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
 
   function buildSupply(supply: Supply): SupplyView {
     const root = new THREE.Group()
+    root.name = 'campfire'
     const flame = new THREE.Group()
     const outer = new THREE.Mesh(outerFlameGeometry, outerFlameMaterial)
     const inner = new THREE.Mesh(innerFlameGeometry, innerFlameMaterial)
@@ -330,7 +355,7 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     let fresh: THREE.Object3D
     let burnt: THREE.Object3D | null = null
     let charred: Charred[] = []
-    let owned: THREE.Material[] = []
+    let owned: { dispose(): void }[] = []
     if (models.has('campfire')) {
       const model = models.instance('campfire')
       instances.push(model)
@@ -342,6 +367,8 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
         burnt = spent.root
         burnt.visible = false
         root.add(burnt)
+        owned.push(...mergeStill(fresh, ownMeshes(fresh, new Set())).owned, ...mergeStill(burnt, ownMeshes(burnt, new Set())).owned)
+        toonify(root)
       } else {
         charred = charredOf(model.materials)
       }
@@ -373,12 +400,7 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     sheet.position.x = (side * CLUE_PAPER.width) / 4
     sheet.castShadow = true
     half.add(sheet)
-    for (const [index, y] of [0.17, 0.08, -0.01, -0.1].entries()) {
-      if (side > 0 && index === 3) continue
-      const line = new THREE.Mesh(inkGeometry, inkMaterial)
-      line.position.set((side * CLUE_PAPER.width) / 4, y, 0.002)
-      half.add(line)
-    }
+    half.add(new THREE.Mesh(side < 0 ? leftInkGeometry : rightInkGeometry, inkMaterial))
     if (side > 0) {
       const seal = new THREE.Mesh(sealGeometry, sealMaterial)
       seal.position.set(CLUE_PAPER.width * 0.3, -0.18, 0.003)
@@ -390,6 +412,7 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
 
   function buildClue(drop: ClueDrop): ClueView {
     const root = new THREE.Group()
+    root.name = 'clue'
     const paper = new THREE.Group()
     paper.rotation.order = 'YXZ'
     const sheet = paperMaterial.clone()
@@ -424,6 +447,9 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
         clues.set(drop.id, view)
       }
       view.seen = true
+      const nearView = !eye || Math.hypot(drop.pos.x - eye.x, drop.pos.y - eye.z) <= LEVEL_CULL.drawDistance
+      view.root.visible = nearView
+      if (!nearView) continue
       view.paper.position.y = CLUE_PAPER.float + Math.sin(time * CLUE_PAPER.bobRate + drop.id) * CLUE_PAPER.bob
       view.paper.rotation.set(-CLUE_PAPER.tilt, Math.sin(time * CLUE_PAPER.swayRate + drop.id) * CLUE_PAPER.sway, 0)
       view.ring.material.opacity = 0.4 + Math.sin(time * 4 + drop.id) * 0.25
@@ -444,15 +470,16 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     scene.remove(view.root)
     view.glow.material.dispose()
     view.model?.dispose()
+    for (const item of view.owned) item.dispose()
   }
 
   function removeSupply(view: SupplyView): void {
     scene.remove(view.root)
     for (const model of view.models) model.dispose()
-    for (const material of view.owned) material.dispose()
+    for (const item of view.owned) item.dispose()
   }
 
-  function syncPickups(world: World): void {
+  function syncPickups(world: World, eye: THREE.Vector3 | undefined): void {
     const time = world.time
     for (const view of pickups.values()) view.seen = false
     for (const pickup of world.pickups) {
@@ -468,12 +495,14 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
       const k = popping ? pickup.age / pop : 1
       const px = lerp(pickup.from.x, pickup.pos.x, k)
       const py = lerp(pickup.from.y, pickup.pos.y, k)
+      const near = !eye || Math.hypot(px - eye.x, py - eye.z) <= LEVEL_CULL.drawDistance
+      view.root.visible = near && (pickup.life > PICKUP_BLINK || Math.floor(time * BLINK_RATE) % 2 === 0)
+      if (!near) continue
       view.root.position.set(px, floorAt(world.grid, px, py), py)
       view.spin.position.y = popping
         ? FLOAT_HEIGHT + view.height * (1 - k * k) + 4 * k * (1 - k) * (view.height > 0 ? PERCH_DROP.arc : POP_HEIGHT)
         : FLOAT_HEIGHT + Math.sin(time * 3 + pickup.id) * 0.08
       if (view.swings) view.spin.rotation.y = groundWeaponYaw(time, pickup.id)
-      view.root.visible = pickup.life > PICKUP_BLINK || Math.floor(time * BLINK_RATE) % 2 === 0
     }
     for (const [id, view] of pickups) {
       if (view.seen) continue
@@ -482,7 +511,7 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     }
   }
 
-  function syncChests(world: World): void {
+  function syncChests(world: World, eye: THREE.Vector3 | undefined): void {
     const time = world.time
     for (const view of chests.values()) view.seen = false
     for (const chest of world.chests) {
@@ -492,6 +521,9 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
         chests.set(chest.id, view)
       }
       view.seen = true
+      const near = !eye || Math.hypot(view.x - eye.x, view.z - eye.z) <= LEVEL_CULL.drawDistance
+      view.root.visible = near
+      if (!near) continue
       if (chest.opened && view.openedAt === null) view.openedAt = time
       const open = view.openedAt === null ? 0 : lidOpen(time - view.openedAt)
       if (view.lid) rotateFromRest(view.lid, view.hinge, lidAngle(open) * view.lidScale)
@@ -507,7 +539,7 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     }
   }
 
-  function syncSupplies(world: World): void {
+  function syncSupplies(world: World, eye: THREE.Vector3 | undefined): void {
     const time = world.time
     for (const view of supplies.values()) view.seen = false
     for (const supply of world.supplies) {
@@ -517,6 +549,9 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
         supplies.set(supply.id, view)
       }
       view.seen = true
+      const near = !eye || Math.hypot(supply.pos.x - eye.x, supply.pos.y - eye.z) <= LEVEL_CULL.drawDistance
+      view.root.visible = near
+      if (!near) continue
       if (view.used !== supply.used) {
         view.used = supply.used
         view.flame.visible = !supply.used
@@ -545,9 +580,9 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     sync(next, _dt, eye) {
       if (next.level !== world?.level) foggy = hasFog(next.level)
       world = next
-      syncPickups(next)
-      syncChests(next)
-      syncSupplies(next)
+      syncPickups(next, eye)
+      syncChests(next, eye)
+      syncSupplies(next, eye)
       syncClues(next, eye)
       debris.sync(next)
     },

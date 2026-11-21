@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { ModelId } from './asset-urls'
+import { atlasGroups } from './node-parts'
 import { bindRigid, mergeRigid } from './rigid-parts'
 
 export interface ModelInstance {
@@ -92,6 +93,7 @@ export function createModelLibrary(source: ModelSource): ModelLibrary {
   const loaded = new Map<ModelId, THREE.Object3D>()
   const pending = new Map<ModelId, Promise<void>>()
   const partCache = new Map<ModelId, ModelPart[]>()
+  const partOwned = new Map<ModelId, { dispose(): void }[]>()
   const boundCache = new Map<ModelId, THREE.Box3>()
   const jointCache = new Map<string, THREE.Object3D>()
   const pristine = new Map<THREE.Material, THREE.Material>()
@@ -175,6 +177,8 @@ export function createModelLibrary(source: ModelSource): ModelLibrary {
     boundCache.delete(id)
     for (const part of partCache.get(id) ?? []) part.geometry.dispose()
     partCache.delete(id)
+    for (const item of partOwned.get(id) ?? []) item.dispose()
+    partOwned.delete(id)
     for (const [key, template] of jointCache) {
       if (!key.startsWith(`${id}|`)) continue
       jointCache.delete(key)
@@ -195,8 +199,10 @@ export function createModelLibrary(source: ModelSource): ModelLibrary {
     parts(id) {
       let parts = partCache.get(id)
       if (!parts) {
-        parts = bakeParts(sourceOf(id))
+        const baked = bakeParts(sourceOf(id))
+        parts = baked.parts
         partCache.set(id, parts)
+        if (baked.owned.length > 0) partOwned.set(id, baked.owned)
       }
       return parts
     },
@@ -311,7 +317,7 @@ function sharedCopy(source: THREE.Object3D): ModelInstance {
   return { root, nodes: nodeMap(root), tintable: [], materials, glow: new Map(), dispose: () => {} }
 }
 
-function bakeParts(source: THREE.Object3D): ModelPart[] {
+function bakeParts(source: THREE.Object3D): { parts: ModelPart[]; owned: { dispose(): void }[] } {
   source.updateWorldMatrix(true, true)
   const inverse = source.matrixWorld.clone().invert()
   const groups = new Map<THREE.Material, THREE.BufferGeometry[]>()
@@ -324,11 +330,16 @@ function bakeParts(source: THREE.Object3D): ModelPart[] {
     if (list) list.push(geometry)
     else groups.set(mesh.material, [geometry])
   })
-  const parts: ModelPart[] = []
+  const raw: ModelPart[] = []
   for (const [material, list] of groups) {
-    for (const geometry of mergeAll(list)) parts.push({ geometry, material })
+    for (const geometry of mergeAll(list)) raw.push({ geometry, material })
   }
-  return parts
+  const grouped = atlasGroups(raw)
+  const kept = new Set(grouped.parts.map((part) => part.geometry))
+  for (const part of raw) {
+    if (!kept.has(part.geometry)) part.geometry.dispose()
+  }
+  return grouped
 }
 
 function floatCopy(source: THREE.BufferGeometry): THREE.BufferGeometry {

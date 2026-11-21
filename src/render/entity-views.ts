@@ -3,8 +3,10 @@ import { getBoss, type BossDef } from '../data/bosses'
 import type { Tuning } from '../data/tuning'
 import type { WeaponId } from '../data/weapons'
 import { tripleLanes } from '../sim/boss'
+import { lineClear } from '../sim/collision'
 import { fogHides } from '../sim/fog'
-import { Tile, blocksMovement, cellFloor, cellTop, floorAt, tileAt, type Grid } from '../sim/grid'
+import { Tile, blocksMovement, blocksSight, cellFloor, cellTop, floorAt, tileAt, type Grid } from '../sim/grid'
+import { playerEye } from '../sim/terrain'
 import { trackShare } from '../sim/enemies/tactics'
 import { clamp, lerp } from '../sim/math'
 import { sightOf } from '../sim/perception'
@@ -573,6 +575,7 @@ export function createEntityViews(
 
   function buildEnemy(enemy: Enemy): EnemyView {
     const view = shell(enemy.kind)
+    view.root.name = `enemy:${enemy.kind}`
     const material = standard(COLORS[enemy.kind], view.owned)
     const kind = enemy.kind
     const model = kind !== 'boss' && models.has(kind) ? models.instance(kind, ENEMY_JOINTS[kind]) : null
@@ -1289,7 +1292,11 @@ export function createEntityViews(
         enemyViews.set(enemy.id, view)
       }
       view.seen = true
-      const near = enemy.kind === 'boss' || Math.hypot(enemy.pos.x - world.player.pos.x, enemy.pos.y - world.player.pos.y) <= ENTITY_CULL.distance
+      let near = Math.hypot(enemy.pos.x - world.player.pos.x, enemy.pos.y - world.player.pos.y) <= ENTITY_CULL.distance
+      if (!near && enemy.boss) {
+        const top = { ...enemy.pos, z: enemy.z + BODY_HEIGHTS[enemy.boss.id] }
+        near = enemy.boss.phase !== 'dormant' || lineClear(world.grid, playerEye(world.player), top, blocksSight)
+      }
       view.root.visible = near
       if (!near) continue
       syncEnemy(world, enemy, view, alpha, dt)

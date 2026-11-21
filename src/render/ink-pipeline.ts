@@ -414,7 +414,11 @@ export function createInkPipeline(renderer: THREE.WebGLRenderer, look: InkLook =
     sphere.copy(geometry.boundingSphere).applyMatrix4(object.matrixWorld)
     return true
   }
-  const tooFar = (object: THREE.Object3D, eye: THREE.Vector3): boolean => bounds(object) && eye.distanceTo(sphere.center) - sphere.radius > look.creaseEnd
+  const tooFar = (object: THREE.Object3D, eye: THREE.Vector3): boolean => {
+    if (!bounds(object)) return false
+    const limit = typeof object.userData.normalDistance === 'number' ? Math.min(look.creaseEnd, object.userData.normalDistance) : look.creaseEnd
+    return eye.distanceTo(sphere.center) - sphere.radius > limit
+  }
   const detail = (object: THREE.Object3D, eye: THREE.Vector3): number => (bounds(object) ? detailGain(eye.distanceTo(sphere.center), sphere.radius, look.detailNear, look.detailFar) : 1)
   const swapToNormals = (scene: THREE.Scene, eye: THREE.Vector3) => {
     scene.traverseVisible((object) => {
@@ -483,9 +487,15 @@ export function createInkPipeline(renderer: THREE.WebGLRenderer, look: InkLook =
         renderer.setClearColor(0x8080ff, 1)
         renderer.clear(true, true, true)
         swapToNormals(scene, camera.position)
+        const shadowAuto = renderer.shadowMap.autoUpdate
+        const shadowNeeds = renderer.shadowMap.needsUpdate
+        renderer.shadowMap.autoUpdate = false
+        renderer.shadowMap.needsUpdate = false
         try {
           renderer.render(scene, camera)
         } finally {
+          renderer.shadowMap.autoUpdate = shadowAuto
+          renderer.shadowMap.needsUpdate = shadowNeeds
           restore()
           scene.background = background
           renderer.setClearColor(clearColor, clearAlpha)

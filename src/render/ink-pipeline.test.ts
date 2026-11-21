@@ -1,5 +1,6 @@
+import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_LOOK, detailGain } from './ink-pipeline'
+import { DEFAULT_LOOK, createInkPipeline, detailGain } from './ink-pipeline'
 
 describe('ink pipeline detail fade', () => {
   it('keeps inner lines on characters that fill the screen', () => {
@@ -35,5 +36,37 @@ describe('ink pipeline detail fade', () => {
     expect(DEFAULT_LOOK.lineNear).toBeGreaterThan(DEFAULT_LOOK.detailNear)
     expect(DEFAULT_LOOK.lineMin).toBeLessThan(DEFAULT_LOOK.lineWidth)
     expect(DEFAULT_LOOK.creaseStart).toBeLessThan(DEFAULT_LOOK.creaseEnd)
+  })
+
+  it('skips shadow map updates during the normal pass and restores flags afterward', () => {
+    const calls: { scene: THREE.Object3D; autoUpdate: boolean; needsUpdate: boolean }[] = []
+    const shadowMap = { autoUpdate: true, needsUpdate: true }
+    const renderer = {
+      shadowMap,
+      getContext: () => ({ getExtension: () => null }),
+      getClearColor: (target: THREE.Color) => target.set('#000000'),
+      getClearAlpha: () => 1,
+      setRenderTarget: () => {},
+      clear: () => {},
+      setClearColor: () => {},
+      render: (target: THREE.Object3D) => {
+        calls.push({ scene: target, autoUpdate: shadowMap.autoUpdate, needsUpdate: shadowMap.needsUpdate })
+      },
+    }
+    const pipeline = createInkPipeline(renderer as unknown as THREE.WebGLRenderer)
+    pipeline.toggles.bloom = false
+    const scene = new THREE.Scene()
+    const farMesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial())
+    farMesh.userData.normalDistance = 60
+    farMesh.position.z = -80
+    scene.add(farMesh)
+    const camera = new THREE.PerspectiveCamera()
+    pipeline.render(scene, camera, null)
+    const sceneCalls = calls.filter((entry) => entry.scene === scene)
+    expect(sceneCalls).toHaveLength(2)
+    expect(sceneCalls[0]).toMatchObject({ autoUpdate: true, needsUpdate: true })
+    expect(sceneCalls[1]).toMatchObject({ autoUpdate: false, needsUpdate: false })
+    expect(shadowMap).toEqual({ autoUpdate: true, needsUpdate: true })
+    pipeline.dispose()
   })
 })
