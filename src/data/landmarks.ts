@@ -53,7 +53,7 @@ export interface LandmarkDef {
   building?: BuildingKind
 }
 
-export type BuildingKind = 'barn' | 'shed' | 'loading-shed' | 'big-barn' | 'workshop' | 'weighhouse' | 'tool-shed'
+export type BuildingKind = 'barn' | 'shed' | 'loading-shed' | 'big-barn' | 'workshop' | 'weighhouse' | 'tool-shed' | 'office'
 
 export const LANDMARK_IDS = [
   'ch1-town-gate',
@@ -75,6 +75,7 @@ export const LANDMARK_IDS = [
   'ch1-wheat-stack',
   'ch1-bell-tower',
   'ch1-farmhouse',
+  'ch1-farm-office',
   'ch1-well',
   'ch1-cellar',
   'ch1-silo',
@@ -237,6 +238,11 @@ export const LANDMARKS: Readonly<Record<LandmarkId, LandmarkDef>> = {
     nodes: ['body', 'roof', 'bell', 'lamp'],
   },
   'ch1-farmhouse': { name: '农舍', level: '1-3', size: [5, 4], ...solid, height: 4.6, nodes: ['body', 'socket_fx_smoke'] },
+  'ch1-farm-office': {
+    name: '粮仓办公室', level: '1-3', size: [10, 8],
+    footprint: ['##########', '#........#', '#........#', '.........#', '.........#', '#........#', '#........#', '####..####'],
+    ...solid, height: 3, building: 'office',
+  },
   'ch1-well': {
     name: '水井',
     level: '1-3',

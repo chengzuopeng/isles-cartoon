@@ -428,7 +428,7 @@ function modelsOf(def: LevelDef): ModelId[] {
   let ids = levelModels.get(def.id)
   if (!ids) {
     const built = builtOf(def)
-    const extra: ModelId[] = built.rushes.length > 0 ? ['elite-crown'] : []
+    const extra: ModelId[] = built.rushes.length > 0 || built.reinforcements.some((wave) => wave.variants.length > 1) ? ['elite-crown'] : []
     ids = [...new Set<ModelId>([...modelsFor(built), ...VIEWMODEL_MODELS, ...extra])]
     levelModels.set(def.id, ids)
   }
@@ -499,7 +499,7 @@ function switchLevel(def: LevelDef, built: BuiltLevel): void {
     levelView = null
   }
   resetScene()
-  levelView = createFpsLevelView(level, models)
+  levelView = createFpsLevelView(level, models, effects)
   stage.scene.add(levelView.group)
   stage.setLevel(level.grid)
   map.dispose()
@@ -1172,6 +1172,7 @@ function frame(now: number): void {
   }
   hud.update(world, alpha)
   numbers.update(dt, world)
+  const runner = stage.view === 'fps' && world.alarms.find((alarm) => alarm.status === 'running')
   overlay.update(
     {
       hp: world.player.hp,
@@ -1183,6 +1184,7 @@ function frame(now: number): void {
       locked: input.locked(),
       barrier: world.player.barrier > 0,
       sneak: screen === 'play' && sneakReady(world),
+      runnerBearing: runner && runner.runner !== null && !onScreen(runner.runner) ? relativeAngle(runner.pos.x, runner.pos.y) : null,
     },
     dt,
   )

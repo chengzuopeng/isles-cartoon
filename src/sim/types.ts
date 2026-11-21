@@ -148,6 +148,7 @@ export interface Player extends Body {
 
 export interface BossShield {
   held: boolean
+  chargeImpact: { target: number; reach: number } | null
   x: number
   y: number
   facing: number

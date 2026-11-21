@@ -341,7 +341,7 @@ export function createCaptainRig(def: BossDef, view: BossBody, kit: CaptainKit):
       root.rotation.set(step * R.sway, 0, -pose.lean + hop * R.hopLean)
       const telegraph = telegraphProgress(def, state, tuning.weapons)
       shine([eye], stunned ? R.eyeStunned : 1 + R.eyeBreath * Math.sin(clock * R.eyeRate) + telegraph * (R.eyeTelegraph - 1))
-      shine([core], 1 + R.coreBreath * Math.sin(clock * R.coreRate) + flash * R.coreFlash)
+      shine([core], (stunned ? 2 : 1) + R.coreBreath * Math.sin(clock * R.coreRate) + flash * R.coreFlash)
       syncShield(state)
       if (state.phase === 'active' && state.move === 'charge' && clock - dustAt >= R.dustGap) {
         dustAt = clock

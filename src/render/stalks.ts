@@ -100,7 +100,7 @@ export interface StalkMaterial {
   update(dt: number): void
 }
 
-export function createStalkMaterial(): StalkMaterial {
+export function createStalkMaterial(partNearCamera = false): StalkMaterial {
   const time = { value: 0 }
   const material = toonMaterial({ vertexColors: true, side: THREE.DoubleSide })
   material.name = 'stalks'
@@ -114,6 +114,7 @@ export function createStalkMaterial(): StalkMaterial {
         `#include <begin_vertex>
 #ifdef USE_INSTANCING
 vec3 stalkRoot = instanceMatrix[3].xyz;
+${partNearCamera ? 'transformed.y *= mix(0.42, 1.0, smoothstep(0.55, 1.65, distance(cameraPosition.xz, stalkRoot.xz)));' : ''}
 float stalkPhase = stalkRoot.x * 0.83 + stalkRoot.z * 0.61;
 float stalkGust = 0.5 + 0.5 * sin(stalkTime * 0.37 + stalkRoot.x * 0.11 + stalkRoot.z * 0.07);
 float stalkBend = position.y * position.y * (${STALK_WIND.sway.toFixed(3)} + ${STALK_WIND.gust.toFixed(3)} * stalkGust * 0.25);
@@ -124,7 +125,7 @@ transformed.z += cos(stalkTime * ${(STALK_WIND.speed * 0.8).toFixed(3)} + stalkP
     previous(shader, renderer)
   }
   const key = material.customProgramCacheKey.bind(material)
-  material.customProgramCacheKey = () => `${key()}|stalks`
+  material.customProgramCacheKey = () => `${key()}|stalks|${partNearCamera}`
   return {
     material,
     update(dt) {

@@ -10,6 +10,7 @@ import { clamp, decay, type Vec2 } from './math'
 import { swingMelee } from './melee'
 import { aggro, emitNoise, playerHidden } from './perception'
 import { BADGE } from '../data/badges'
+import { ALARM } from '../data/alarms'
 import { hasBadge } from './badges'
 import { hasMilestone, refreshStats } from './stats'
 import { playerDisabled, playerSpeedFactor, reelEnemy } from './status'
@@ -30,7 +31,8 @@ export function updatePlayer(world: World, command: PlayerCommand, dt: number): 
   player.pitch = clamp(Number.isFinite(command.pitch) ? command.pitch : 0, -MAX_PITCH, MAX_PITCH)
 
   rechargeDash(world, dt)
-  if (playerHidden(world)) player.bushAt = world.time
+  const hidden = playerHidden(world)
+  if (hidden) player.bushAt = world.time
   player.meleeCooldown = Math.max(0, player.meleeCooldown - dt)
   const free = !playerDisabled(player)
   if (player.grounded) player.airDashes = hasMilestone(world, 'move5') ? MILESTONE.airDashes : 0
@@ -47,7 +49,8 @@ export function updatePlayer(world: World, command: PlayerCommand, dt: number): 
     player.rollTime = Math.max(0, player.rollTime - dt)
   } else {
     const moveLength = Math.hypot(command.moveX, command.moveY)
-    const speed = stats.speed * playerSpeedFactor(player) * (player.stagger > 0 ? tuning.feel.staggerSpeed : 1)
+    const coverSpeed = hidden && world.level.alarms.some((bell) => bell.area === world.areaIndex) ? ALARM.wheatSpeed : 1
+    const speed = stats.speed * coverSpeed * playerSpeedFactor(player) * (player.stagger > 0 ? tuning.feel.staggerSpeed : 1)
     const moveScale = moveLength > 1 ? speed / moveLength : speed
     moveX += command.moveX * moveScale * dt
     moveY += command.moveY * moveScale * dt

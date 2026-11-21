@@ -58,7 +58,7 @@ export interface StoryActorDef {
   facing: Facing
 }
 
-export type ClueSpotDef = { id: ClueId; at: GridPoint } | { id: ClueId; dropBy: 'firstTarget' }
+export type ClueSpotDef = { id: ClueId; at: GridPoint; restHeight?: number } | { id: ClueId; dropBy: 'firstTarget' }
 
 export interface SecretDef extends RegionDef {
   door?: LandmarkId
@@ -86,15 +86,11 @@ export interface AlarmDef {
 export interface ReinforceDef {
   at: readonly GridPoint[]
   enemies: readonly BossSummon[]
-  left: number
-}
-
-export interface RushDef {
-  at: readonly GridPoint[]
-  enemies: readonly BossSummon[]
   variants?: readonly (readonly BossSummon[])[]
   left: number
 }
+
+export type RushDef = ReinforceDef
 
 export interface BladeDef {
   from: GridPoint
@@ -106,7 +102,7 @@ export interface BladeDef {
 
 export type AreaKind = 'normal' | 'lock' | 'boss' | 'destroy'
 
-export type WallStyle = 'hedge' | 'bales' | 'timber'
+export type WallStyle = 'hedge' | 'bales' | 'timber' | 'masonry'
 
 export interface BossTuningDef {
   maxHp?: number

@@ -65,6 +65,7 @@ interface SupplyView {
 }
 
 interface ClueView {
+  resting: boolean
   root: THREE.Group
   paper: THREE.Group
   ring: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>
@@ -411,6 +412,8 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
   }
 
   function buildClue(drop: ClueDrop): ClueView {
+    const spot = world?.level.def.areas[drop.area]?.clues?.find((item) => item.id === drop.clue)
+    const restHeight = spot && 'at' in spot ? spot.restHeight : undefined
     const root = new THREE.Group()
     root.name = 'clue'
     const paper = new THREE.Group()
@@ -423,10 +426,10 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
     const beam = new THREE.Mesh(beamGeometry, glow)
     beam.renderOrder = 2
     root.add(ring, beam)
-    root.position.set(drop.pos.x, world ? floorAt(world.grid, drop.pos.x, drop.pos.y) : 0, drop.pos.y)
+    root.position.set(drop.pos.x, (world ? floorAt(world.grid, drop.pos.x, drop.pos.y) : 0) + (restHeight ?? 0), drop.pos.y)
     layer(root)
     scene.add(root)
-    return { root, paper, ring, sheet, beam: glow, seen: true }
+    return { root, paper, ring, sheet, beam: glow, seen: true, resting: restHeight !== undefined }
   }
 
   function removeClue(view: ClueView): void {
@@ -450,8 +453,13 @@ export function createPickupViews(scene: THREE.Scene, models: ModelLibrary): Pic
       const nearView = !eye || Math.hypot(drop.pos.x - eye.x, drop.pos.y - eye.z) <= LEVEL_CULL.drawDistance
       view.root.visible = nearView
       if (!nearView) continue
-      view.paper.position.y = CLUE_PAPER.float + Math.sin(time * CLUE_PAPER.bobRate + drop.id) * CLUE_PAPER.bob
-      view.paper.rotation.set(-CLUE_PAPER.tilt, Math.sin(time * CLUE_PAPER.swayRate + drop.id) * CLUE_PAPER.sway, 0)
+      if (view.resting) {
+        view.paper.position.y = 0.08
+        view.paper.rotation.set(-Math.PI / 2, -0.14, 0)
+      } else {
+        view.paper.position.y = CLUE_PAPER.float + Math.sin(time * CLUE_PAPER.bobRate + drop.id) * CLUE_PAPER.bob
+        view.paper.rotation.set(-CLUE_PAPER.tilt, Math.sin(time * CLUE_PAPER.swayRate + drop.id) * CLUE_PAPER.sway, 0)
+      }
       view.ring.material.opacity = 0.4 + Math.sin(time * 4 + drop.id) * 0.25
       const near = eye ? clueGlowNear(Math.hypot(eye.x - drop.pos.x, eye.y - view.root.position.y - view.paper.position.y, eye.z - drop.pos.y)) : 1
       const glow = CLUE_PAPER.glowBase + CLUE_PAPER.glowSwing * Math.sin(time * CLUE_PAPER.glowRate)

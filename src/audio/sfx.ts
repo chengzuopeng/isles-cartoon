@@ -348,6 +348,10 @@ export function createSfx(): Sfx {
         break
       case 'bossMove':
         if (event.move === 'charge') tone({ type: 'sawtooth', from: 210, to: 120, duration: 0.45, gain: 0.08 })
+        if (event.move === 'bash') {
+          hiss({ filter: 'highpass', from: 1900, to: 3500, duration: 0.19, gain: 0.1 })
+          tone({ type: 'triangle', from: 350, to: 290, duration: 0.14, gain: 0.09, delay: 0.16 })
+        }
         break
       case 'bossDefeated':
       case 'levelComplete':

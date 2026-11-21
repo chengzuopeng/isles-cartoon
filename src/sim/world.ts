@@ -548,7 +548,7 @@ export function createBoss(world: World, id: string, pos: Vec2, area: number): E
       shotsLeft: 0,
       bombs: def.rack?.size ?? 0,
       rackTimer: 0,
-      shield: def.guard ? { held: true, x: pos.x, y: pos.y, facing: Math.PI / 2, lift: 0 } : null,
+      shield: def.guard ? { held: true, chargeImpact: null, x: pos.x, y: pos.y, facing: Math.PI / 2, lift: 0 } : null,
       ...(def.tread ? { tank: { turret: Math.PI / 2, hatch: false, minesLeft: 0, barrels: 0, reverse: false, lap: 1, retreat: 0 } } : {}),
     },
   }

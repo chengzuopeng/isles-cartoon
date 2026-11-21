@@ -16,7 +16,7 @@ import { spawnPickup } from './pickups'
 import { spawnRing } from './rings'
 import { speedFactor, updateEnemyStatus } from './status'
 import { heightsOverlap, muzzleOf, resolvePlayer, settleWalker } from './terrain'
-import type { BossState, Enemy, TankState } from './types'
+import type { BossShield, BossState, Enemy, TankState } from './types'
 import type { World } from './world'
 
 const DEGREES = Math.PI / 180
@@ -210,6 +210,7 @@ function startMove(world: World, boss: Enemy, state: BossState, def: BossDef, dt
   switch (move) {
     case 'charge':
       aimCharge(world, boss, state, def.charge.telegraph)
+      if (state.shield && def.guard) state.shield.chargeImpact = predictGuardCrash(world, boss, state, def, def.guard, dt)
       if (state.tank) {
         boss.facing = angleBetween(boss.facing + Math.PI, 0)
         state.tank.reverse = true
@@ -411,14 +412,38 @@ function slamRing(world: World, boss: Enemy, def: BossDef): void {
   })
 }
 
-function stepCharge(world: World, boss: Enemy, state: BossState, def: BossDef, dt: number): void {
-  const step = def.charge.speed * dt
+function moveCharge(world: World, boss: Enemy, state: BossState, step: number): number {
   const beforeX = boss.pos.x
   const beforeY = boss.pos.y
   boss.pos.x += state.chargeX * step
   boss.pos.y += state.chargeY * step
   settleWalker(world, boss)
-  const moved = Math.hypot(boss.pos.x - beforeX, boss.pos.y - beforeY)
+  return Math.hypot(boss.pos.x - beforeX, boss.pos.y - beforeY)
+}
+
+// Predict once when the direction locks, using the same swept steps and impact lookup as the attack.
+function predictGuardCrash(world: World, boss: Enemy, state: BossState, def: BossDef, guard: GuardDef, dt: number): BossShield['chargeImpact'] {
+  const probe = { ...boss, pos: { ...boss.pos } }
+  const step = def.charge.speed * dt
+  if (step <= 0) return null
+  let travelled = 0
+  while (travelled < def.charge.distance) {
+    const moved = moveCharge(world, probe, state, step)
+    if (moved < step * 0.5) {
+      const index = crashedInto(world, probe, state, guard.crashInto)
+      return {
+        target: index >= 0 && world.landmarks[index].crashes < guard.crashStuns ? index : -1,
+        reach: Math.min(def.charge.distance, travelled + moved + boss.radius),
+      }
+    }
+    travelled += moved
+  }
+  return null
+}
+
+function stepCharge(world: World, boss: Enemy, state: BossState, def: BossDef, dt: number): void {
+  const step = def.charge.speed * dt
+  const moved = moveCharge(world, boss, state, step)
   state.chargeTraveled += moved
   const { player } = world
   if (!state.chargeHit && player.alive && heightsOverlap(world, boss)) {

@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { getBoss, type BossDef } from '../data/bosses'
+import { LANDMARKS } from '../data/landmarks'
 import type { Tuning } from '../data/tuning'
 import type { WeaponId } from '../data/weapons'
 import { tripleLanes } from '../sim/boss'
@@ -363,6 +364,7 @@ export function createEntityViews(
   const crashGeometry = new THREE.CylinderGeometry(1, 1, 1, 28, 1, true).translate(0, 0.5, 0)
   const crashMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(CRASH_MARK.color).multiplyScalar(1.4), map: curtainGradient(), transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
   const crashMark = new THREE.Mesh(crashGeometry, crashMaterial)
+  crashMark.name = 'charge-impact'
   crashMark.visible = false
   crashMark.userData.noInk = true
   crashMark.renderOrder = 2
@@ -1110,17 +1112,28 @@ export function createEntityViews(
     if (view.telegraph && def.tread) view.telegraph.rotation.y = -(Math.atan2(state.chargeY, state.chargeX) - enemy.facing)
     if (chargeTelegraph && view.fill) {
       const total = state.move === 'frenzy' ? 0.45 : def.charge.telegraph
-      view.fill.scale.x = Math.max(0.01, def.charge.distance * clamp(1 - state.timer / total, 0, 1))
+      const reach = state.shield?.chargeImpact?.reach ?? def.charge.distance
+      if (state.shield && view.telegraph) {
+        view.telegraph.children[0].scale.x = reach
+        stretchCurtains(view.telegraph, reach)
+      }
+      view.fill.scale.x = Math.max(0.01, reach * clamp(1 - state.timer / total, 0, 1))
     }
-    const crash = chargeTelegraph && !def.tread ? crashTarget(world.grid, enemy.pos.x, enemy.pos.y, state.chargeX, state.chargeY, def.charge.distance, enemy.radius) : null
+    const target = state.shield?.chargeImpact?.target ?? -1
+    const silo = chargeTelegraph && target >= 0 ? world.level.landmarks[target] : undefined
+    const crash = chargeTelegraph && !def.tread && !def.guard ? crashTarget(world.grid, enemy.pos.x, enemy.pos.y, state.chargeX, state.chargeY, def.charge.distance, enemy.radius) : null
     const marked = crash !== null && (crash.tile === Tile.Rock || crash.tile === Tile.Boulder)
-    crashMark.visible = marked
-    if (crash && marked) {
+    crashMark.visible = marked || Boolean(silo)
+    if (silo) {
+      const floor = cellFloor(world.grid, silo.column, silo.row)
+      crashMark.position.set(silo.column + silo.width / 2, floor, silo.row + silo.depth / 2)
+      crashMark.scale.set(silo.width * 0.56, LANDMARKS[silo.id].height, silo.depth * 0.56)
+    } else if (crash && marked) {
       const floor = cellFloor(world.grid, crash.column, crash.row)
       crashMark.position.set(crash.column + 0.5, floor, crash.row + 0.5)
       crashMark.scale.set(CRASH_MARK.radius, Math.max(1, cellTop(world.grid, crash.column, crash.row) - floor) + 0.6, CRASH_MARK.radius)
-      crashMaterial.opacity = 0.55 + 0.45 * Math.abs(Math.sin(clock * CRASH_MARK.pulse))
     }
+    if (crashMark.visible) crashMaterial.opacity = 0.55 + 0.45 * Math.abs(Math.sin(clock * CRASH_MARK.pulse))
     const fanTelegraph = state.phase === 'telegraph' && state.move === 'fan'
     if (view.fan && def.fan) {
       view.fan.visible = fanTelegraph
@@ -1279,6 +1292,7 @@ export function createEntityViews(
 
   function syncEnemies(world: World, alpha: number, dt: number): void {
     for (const view of enemyViews.values()) view.seen = false
+    crashMark.visible = false
     blobs.begin()
     for (const enemy of world.enemies) {
       if (enemy.hp <= 0) continue

@@ -729,8 +729,10 @@ describe('level 1-3', () => {
     expect(validateLevel(level)).toEqual([])
   })
 
-  it('stacks the five areas of the design, 40 wide, with a lock fight and a boss yard, after 1-2', () => {
-    expect(columns).toBe(40)
+  it('stacks the five first-person areas from the village to the silo yard, after 1-2', () => {
+    expect(LEVEL_1_3.firstPerson).toBe(true)
+    expect([columns, level.grid.rows]).toEqual([60, 204])
+    expect(level.areas.map((area) => area.bottom - area.top)).toEqual([42, 54, 40, 28, 40])
     expect(level.areas.map((area) => area.name)).toEqual(['村口废墟', '麦垛潜行段', '农舍院子', '粮仓办公室', '粮仓大院'])
     expect(level.areas.map((area) => area.theme)).toEqual(['village', 'farm', 'farm', 'village', 'arena'])
     expect(level.areas.map((area) => area.kind)).toEqual(['normal', 'normal', 'lock', 'normal', 'boss'])
@@ -751,19 +753,33 @@ describe('level 1-3', () => {
     expect(kinds(3)).toEqual([])
   })
 
-  it('narrows the village to a 2-wide alley guarded by the shield bearer, with a 1-wide lane on each side', () => {
+  it('opens a three-metre central alley and two three-metre flanking lanes', () => {
     const village = level.areas[0]
-    const barricade = village.top + 10
+    const barricade = village.top + 17
     const open: number[] = []
     for (let column = 1; column < columns - 1; column++) if (!blocksMovement(tileAt(level.grid, column, barricade))) open.push(column)
-    expect(open).toEqual([12, 19, 20, 27])
+    expect(open).toEqual([18, 19, 20, 28, 29, 30, 38, 39, 40])
     const guard = level.enemies.find((enemy) => enemy.area === 0 && enemy.kind === 'shield')!
-    expect(Math.floor(guard.y)).toBe(village.top + 7)
-    expect(Math.floor(guard.x)).toBeGreaterThanOrEqual(19)
-    expect(Math.floor(guard.x)).toBeLessThanOrEqual(20)
+    expect(Math.floor(guard.y)).toBe(village.top + 14)
+    expect(Math.floor(guard.x)).toBe(29)
     expect(placed('ch1-ruined-wall').length).toBeGreaterThanOrEqual(20)
     expect(placed('ch1-ruined-wall').length).toBeLessThanOrEqual(30)
     expect(placed('ch1-ruined-wall').every((wall) => wall.area === 0)).toBe(true)
+  })
+
+  it('shows both wheat lanes from the lookout and both raised shooters from the yard gate', () => {
+    const grid = level.grid
+    const point = (x: number, y: number, lift: number) => ({ x, y, z: cellFloor(grid, Math.floor(x), Math.floor(y)) + lift })
+    const lookout = point(35.5, 156.5, 1.5)
+    expect(lookout.z).toBe(4)
+    for (const target of [point(17, 148, 1), point(44, 140, 1), point(29.5, 120.2, 5)]) {
+      expect(lineClear(grid, lookout, target)).toBe(true)
+    }
+    const entry = point(44.5, 105.5, 1.5)
+    for (const shooter of level.enemies.filter((enemy) => enemy.area === 2 && enemy.kind === 'gunner')) {
+      expect(cellFloor(grid, Math.floor(shooter.x), Math.floor(shooter.y))).toBe(1)
+      expect(lineClear(grid, entry, point(shooter.x, shooter.y, eyeHeightOf('gunner')))).toBe(true)
+    }
   })
 
   it('hides a chest in the east column of the half-fallen smithy', () => {
@@ -781,7 +797,7 @@ describe('level 1-3', () => {
     for (const stack of wheat) expect(level.grid.tiles[stack.row * columns + stack.column]).toBe(Tile.Bush)
     const [tower] = placed('ch1-bell-tower')
     expect(tower.area).toBe(1)
-    expect(tower.row).toBeLessThan(level.areas[1].top + 5)
+    expect(tower.row - level.areas[1].top).toBeLessThan(15)
     expect(Math.abs(tower.column + tower.width / 2 - columns / 2)).toBeLessThanOrEqual(1)
     expect(level.alarms).toEqual([{ area: 1, landmark: level.landmarks.indexOf(tower), post: { x: tower.column + 1.5, y: tower.row + tower.depth + 0.5 } }])
     const weapon = level.chests.find((item) => item.tier === 'weapon')!

@@ -7,6 +7,7 @@ import { aggro } from './perception'
 import { stationary } from './enemies/registry'
 import type { AlarmState, Enemy } from './types'
 import type { World } from './world'
+import { promoteOne, waveRecipe } from './wave-recipe'
 
 export function createAlarmStates(level: BuiltLevel): AlarmState[] {
   return level.alarms.map((alarm) => ({ status: 'quiet', runner: null, pos: { x: alarm.post.x, y: alarm.post.y }, pulling: 0, runners: 0 }))
@@ -104,8 +105,9 @@ export function callReinforcements(world: World, area: number): number {
       world.enemies.filter((enemy) => enemy.area === area && enemy.hp > 0).length + world.spawns.filter((marker) => marker.area === area).length
     if (standing > squad.left) return
     world.reinforced[index] = true
+    const first = world.spawns.length
     let slot = 0
-    for (const wave of squad.enemies) {
+    for (const wave of waveRecipe(world, squad)) {
       for (let i = 0; i < Math.max(0, Math.round(wave.count)); i++) {
         const point = squad.points[slot++ % squad.points.length]
         world.spawns.push({
@@ -120,6 +122,7 @@ export function callReinforcements(world: World, area: number): number {
         called += 1
       }
     }
+    if (squad.variants.length > 1 && world.eliteChance > 0) promoteOne(world, world.spawns.slice(first))
   })
   if (called > 0) world.events.push({ type: 'reinforcements', area, count: called })
   return called

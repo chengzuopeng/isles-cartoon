@@ -46,7 +46,7 @@ function state(patch: Partial<BossState> = {}): BossState {
     shotsLeft: 0,
     bombs: 0,
     rackTimer: 0,
-    shield: { held: true, x: 0, y: 0, facing: 0, lift: 0 },
+    shield: { held: true, chargeImpact: null, x: 0, y: 0, facing: 0, lift: 0 },
     ...patch,
   }
 }
@@ -104,7 +104,7 @@ describe('shield captain poses', () => {
   })
 
   it('slumps without the shield while stunned and bends down to pick it up afterwards', () => {
-    const dropped = { held: false, x: 1, y: 1, facing: 0, lift: 0 }
+    const dropped = { held: false, chargeImpact: null, x: 1, y: 1, facing: 0, lift: 0 }
     const stunned = captainPose(DEF, state({ phase: 'stunned', shield: dropped }), WEAPONS)
     expect(stunned.bend).toBeGreaterThan(0)
     expect(stunned.reach).toBe(0)

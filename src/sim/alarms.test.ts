@@ -7,6 +7,7 @@ import { createDefaultTuning } from '../data/tuning'
 import { alarmRaised, raiseAlarm } from './alarms'
 import { raiseAlarms } from './cheats'
 import { killEnemy } from './combat'
+import { Tile, tileAt } from './grid'
 import { buildLevel, validateLevel } from './level'
 import { aggro, canSeePlayer, playerHidden, sightOf } from './perception'
 import { challengeTotal, challengesOf } from './rating'
@@ -191,6 +192,10 @@ describe('the alarm bell', () => {
     const events = run(world, DT * 2)
     expect(events.some((event) => event.type === 'reinforcements')).toBe(false)
     expect(world.areas[2].status).toBe('cleared')
+    raiseAlarms(world)
+    expect(run(world, DT).some((event) => event.type === 'reinforcements')).toBe(false)
+    expect(world.reinforced).toEqual([false])
+    expect(world.areas[2].status).toBe('cleared')
   })
 
   it('still calls the second wave when the bell rings after the lock fight has started', () => {
@@ -223,6 +228,20 @@ describe('the alarm outside 1-3', () => {
 describe('stealth in 1-3', () => {
   const level = buildLevel(LEVEL_1_3)
 
+  it('lets every field guard reach the bell from its post and every patrol turn', () => {
+    for (const guard of level.enemies.filter((enemy) => enemy.area === 1)) {
+      for (const point of guard.route.length ? guard.route : [guard]) {
+        const world = createWorld(level, createDefaultTuning())
+        const runner = world.enemies.find((enemy) => enemy.pos.x === guard.x && enemy.pos.y === guard.y)!
+        runner.pos = { x: point.x, y: point.y }
+        runner.prev = { ...runner.pos }
+        aggro(world, runner, 0)
+        for (let step = 0; step < 15 / DT && !alarmRaised(world); step++) stepWorld(world, idle(), DT)
+        expect(alarmRaised(world), `${runner.kind} from ${point.x},${point.y}`).toBe(true)
+      }
+    }
+  })
+
   it('adds the stealth challenge, done only when the run clears with the bell silent', () => {
     expect(challengeTotal(level)).toBe(4)
     const world = createWorld(level, createDefaultTuning())
@@ -237,11 +256,13 @@ describe('stealth in 1-3', () => {
     expect(challengesOf(unfinished).find((item) => item.id === 'stealth')?.done).toBe(false)
   })
 
-  it('hides the player inside a wheat stack from a patrol more than 1.8 cells away', () => {
+  it('shortens guard sight to 2.9 metres in the wheat and restores it across its edge', () => {
     const world = createWorld(level, createDefaultTuning())
-    const stack = level.landmarks.find((landmark) => landmark.id === 'ch1-wheat-stack' && landmark.area === 1 && landmark.column === 16 && landmark.row === level.areas[1].top + 22)!
+    const stack = level.landmarks.find((landmark) => landmark.id === 'ch1-wheat-stack' && landmark.area === 1)!
     const patrol = world.enemies.find((enemy) => enemy.area === 1 && enemy.kind === 'grunt')!
-    const x = stack.column + 0.5
+    let edge = stack.column
+    while (tileAt(world.grid, edge + 1, stack.row) === Tile.Bush) edge++
+    const x = edge + 0.5
     const y = stack.row + 0.5
     place(world, x, y)
     expect(playerHidden(world)).toBe(true)

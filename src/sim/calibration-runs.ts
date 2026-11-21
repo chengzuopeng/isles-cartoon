@@ -145,7 +145,7 @@ export function afterOutskirts(): Loadout {
 }
 
 export function afterPasture(): Loadout {
-  return createLoadout({ brawl: 1, gun: 1 }, [{ slot: 'q', id: 'barrier', rank: 1 }])
+  return createLoadout({ brawl: 1, gun: 1 }, [{ slot: 'q', id: 'barrier', rank: 1 }], 'smg', ['fuse'])
 }
 
 export function playFarm(skill: AutopilotSkillId, seed: number, bell: BellMode): FarmRun {

@@ -14,6 +14,7 @@ export interface OverlayState {
   locked: boolean
   barrier: boolean
   sneak: boolean
+  runnerBearing: number | null
 }
 
 export interface FpsOverlay {
@@ -48,6 +49,10 @@ export function createFpsOverlay(container: HTMLElement, scene: HTMLElement): Fp
   const kill = element('div', 'fps-kill', root, '×')
   const sneak = element('div', 'fps-sneak', root, '砸！')
   const arcs = element('div', 'fps-arcs', root)
+  const runner = element('div', 'fps-runner', root)
+  runner.hidden = true
+  const runnerArrow = element('span', '', runner, '▲')
+  element('span', '', runner, '跑钟')
   const panel = element('div', 'fps-health', root)
   const hpTrack = element('div', 'fps-hp-track', panel)
   const hpFill = element('div', 'fps-hp-fill', hpTrack)
@@ -97,6 +102,12 @@ export function createFpsOverlay(container: HTMLElement, scene: HTMLElement): Fp
       under.classList.toggle('hidden', !state.playing)
       cross.classList.toggle('dim', !state.alive)
       sneak.classList.toggle('on', state.sneak && state.alive)
+      const bearing = state.alive ? state.runnerBearing : null
+      runner.hidden = bearing === null
+      if (bearing !== null) {
+        syncStyle(runner, 'transform', `translate(-50%, -50%) translate(${(96 * Math.sin(bearing)).toFixed(1)}px, ${(-84 * Math.cos(bearing)).toFixed(1)}px)`)
+        syncStyle(runnerArrow, 'transform', `rotate(${bearing.toFixed(3)}rad)`)
+      }
       markerTime = Math.max(0, markerTime - dt)
       killTime = Math.max(0, killTime - dt)
       syncStyle(marker, 'opacity', markerTime > 0 ? '1' : '0')

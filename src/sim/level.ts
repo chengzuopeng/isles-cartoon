@@ -95,12 +95,7 @@ export interface AlarmPlacement {
   post: Vec2
 }
 
-export interface RushPlacement {
-  area: number
-  points: Vec2[]
-  enemies: BossSummon[]
-  variants: BossSummon[][]
-  left: number
+export interface RushPlacement extends ReinforcePlacement {
   standing: number
 }
 
@@ -108,6 +103,7 @@ export interface ReinforcePlacement {
   area: number
   points: Vec2[]
   enemies: BossSummon[]
+  variants: BossSummon[][]
   left: number
 }
 
@@ -384,6 +380,7 @@ export function buildLevel(def: LevelDef): BuiltLevel {
         area: index,
         points: area.reinforce.at.map(local),
         enemies: area.reinforce.enemies.map((squad) => ({ ...squad })),
+        variants: [area.reinforce.enemies, ...(area.reinforce.variants ?? [])].map((recipe) => recipe.map((squad) => ({ ...squad }))),
         left: area.reinforce.left,
       })
     }

@@ -33,8 +33,9 @@ export function isModelId(id: string): id is ModelId {
 
 export function levelEnemyKinds(level: BuiltLevel): MinionKind[] {
   const kinds = new Set<MinionKind>(level.enemies.map((enemy) => enemy.kind))
-  for (const reinforcement of level.reinforcements) for (const summon of reinforcement.enemies) kinds.add(summon.kind)
-  for (const rush of level.rushes) for (const recipe of rush.variants) for (const squad of recipe) kinds.add(squad.kind)
+  for (const wave of [...level.reinforcements, ...level.rushes]) {
+    for (const recipe of wave.variants) for (const squad of recipe) kinds.add(squad.kind)
+  }
   const boss = level.boss ? BOSSES[level.boss.id] : undefined
   if (boss) {
     for (const summon of boss.summon) kinds.add(summon.kind)

@@ -156,6 +156,24 @@ export const BUILDING_STYLES: Readonly<Record<BuildingKind, BuildingStyle>> = {
     bales: false,
     fixedDoors: false,
   },
+  office: {
+    wall: '#a17e61',
+    inside: '#b3976e',
+    trim: '#5a5047',
+    roof: '#68736d',
+    door: '#827052',
+    hay: '#ddbd73',
+    wallTexture: 'wood',
+    roofTexture: 'metal',
+    wallHeight: 3,
+    wallThickness: 1,
+    doorHeight: 2.4,
+    pitch: 0.44,
+    overhang: 0.55,
+    roofThickness: 0.14,
+    bales: false,
+    fixedDoors: false,
+  },
 }
 
 type Axis = 'x' | 'y' | 'z'
@@ -269,9 +287,13 @@ export interface Building {
   dispose(): void
 }
 
+export function hasHouseFloor(kind: BuildingKind | undefined): boolean {
+  return kind === 'workshop' || kind === 'weighhouse' || kind === 'tool-shed' || kind === 'office'
+}
+
 export function buildBuilding(kind: BuildingKind, placement: Pick<LandmarkPlacement, 'column' | 'row' | 'width' | 'depth' | 'mask'>, floor: number): Building {
   const style = BUILDING_STYLES[kind]
-  const house = kind === 'workshop' || kind === 'weighhouse' || kind === 'tool-shed'
+  const house = hasHouseFloor(kind)
   const fullCellWall = house || kind === 'barn'
   const group = new THREE.Group()
   group.name = `building-${kind}`
@@ -467,6 +489,12 @@ export function buildBuilding(kind: BuildingKind, placement: Pick<LandmarkPlacem
       box(inner, armX + 0.18, 2.67, row + 3.42, 0.055, 0.42, 0.055)
       box(fittings, armX + 0.08, 2.44, row + 3.32, 0.26, 0.28, 0.25)
       box(fittings, column + 3.1, 0.97, row + 0.98, 0.33, 0.51, 0.16)
+    } else if (kind === 'office') {
+      // The manifest rests on the north-wall desk.
+      box(floorboards, column + 2.4, 0.86, row + 1.1, 2.9, 0.13, 0.85)
+      for (const x of [2.5, 5.05]) box(inner, column + x, 0, row + 1.15, 0.14, 0.86, 0.62)
+      box(lanterns, column + 4.7, 1, row + 1.26, 0.16, 0.28, 0.16)
+      lightPool(column + 3.65, row + 1.55, 1.05, floor + 1)
     } else {
       const x = column + width - 1.55
       const z = row + depth

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { LEVEL_1_1 } from '../data/levels/level-1-1'
 import { LEVEL_1_2 } from '../data/levels/level-1-2'
+import { LEVEL_1_3 } from '../data/levels/level-1-3'
 import { RUSH_VARIETY } from '../data/levels/rules'
 import type { DifficultyId } from '../data/difficulty'
 import { createDefaultTuning } from '../data/tuning'
+import { callReinforcements, raiseAlarm } from './alarms'
 import { buildLevel } from './level'
 import { createProfile, nextSeed, sanitizeProfile, seedOf, variedRun } from './profile'
 import { idleCommand, stepWorld } from './step'
@@ -124,6 +126,26 @@ describe('rush recipes', () => {
         }
       }
     }
+  })
+})
+
+describe('the farm alarm reinforcements', () => {
+  it('varies one four-enemy wave on replays and keeps a quiet courtyard free of reinforcements', () => {
+    const level = buildLevel(LEVEL_1_3)
+    const recipes = new Set<string>()
+    for (let seed = 1; seed <= 24; seed++) {
+      const world = createWorld(level, createDefaultTuning(), { seed, varied: true })
+      world.eliteChance = 1
+      world.areas[2].status = 'locked'
+      for (const enemy of world.enemies) if (enemy.area === 2) enemy.hp = 0
+      expect(callReinforcements(world, 2)).toBe(0)
+      raiseAlarm(world)
+      expect(world.spawns).toHaveLength(4)
+      expect(world.spawns.filter((marker) => marker.affixes?.length)).toHaveLength(1)
+      recipes.add(world.spawns.map((marker) => marker.kind).sort().join(','))
+      expect(callReinforcements(world, 2)).toBe(0)
+    }
+    expect(recipes).toEqual(new Set(['grunt,grunt,shield,shield', 'grunt,grunt,grunt,shield', 'grunt,grunt,gunner,shield']))
   })
 })
 

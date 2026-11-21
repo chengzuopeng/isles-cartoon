@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { getBoss, type BossMoveId } from '../data/bosses'
+import { LEVEL_1_3 } from '../data/levels/level-1-3'
 import { createDefaultTuning } from '../data/tuning'
 import { attackLabel } from '../ui/attack-names'
 import { backScale, bossBlocks } from './boss'
 import { killEnemy, spawnBlast } from './combat'
+import { buildLevel } from './level'
 import { spawnBullet } from './projectiles'
 import { stepWorld } from './step'
 import { levelFromAreas } from './testing'
@@ -50,6 +52,40 @@ const YARD = levelFromAreas(
 
 const TOP = YARD.areas[1].top
 const SILO = YARD.landmarks.findIndex((landmark) => landmark.id === 'ch1-silo')
+
+describe('the four silos in the playable farm', () => {
+  const level = buildLevel(LEVEL_1_3)
+  const silos = level.landmarks.filter((placement) => placement.id === 'ch1-silo')
+  it.each(silos)('predicts charge contact and spends both stuns at $column,$row', (silo) => {
+    const world = createWorld(level, createDefaultTuning(), { debug: { invincible: true } })
+    const index = level.landmarks.indexOf(silo)
+    const x = silo.column + silo.width / 2
+    const front = silo.row + silo.depth
+    place(world, x, front + 1.7)
+    run(world, DT)
+    for (const remaining of [2, 1, 0]) {
+      place(world, x, front + 1.7)
+      const boss = put(world, x, front + 6.5, -Math.PI / 2)
+      force(world, 'charge')
+      untilPhase(world, 'telegraph')
+      const start = boss.pos.y
+      const warning = boss.boss!.shield!.chargeImpact
+      expect(warning?.target).toBe(remaining ? index : -1)
+      const events = untilPhase(world, remaining ? 'stunned' : 'recover')
+      expect(events.some((event) => event.type === 'bossCrash')).toBe(true)
+      expect(events).toContainEqual(expect.objectContaining({ type: 'landmarkCrashed', index, left: Math.max(0, remaining - 1) }))
+      expect(warning!.reach).toBeCloseTo(start - boss.pos.y + boss.radius, 1)
+      if (remaining) {
+        expect(boss.boss!.shield!.held).toBe(false)
+        untilPhase(world, 'walk')
+      } else {
+        expect(events.some((event) => event.type === 'bossStunned')).toBe(false)
+        expect(world.landmarks[index].crashes).toBe(3)
+      }
+      expect(boss.boss!.shield!.held).toBe(true)
+    }
+  })
+})
 
 function idle(): PlayerCommand {
   return { moveX: 0, moveY: 0, aimX: 8.5, aimY: 0, fire: false, slot: null, interact: false, skill: null, ultimate: false, pitch: 0, jump: false, dash: false, melee: false }
@@ -194,6 +230,8 @@ describe('the shield captain', () => {
     place(world, 8.5, TOP + 12.5)
     const boss = put(world, 8.5, TOP + 3.5, Math.PI / 2)
     force(world, 'charge')
+    untilPhase(world, 'telegraph')
+    expect(boss.boss!.shield!.chargeImpact?.target).toBe(SILO)
     const events = untilPhase(world, 'stunned', 4)
     expect(events.filter((event) => event.type === 'landmarkCrashed')).toEqual([
       { type: 'landmarkCrashed', index: SILO, id: 'ch1-silo', x: 8.5, y: TOP + 10.5, crashes: 1, left: GUARD.crashStuns - 1 },
@@ -236,6 +274,8 @@ describe('the shield captain', () => {
     place(world, 8.5, TOP + 12.5)
     const boss = put(world, 8.5, TOP + 3.5, Math.PI / 2)
     force(world, 'charge')
+    untilPhase(world, 'telegraph')
+    expect(boss.boss!.shield!.chargeImpact?.target).toBe(-1)
     const events = untilPhase(world, 'recover', 4)
     expect(events.filter((event) => event.type === 'landmarkCrashed')).toEqual([
       expect.objectContaining({ crashes: GUARD.crashStuns + 1, left: 0 }),

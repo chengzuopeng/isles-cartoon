@@ -8,19 +8,22 @@ import type { World } from '../sim/world'
 import type { ModelId } from './asset-urls'
 import { lineTexture, type LineTextureKind } from './line-textures'
 import { SHADOW_RULES, type ModelLibrary } from './model-library'
-import { buildBuilding } from './buildings'
+import { buildBuilding, hasHouseFloor } from './buildings'
 import { buildCover } from './cover-props'
 import { barnPartAt, buildLevelStructures } from './level-buildings'
 import { buildLevelPlatforms, framedPlatformCells } from './level-platforms'
 import { buildTerrain, createTerrainMaterials, platformSurfaceOf, surfaceHeight, terrainChunks } from './fps-terrain'
 import { STALK_STYLES, createStalkMaterial, stalkGeometry, stalkMatrices } from './stalks'
 import { createStoryActors } from './story-actors'
+import { createFarmLandmarks } from './farm-landmarks'
+import type { Effects } from './effects'
 import { flowerBatches, flowerHeadGeometry, flowerStemGeometry, hedgeTopBatches, hedgeTopGeometry, pebbleBatches, pebbleGeometry, spikeBatches, spikeGeometry, type DetailBatch, type WallEdge } from './ground-details'
 import { hiddenTops, treeDepths, treeLook } from './level-cover'
 import { bakeNode, mergeJoints, mergeStill, ownMeshes, type NodePart } from './node-parts'
 import {
   BACKDROP_THEMES,
   PROP_MODELS,
+  alarmNodes,
   bridgeAt,
   cellHash,
   facingYaw,
@@ -92,6 +95,7 @@ const WALL_STYLES: Readonly<Record<WallStyle, { color: string; texture: LineText
   hedge: { color: '#5a9440', texture: 'grass' },
   bales: { color: '#d4ab68', texture: 'bales' },
   timber: { color: '#a47956', texture: 'wood' },
+  masonry: { color: '#96816e', texture: 'stone' },
 }
 
 const TILE_PROPS: Readonly<Partial<Record<Tile, PropKind>>> = {
@@ -320,7 +324,7 @@ const BACKDROP = {
 } as const
 const TUFT = { base: 0.74, tip: 1.12, tint: 0.92, tintSpread: 0.2, denseShare: 0.35, dense: 3, sparse: 2 } as const
 
-export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): FpsLevelView {
+export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary, effects?: Effects): FpsLevelView {
   const { grid } = level
   const group = new THREE.Group()
   group.name = 'level'
@@ -329,8 +333,14 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   const ashMaterial = toonMaterial({ color: ASH.color })
   disposables.push(ashGeometry, ashMaterial)
   const has = (id: string) => models.has(id)
+  const farm = level.def.id === '1-3' ? createFarmLandmarks(level, models, effects) : null
 
   const culled: { object: THREE.Object3D; near: number; far: number }[] = []
+  if (farm) {
+    group.add(farm.exit)
+    culled.push({ object: farm.exit, near: -21, far: 0 })
+    disposables.push(farm)
+  }
   const band = (row: number) => Math.floor(row / LEVEL_CULL.chunkRows)
   const bandRange = (index: number) => ({ near: index * LEVEL_CULL.chunkRows, far: (index + 1) * LEVEL_CULL.chunkRows })
   const framed = framedPlatformCells(level)
@@ -452,7 +462,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   const houseCells = new Set<number>()
   for (const { id, column, row, depth, width } of level.landmarks) {
     const kind = LANDMARKS[id].building
-    if (kind !== 'workshop' && kind !== 'weighhouse' && kind !== 'tool-shed') continue
+    if (!hasHouseFloor(kind)) continue
     for (let r = row; r < row + depth; r++) {
       for (let c = column; c < column + width; c++) houseCells.add(r * grid.columns + c)
     }
@@ -493,6 +503,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
         })
       }
       if (tile === Tile.Fence || (tile === Tile.Wall && border)) {
+        if (farm && row === 0 && tileAt(grid, column, 1) === Tile.Exit) continue
         if (border && fenceUnseen(column, row)) continue
         place('fence-post', fenceParts.post, x, floor, z, 0, 1.15, fenceScale, 1.15, false)
         const links = linksOf(grid, column, row, border ? borderJoins(column, row) : fenceJoins)
@@ -554,10 +565,11 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       const kind = TILE_PROPS[tile]
       if (!kind) continue
       if (hidden[row * grid.columns + column] === 1) continue
-      const stalks = kind === 'bush' ? STALK_STYLES[theme] : undefined
+      const stalkTheme = farm && theme === 'village' ? 'farm' : theme
+      const stalks = kind === 'bush' ? STALK_STYLES[stalkTheme] : undefined
       if (stalks) {
-        const key = `${theme}#${band(row)}`
-        const list = stalkSpots.get(key) ?? { theme, band: band(row), matrices: [] }
+        const key = `${stalkTheme}#${band(row)}`
+        const list = stalkSpots.get(key) ?? { theme: stalkTheme, band: band(row), matrices: [] }
         list.matrices.push(...stalkMatrices(column, row, terrain.heightAt, stalks))
         stalkSpots.set(key, list)
         continue
@@ -585,6 +597,14 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     }
   }
 
+  for (const placement of level.landmarks) {
+    if (placement.id !== 'ch1-ruined-wall') continue
+    const id = landmarkModel(has, placement.id, placement.variant)
+    if (!id) continue
+    const { column, row } = placement
+    const floor = cellFloor(grid, column, row)
+    place(id, models.parts(id as ModelId), column + 0.5, floor, row + 0.5, landmarkYaw(placement.id, placement.facing, column, row), 1, 1, 1, true)
+  }
   const batchMeshes = new Map<string, THREE.InstancedMesh[]>()
   const partShadow = (material: THREE.Material) => !(material.transparent || material.alphaTest > 0 || SHADOW_RULES.materials.test(material.name))
   for (const [key, batch] of batches) {
@@ -605,7 +625,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     }
   }
 
-  const stalkMaterial = createStalkMaterial()
+  const stalkMaterial = createStalkMaterial(farm !== null)
   const stalkGeometries = new Map<Theme, THREE.BufferGeometry>()
   disposables.push(stalkMaterial.material)
   for (const spot of stalkSpots.values()) {
@@ -709,7 +729,8 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   const exitGeometry = new THREE.CylinderGeometry(0.32, 0.42, 4.5, 20, 1, true)
   disposables.push(exitMaterial, exitGeometry)
   const exits: THREE.Mesh[] = []
-  for (const index of level.exits) {
+  // The farm marks its forest gate on the ground so the track stays visible through it.
+  for (const index of farm ? [] : level.exits) {
     const column = index % grid.columns
     const row = Math.floor(index / grid.columns)
     const beam = new THREE.Mesh(exitGeometry, exitMaterial)
@@ -720,7 +741,9 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
   }
 
   const motions: Motion[] = []
-  for (const placement of level.landmarks) {
+  for (const [index, placement] of level.landmarks.entries()) {
+    // Hiding landmarks already stamp the wheat cells rendered in the stalk batches.
+    if (placement.id === 'ch1-ruined-wall' || (farm && placement.id === 'ch1-wheat-stack')) continue
     const kind = LANDMARKS[placement.id].building
     if (kind) {
       const building = buildBuilding(kind, placement, cellFloor(grid, placement.column, placement.row))
@@ -734,6 +757,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     const instance = models.instance(id as ModelId)
     const motionList = LANDMARKS[placement.id].motion ?? []
     const joints = motionList.map((motion) => motion.node)
+    if (farm) joints.push(...alarmNodes(placement.id), ...(LANDMARKS[placement.id].opens ?? []))
     const merged = mergeJoints(instance.root, joints)
     toonify(instance.root)
     instance.root.name = `landmark:${placement.id}`
@@ -746,6 +770,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
     })
     group.add(instance.root)
     disposables.push(instance, ...merged.owned)
+    farm?.bind(index, instance)
     if (!SKYLINE_LANDMARKS.has(placement.id)) {
       culled.push({ object: instance.root, near: placement.row - 2, far: placement.row + placement.depth + 2 })
     }
@@ -771,6 +796,7 @@ export function createFpsLevelView(level: BuiltLevel, models: ModelLibrary): Fps
       stalkMaterial.update(dt)
       const z = eye ? eye.z : world.player.pos.y
       for (const item of culled) item.object.visible = item.far >= z - LEVEL_CULL.drawDistance && item.near <= z + LEVEL_CULL.drawDistance
+      farm?.update(world, dt, time)
       for (const entry of motions) {
         turn.setFromAxisAngle(entry.axis, motionAngle(entry.motion, time))
         entry.node.quaternion.copy(entry.rest).multiply(turn)

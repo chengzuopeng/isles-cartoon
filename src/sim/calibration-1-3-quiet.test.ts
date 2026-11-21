@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { AUTOPILOT_SKILL_ORDER } from '../data/autopilot'
-import { farmSummary, playFarm, SEEDS, table, type FarmRun } from './calibration-runs'
+import { clearsOf, farmSummary, playFarm, SEEDS, table, type FarmRun } from './calibration-runs'
 
 describe('calibrating level 1-3 with the alarms kept quiet', () => {
   let quiet: FarmRun[] = []
@@ -23,5 +23,11 @@ describe('calibrating level 1-3 with the alarms kept quiet', () => {
 
   it('names the attack behind every death', () => {
     for (const run of quiet.filter((item) => item.status === 'dead')) expect(run.killedBy).not.toBe('')
+  })
+
+  it('keeps the quiet courtyard accessible to each skill profile', () => {
+    expect(clearsOf(quiet, 'perfect')).toBeGreaterThanOrEqual(9)
+    expect(clearsOf(quiet, 'human')).toBeGreaterThanOrEqual(9)
+    expect(clearsOf(quiet, 'novice')).toBeGreaterThanOrEqual(8)
   })
 })

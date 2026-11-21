@@ -39,7 +39,8 @@ test('the prep screen lists the missions and marks the levels the first-person v
   ])
   await expect(page.locator('.prep-mission').nth(0).locator('.prep-mission-wip')).toHaveCount(0)
   await expect(page.locator('.prep-mission').nth(1).locator('.prep-mission-wip')).toContainText('待试玩校准')
-  await expect(page.locator('.prep-mission').nth(2).locator('.prep-mission-wip')).toContainText('第一人称版还没做')
+  await expect(page.locator('.prep-mission').nth(2).locator('.prep-mission-wip')).toHaveCount(0)
+  await expect(page.locator('.prep-mission').nth(3).locator('.prep-mission-wip')).toContainText('第一人称版还没做')
   await expect(page).toHaveScreenshot('prep.png')
   expect(errors).toEqual([])
 })
@@ -118,6 +119,74 @@ test('the pasture shows Lao Tang, anchors visible dialogue and reaches its resul
   await expect(page.locator('.dialogue-text')).toContainText('谷仓塌了一半')
   await page.evaluate(() => window.__game!.skipDialogue())
   await expect(page.locator('.results-screen .screen-button', { hasText: '下一关' })).toContainText('1-3')
+  expect(errors).toEqual([])
+})
+
+test('the farm opens from prep, shows the bell runner, lets Kai find the manifest and leads to the fog trail', async ({ page }) => {
+  const errors = await open(page)
+  const mission = page.locator('.prep-mission').filter({ has: page.locator('.prep-mission-title', { hasText: /^1-3 废弃农庄/ }) })
+  await mission.getByRole('button', { name: /出发/ }).click()
+  await expect(page.locator('.dialogue-text')).toContainText('农庄被改成粮仓了')
+  await page.evaluate(() => {
+    const game = window.__game!
+    game.skipDialogue()
+    game.freeze(true)
+    game.debug.invincible = true
+    const world = game.world
+    const guard = world.enemies.find((enemy) => enemy.area === 1 && enemy.kind === 'gunner' && enemy.idleMode === 'guard')!
+    const pos = { x: guard.pos.x, y: guard.pos.y + 1.5 }
+    Object.assign(world.player, { pos, prev: { ...pos }, z: guard.z, prevZ: guard.z })
+    game.look(Math.PI / 2, 0)
+    game.advance(0.15)
+  })
+  await expect(page.locator('.fps-runner')).toBeVisible()
+  await page.evaluate(() => {
+    const game = window.__game!
+    const { player, alarms } = game.world
+    game.look(Math.atan2(alarms[0].pos.y - player.pos.y, alarms[0].pos.x - player.pos.x), 0)
+  })
+  await expect(page.locator('.runner-tag:visible')).toContainText('跑去敲钟')
+  await page.evaluate(() => window.__game!.advance(15))
+  await expect(page.locator('.hud-remaining')).toHaveClass(/rung/)
+  await expect(page.locator('.fps-runner')).toBeHidden()
+
+  const collected = await page.evaluate(() => {
+    const game = window.__game!
+    game.restart()
+    game.skipDialogue()
+    const world = game.world
+    const enter = (x: number, y: number) => {
+      const z = world.grid.floor[Math.floor(y) * world.grid.columns + Math.floor(x)]
+      Object.assign(world.player, { pos: { x, y }, prev: { x, y }, z, prevZ: z })
+    }
+    enter(34.2, 58.6)
+    game.act({ moveX: 0, moveY: -1 }, 1.08)
+    game.act({ moveX: -1, moveY: 0 }, 0.25)
+    enter(21.8, 49.5)
+    game.act({ moveX: -1, moveY: 0 }, 0.74)
+    const cellar = world.level.landmarks.findIndex((item) => item.id === 'ch1-cellar')
+    return { bell: world.alarms[0].status, clues: world.cluesFound, cellar: world.landmarks[cellar].open, view: game.view }
+  })
+  expect(collected).toEqual({ bell: 'quiet', clues: ['manifest'], cellar: true, view: 'fps' })
+  await page.evaluate(() => {
+    const game = window.__game!
+    game.restart()
+    game.skipDialogue()
+    game.setAutopilot(true, 'perfect')
+    game.advance(480)
+    game.setAutopilot(false)
+  })
+  await expect(page.locator('.dialogue-text')).toContainText('铁盾队长倒下前')
+  await page.evaluate(() => window.__game!.skipDialogue())
+  const next = page.locator('.results-screen').getByRole('button', { name: /下一关/ })
+  await expect(next).toContainText('1-4')
+  expect(await page.evaluate(() => window.__game!.profile.weapons)).toContain('ricochet')
+  await next.click()
+  await page.waitForFunction(() => window.__game?.level === '1-4')
+  await page.reload()
+  await page.waitForFunction(() => window.__game?.screen === 'prep')
+  expect(await page.evaluate(() => window.__game!.profile.records['1-3']?.cleared)).toBe(true)
+  expect(await page.evaluate(() => window.__game!.profile.weapons)).toContain('ricochet')
   expect(errors).toEqual([])
 })
 
