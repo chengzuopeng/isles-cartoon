@@ -775,5 +775,191 @@
       }
       nativeRaf(tick)
     })
+
+  const isTopTag = (name) =>
+    name === 'chest' ||
+    name === 'campfire' ||
+    name === 'clue' ||
+    name === 'pickup' ||
+    name.startsWith('enemy:') ||
+    name.startsWith('sheep:') ||
+    name.startsWith('landmark:') ||
+    name.startsWith('building-') ||
+    name.startsWith('prop:') ||
+    name.startsWith('story-actor-') ||
+    name === 'framed-platforms' ||
+    name === 'keg' ||
+    name === 'crate' ||
+    name === 'crates' ||
+    name === 'gate' ||
+    name.startsWith('walls-') ||
+    name === 'ground' ||
+    name === 'water' ||
+    name === 'underside' ||
+    name === 'stalks' ||
+    name === 'tufts' ||
+    name === 'flower-stems' ||
+    name === 'flower-heads' ||
+    name === 'pebbles' ||
+    name === 'palisade-tips' ||
+    name === 'hedge-tops'
+
+  const drawSourceOf = (object, pass, material, geometry) => {
+    if (pass === 'overlay') return 'viewmodel'
+    if (pass === 'post') return 'post'
+    const chain = []
+    let cur = object
+    while (cur && !cur.isScene) {
+      if (cur.name) chain.push(cur.name)
+      cur = cur.parent
+    }
+    for (const name of chain) {
+      if (isTopTag(name)) return name
+    }
+    if (chain.includes('far')) return 'sky:far'
+    if (chain.includes('sky')) return chain[0] && chain[0] !== 'sky' ? `sky:${chain[0]}` : 'sky'
+    const local = chain.filter((name) => name !== 'level' && name !== 'Scene' && name !== 'root')
+    if (local.length > 0) return local[local.length - 1]
+    if (object?.isSprite) return 'sprite'
+    if (geometry?.attributes?.rigidJoint) return 'enemy:rigid'
+    const sourceMaterial = Array.isArray(object?.material) ? object.material[0] : (object?.material ?? material)
+    const matName = sourceMaterial?.name
+    if (matName) return `mat:${matName}`
+    const geoType = geometry?.type ?? 'Geometry'
+    const matType = sourceMaterial?.type ?? 'Material'
+    return `other:${geoType}:${matType}`
+  }
+
+  P.snapshotDrawCalls = () =>
+    new Promise((resolve, reject) => {
+      const renderer = P.renderer
+      if (!renderer) {
+        reject(new Error('renderer is not attached to __perf'))
+        return
+      }
+      const worldScene = window.__game?.scene ?? null
+      const passes = {
+        shadowMain: { calls: 0, triangles: 0 },
+        main: { calls: 0, triangles: 0 },
+        shadowNormal: { calls: 0, triangles: 0 },
+        normal: { calls: 0, triangles: 0 },
+        overlay: { calls: 0, triangles: 0 },
+        post: { calls: 0, triangles: 0 },
+      }
+      const sources = new Map()
+      let worldRenderCount = 0
+      let shadowDepth = 0
+      let activePass = 'post'
+      let capturing = false
+      let done = false
+      let attempts = 0
+
+      const origRender = renderer.render
+      const origShadowRender = renderer.shadowMap.render
+      const origDirect = renderer.renderBufferDirect
+
+      const cleanup = () => {
+        renderer.render = origRender
+        renderer.shadowMap.render = origShadowRender
+        renderer.renderBufferDirect = origDirect
+      }
+
+      const passBucketName = () => {
+        if (shadowDepth > 0) return worldRenderCount === 1 ? 'shadowMain' : worldRenderCount === 2 ? 'shadowNormal' : 'shadowMain'
+        return activePass
+      }
+
+      renderer.shadowMap.render = function (...args) {
+        if (!capturing) return origShadowRender.apply(this, args)
+        shadowDepth += 1
+        try {
+          return origShadowRender.apply(this, args)
+        } finally {
+          shadowDepth -= 1
+        }
+      }
+
+      renderer.render = function (scene, camera, ...rest) {
+        if (!capturing) return origRender.call(this, scene, camera, ...rest)
+        const prevPass = activePass
+        if (scene === worldScene) {
+          worldRenderCount += 1
+          activePass = worldRenderCount === 1 ? 'main' : worldRenderCount === 2 ? 'normal' : 'post'
+        } else if (scene?.isScene) {
+          activePass = 'overlay'
+        } else {
+          activePass = 'post'
+        }
+        try {
+          return origRender.call(this, scene, camera, ...rest)
+        } finally {
+          activePass = prevPass
+        }
+      }
+
+      renderer.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
+        if (!capturing) return origDirect.call(this, camera, scene, geometry, material, object, group)
+        const callsBefore = this.info.render.calls
+        const trisBefore = this.info.render.triangles
+        try {
+          return origDirect.call(this, camera, scene, geometry, material, object, group)
+        } finally {
+          const callsDelta = this.info.render.calls - callsBefore
+          const trisDelta = this.info.render.triangles - trisBefore
+          if (callsDelta > 0) {
+            const bucketPass = passBucketName()
+            const passStat = passes[bucketPass]
+            passStat.calls += callsDelta
+            passStat.triangles += trisDelta
+            const key = drawSourceOf(object, bucketPass, material, geometry)
+            let entry = sources.get(key)
+            if (!entry) {
+              entry = { name: key, calls: 0, main: 0, normal: 0, shadow: 0, overlay: 0, post: 0, triangles: 0, uuids: new Set() }
+              sources.set(key, entry)
+            }
+            entry.calls += callsDelta
+            entry.triangles += trisDelta
+            if (object?.uuid) entry.uuids.add(object.uuid)
+            if (bucketPass === 'shadowMain' || bucketPass === 'shadowNormal') entry.shadow += callsDelta
+            else entry[bucketPass] += callsDelta
+          }
+        }
+      }
+
+      const tryFrame = () => {
+        if (done) return
+        attempts += 1
+        worldRenderCount = 0
+        shadowDepth = 0
+        capturing = true
+        nativeRaf(() => {
+          setTimeout(() => {
+            if (done) return
+            capturing = false
+            if (worldRenderCount === 0 && attempts < 10) {
+              tryFrame()
+              return
+            }
+            done = true
+            cleanup()
+            if (worldRenderCount === 0) {
+              reject(new Error('no world render captured during snapshotDrawCalls'))
+              return
+            }
+            const bySource = [...sources.values()]
+              .map(({ uuids, ...rest }) => ({ ...rest, meshes: uuids.size }))
+              .sort((a, b) => b.calls - a.calls || b.triangles - a.triangles)
+            const totalCalls = Object.values(passes).reduce((sum, p) => sum + p.calls, 0)
+            const totalTriangles = Object.values(passes).reduce((sum, p) => sum + p.triangles, 0)
+            resolve({
+              total: { calls: totalCalls, triangles: totalTriangles },
+              passes,
+              bySource,
+            })
+          }, 0)
+        })
+      }
+      tryFrame()
+    })
   if (config.recordFrames) P.startRecording({ capacity: 50000 })
 })()

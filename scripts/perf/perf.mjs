@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { drawcalls } from './commands/drawcalls.mjs'
 import { enter } from './commands/enter.mjs'
 import { leak } from './commands/leak.mjs'
 import { spots } from './commands/spots.mjs'
@@ -9,7 +10,7 @@ import { stutter } from './commands/stutter.mjs'
 import { writeResult } from './lib/report.mjs'
 import { ensureServer, launchBrowser, openPage } from './lib/session.mjs'
 
-const COMMANDS = { startup, spots, enter, leak, stutter }
+const COMMANDS = { startup, spots, drawcalls, enter, leak, stutter }
 const ALL = ['startup', 'spots', 'enter', 'leak', 'stutter']
 const LEVELS = ['1-1']
 const LISTS = new Set(['levels', 'spots'])
@@ -20,6 +21,7 @@ const HELP = `用法：pnpm perf <命令…> [选项]
 命令（可以写多个，按顺序跑；all = ${ALL.join(' ')}）：
   startup    启动：整备界面出现、可以操作、当前关准备好、长任务、下载和转码、整备界面期间的帧、启动后内存、一出整备界面就点出发要等多久
   spots      重点位置（scripts/perf/spots.json）：draw call、三角形、帧时间、主线程
+  drawcalls  重点位置单帧 draw call 拆分：按遍（shadow/main/normal/overlay/post）与对象来源统计
   enter      进关：从整备界面 startLevel 到进关的时间、期间的下载、链接和上传、进关后第一帧
   leak       泄漏：循环进关、同关重开，每次自动驾驶打几秒，强制 GC 后记资源数和内存
   stutter    卡顿：自动驾驶（完美、无敌）从进关打到通关、同页重开再打一遍，逐帧记长帧、着色器链接、贴图上传
