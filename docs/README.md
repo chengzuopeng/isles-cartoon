@@ -34,6 +34,7 @@
   - [关卡 1-2 牧场（第一人称版）](design/levels/1-2.md)（实景与剧情已接通，待试玩校准）
   - [1-2 掩体、房屋与跳台](design/levels/1-2-cover-and-jumps.md)（布局、概念图和实装验证）
   - [1-2 地图重做：为什么改，改成了什么样](design/levels/1-2-layout.md)（2026-11-11 落地）
+  - [关卡 1-3 废弃农庄](design/levels/1-3.md)（警铃、锁门战、铁盾队长、地图和实测）
   - [设定摘要](design/setting.md)
 - 技术
   - [本地开发与验证](tech/local-development.md)

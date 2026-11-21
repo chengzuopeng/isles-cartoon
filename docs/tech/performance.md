@@ -34,7 +34,8 @@ pnpm perf --help               # 全部命令和选项
 - 帧时间和主线程受机器负载影响很大，要比改前改后就在同样的负载下先后跑两边；draw call、三角形、链接和上传次数、资源数和内存跟负载无关，可以直接比
 - 进程内存用 macOS 的 `footprint`（渲染进程取 CPU 时间最多的那个页面进程），其他平台这一项空着
 - 一次只跑一个 `pnpm perf`（默认用 5291 端口，`--port` 可以改）；端口和 `pnpm e2e`（5290）、`pnpm shots`（5292）错开，能同时起，但同时跑会抢 CPU，帧时间就不准了
-- 主仓库另有 `drawcalls`（draw call 按来源拆）、`next`（从结算界面进下一关）、`quality`（画质档位）、`scan`（每个区域量一遍）、`spikes`（长帧对到 CPU profile），还没搬。`spots` 的 GPU 计时也没搬：墨线管线自己用 timer query 量每一遍（`__game.styleInfo()`），同一时刻只能有一个 timer query 在量
+- `pnpm perf drawcalls --levels 1-3` 按渲染遍和场景对象统计各机位的 draw call，可和 `spots` 在同次运行中采集。 [农庄五机位实测](../design/levels/1-3.md#实机与性能)
+- 主仓库另有 `next`、`quality`、`scan` 和 `spikes`。`spots` 的 GPU 分遍计时交给墨线管线的 timer query，可通过 `__game.styleInfo()` 读取。
 
 内置浏览器面板隐藏时 requestAnimationFrame 几乎不跑，在那里读 `renderInfo()` 不准，性能数字一律用这个脚本量。
 

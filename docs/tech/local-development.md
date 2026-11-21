@@ -10,7 +10,7 @@
 |---|---|
 | `pnpm dev` | 5280 端口。进整备界面，选关后点击画面锁定鼠标，Esc 解锁并暂停。俯视版主仓库使用 5180 |
 | `pnpm typecheck`、`pnpm test`、`pnpm build` | 类型检查、Vitest、类型检查加生产构建 |
-| `pnpm e2e` | 5290 端口。Playwright 使用无界面 Chrome 检查整备界面、改键、1-1 战斗和切关资源管理。预期中的整备界面变化用 `pnpm e2e:update` 更新截图基线 |
+| `pnpm e2e` | 5290 端口。Playwright 使用无界面 Chrome 检查整备、改键、1-1 战斗、1-2 剧情、1-3 的警报和探索、首通奖励存档、结算进入 1-4，以及切关时的模型卸载。预期中的整备界面变化用 `pnpm e2e:update` 更新截图基线 |
 | `pnpm perf <命令>` | 5291 端口。测固定机位、启动、进关、重复加载和游玩卡顿，见[性能测法](performance.md#测法) |
 | `pnpm shots` | 5292 端口。按 [spots.json](../../scripts/shots/spots.json) 冻结并截图。用 `--spots` 选机位，`--out` 写检查产物，`--compare` 与前一组截图比较 |
 | `pnpm map <命令> <关卡>` | 校验、画图和用自动驾驶测关卡。它在 Node 中加载关卡数据，`draw` 和 `compare` 另用无界面 Chrome 出 PNG。见[地图工具](map-tools.md) |
