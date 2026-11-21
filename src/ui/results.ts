@@ -92,7 +92,8 @@ export function createResults(container: HTMLElement, options: ResultsOptions): 
     if (open) advance(Math.max(0, FILL_DELAY + FILL_SECONDS - elapsed))
   }
 
-  root.addEventListener('pointerdown', skip)
+  // Revealing the allocation panel moves the buttons. Let the intended button receive its click first.
+  root.addEventListener('click', skip)
 
   const showAllocation = (profile: Profile) => {
     const visible = profile.points > 0 && elapsed >= FILL_DELAY + FILL_SECONDS
